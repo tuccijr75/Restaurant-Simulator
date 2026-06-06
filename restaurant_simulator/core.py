@@ -1,5 +1,6 @@
-import base64
+import json,hashlib
+from datetime import datetime,timezone
 from pathlib import Path
-_parts = Path(__file__).with_name('_core_parts')
-_code = ''.join((_parts / f'p{i:02d}.txt').read_text(encoding='utf-8').strip() for i in range(18))
-exec(compile(base64.b64decode(_code).decode('utf-8'), 'restaurant_simulator/core_embedded.py', 'exec'))
+SCHEMA_VERSION='1.0.0';GENERATOR_VERSION='simgen-0.1.0';SOURCE='restaurant_daily_flow_simulator'
+SCENARIOS='normal_day slow_day rush_day weather_disruption staffing_call_off equipment_failure local_event_surge school_event_surge holiday_pattern multi_rush_condition'.split()
+EVENT_TYPES=set('shift.started order.created item.sold ticket.updated staff.assignment
