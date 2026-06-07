@@ -8,7 +8,7 @@ Control the build order for Restaurant Simulator.
 
 - Repair or remove broken Python prototype files.
 - Keep docs as source of truth.
-- Do not start Godot work until repo imports/builds cleanly or legacy files are isolated.
+- Do not start Godot work until repo builds cleanly or legacy files are isolated.
 
 ## Phase 1: Godot shell
 
@@ -16,7 +16,7 @@ Control the build order for Restaurant Simulator.
 - Add main menu.
 - Add scenario select.
 - Add simulation clock.
-- Add empty restaurant dashboard.
+- Add restaurant dashboard placeholder.
 
 ## Phase 2: Core simulation
 
@@ -31,4 +31,33 @@ Control the build order for Restaurant Simulator.
 
 - Inventory.
 - Prep.
-- Cook and
+- Cook times.
+- Hold times.
+- Waste.
+- Equipment.
+
+## Phase 4: People and safety
+
+- Staffing.
+- Labor percent.
+- Breaks.
+- Sanitation.
+- Temperature checks.
+- Health inspections.
+
+## Phase 5: Scoring
+
+- Customer satisfaction.
+- Pass/fail conditions.
+- End-of-shift report.
+
+## Phase 6: ASC test harness
+
+- Event stream.
+- State snapshot.
+- Recommendation intake.
+- Evaluation log.
+
+## Rule
+
+Build one playable, testable slice at a time. Do not add live integrations or real data without approval.
