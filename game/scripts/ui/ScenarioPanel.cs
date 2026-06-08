@@ -1,8 +1,7 @@
 using Godot;
 namespace RestaurantSimulator;
 public partial class ScenarioPanel:OptionButton{
- public override void _Ready(){
-  AddItem("Normal Day");AddItem("Rush Day");AddItem("Weather Disruption");AddItem("Staffing Call-Off");AddItem("Equipment Failure");
- }
- public string CurrentScenario=>GetItemText(Selected);
+ SimRunState? s;
+ public override void _Ready(){AddItem("normal_day");AddItem("rush_day");AddItem("weather_disruption");AddItem("staffing_call_off");AddItem("equipment_failure");ItemSelected+=i=>{if(s!=null)s.Scenario=GetItemText((int)i);};}
+ public void Bind(SimRunState state){s=state;s.Scenario=GetItemText(Selected);}
 }
