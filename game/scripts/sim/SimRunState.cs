@@ -1,19 +1,19 @@
 namespace RestaurantSimulator;
 public class SimRunState{
  public int Seed=12345; public string Scenario="normal_day",RecentEvents="",RecentJsonl="",AllJsonl="",WasteLedger=""; public bool Running,StationOverloaded;
- public double Minute=360,PrepAge; public int Orders,DriveThru,FrontCounter,Delivery,Mobile,EventSeq,WasteSeq,Raw=500,Prep=120,Waste; double acc,over,recover;
- public void Step(double d){if(!Running)return;var sm=d*10;Minute+=sm;if(Minute>=1440)Minute-=1440;if(Prep>0)PrepAge+=sm;acc+=Rate()*d;while(acc>=1){AddOrder();acc-=1;}if(PrepAge>=30)ExpirePrep();if(Prep<60)DoPrep();UpdateOverload(sm);}
+ public double Minute=360,PrepAge,LaborCost; public int Orders,DriveThru,FrontCounter,Delivery,Mobile,EventSeq,WasteSeq,Raw=500,Prep=120,Waste,Crew=6,Lead=1,ShiftMgr=1,AsstMgr=0,RestMgr=0; double acc,over,recover;
+ public void Step(double d){if(!Running)return;var sm=d*10;Minute+=sm;if(Minute>=1440)Minute-=1440;LaborCost+=LaborHourly*sm/60;if(Prep>0)PrepAge+=sm;acc+=Rate()*d;while(acc>=1){AddOrder();acc-=1;}if(PrepAge>=30)ExpirePrep();if(Prep<60)DoPrep();UpdateOverload(sm);}
  void AddOrder(){var ch=Channel();Orders++;if(ch=="drive_thru")DriveThru++;else if(ch=="front_counter")FrontCounter++;else if(ch=="delivery")Delivery++;else Mobile++;Prep-=2;if(Prep<0){RecordWaste("prep_shortage",1);Prep=0;}Emit("order.created",$"{{\"order_id\":\"ord_{Orders:000000}\",\"channel\":\"{ch}\",\"total_orders\":{Orders}}}");if(Orders%3==0)Emit("ticket.updated",$"{{\"ticket_id\":\"tkt_{Tickets:000000}\",\"status\":\"active\",\"active_tickets\":{Tickets}}}");}
- public void ManualPrep(){DoPrep();}
- public void ManualDiscard(){if(Prep<=0)return;var w=Prep;Prep=0;PrepAge=0;RecordWaste("manager_discard",w);}
+ public void ManualPrep(){DoPrep();} public void ManualDiscard(){if(Prep<=0)return;var w=Prep;Prep=0;PrepAge=0;RecordWaste("manager_discard",w);} public void AddCrew(){Crew++;} public void CutCrew(){if(Crew>1)Crew--;}
  void DoPrep(){var n=Raw>=80?80:Raw;if(n<=0)return;Raw-=n;Prep+=n;PrepAge=0;Emit("prep.confirmed",$"{{\"prep_units\":{n},\"raw_remaining\":{Raw},\"prep_available\":{Prep}}}");}
  void ExpirePrep(){var w=Prep/4;if(w<1)w=1;Prep-=w;PrepAge=0;RecordWaste("hold_time_expired",w);}
- void RecordWaste(string r,int u){Waste+=u;WasteSeq++;WasteLedger=$"{WasteSeq} {TimeText} {r} {u}u\n"+WasteLedger;if(WasteLedger.Length>500)WasteLedger=WasteLedger[..500];Emit("waste.recorded",$"{{\"reason\":\"{r}\",\"waste_units\":{u},\"total_waste\":{Waste},\"prep_available\":{Prep}}}");}
+ void RecordWaste(string r,int u){Waste+=u;WasteSeq++;WasteLedger=$"{WasteSeq} {TimeText} {r} {u}u ${u*0.75:0.00}\n"+WasteLedger;if(WasteLedger.Length>500)WasteLedger=WasteLedger[..500];Emit("waste.recorded",$"{{\"reason\":\"{r}\",\"waste_units\":{u},\"waste_cost\":{u*0.75:0.00},\"total_waste\":{Waste},\"prep_available\":{Prep}}}");}
  string Channel(){var x=(Seed+Orders*7+(int)Minute)%10;return x<4?"drive_thru":x<7?"front_counter":x<9?"delivery":"mobile";}
  void UpdateOverload(double m){var was=StationOverloaded;if(DelayRisk){over+=m;recover=0;if(over>=5)StationOverloaded=true;}else{over=0;if(StationOverloaded){recover+=m;if(recover>=4)StationOverloaded=false;}}if(!was&&StationOverloaded)Emit("station.overloaded",StationPayload());if(was&&!StationOverloaded)Emit("station.recovered",StationPayload());}
  string StationPayload()=>$"{{\"fryer_load\":{FryerLoad},\"grill_load\":{GrillLoad},\"assembly_load\":{AssemblyLoad},\"expo_load\":{ExpoLoad},\"kitchen_load\":{KitchenLoad}}}";
  void Emit(string t,string p){var e=new SimEvent(++EventSeq,TimeText,t,Scenario,Seed,Daypart,p);AllJsonl+=e.Jsonl+"\n";RecentEvents=e.Text+"\n"+RecentEvents;RecentJsonl=e.Jsonl+"\n"+RecentJsonl;if(RecentEvents.Length>500)RecentEvents=RecentEvents[..500];if(RecentJsonl.Length>1000)RecentJsonl=RecentJsonl[..1000];}
  double Rate()=>Scenario=="rush_day"?.9:Scenario=="weather_disruption"?.35:.5+(Seed%7)*.01;
+ public double Sales=>Orders*8.50; public double WasteCost=>Waste*0.75; public double FoodCostPercent=>Sales<=0?0:WasteCost/Sales*100; public double LaborHourly=>Crew*16+Lead*18+ShiftMgr*22+AsstMgr*28+RestMgr*35; public double LaborPercent=>Sales<=0?0:LaborCost/Sales*100;
  public int PrepQuality=>PrepAge>=30?0:100-(int)(PrepAge*3); public int Tickets=>Orders/3; public int FryerLoad=>Delivery*5+DriveThru*3; public int GrillLoad=>FrontCounter*4+DriveThru*2; public int AssemblyLoad=>Orders*3; public int ExpoLoad=>Tickets*7+(Scenario=="equipment_failure"?35:0);
  public int KitchenLoad=>FryerLoad+GrillLoad+AssemblyLoad+ExpoLoad; public bool DelayRisk=>FryerLoad>120||GrillLoad>120||AssemblyLoad>160||ExpoLoad>120;
  public string AlertText=>StationOverloaded?"ALERT: station overloaded":DelayRisk?"Warning: station delay risk":PrepQuality<50?"Warning: prep quality low":Prep<40?"Warning: prep low":"Alerts: none";
