@@ -1,5 +1,6 @@
 using Godot;
 namespace RestaurantSimulator;
 public partial class SosPanel:Label{
- public override void _Ready(){Text="SOS: DT FC Delivery pending";}
+ SimRunState? s; public void Bind(SimRunState st){s=st;}
+ public override void _Process(double d){Text=$"SOS: {s?.Sos??0}s estimate";}
 }
