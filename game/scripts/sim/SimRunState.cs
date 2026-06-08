@@ -6,8 +6,10 @@ public class SimRunState{
  void AddOrder(){var x=(Seed+Orders*7+(int)Minute)%10;if(x<4)DriveThru++;else if(x<7)FrontCounter++;else if(x<9)Delivery++;else Mobile++;Orders++;}
  double Rate()=>Scenario=="rush_day"?.9:Scenario=="weather_disruption"?.35:.5+(Seed%7)*.01;
  public int Tickets=>Orders/3;
- public int DtSos=>120+DriveThru*3;
- public int FcSos=>90+FrontCounter*2;
- public int DelSos=>180+Delivery*4;
+ public int KitchenLoad=>Tickets*12+(Scenario=="equipment_failure"?35:0);
+ public bool DelayRisk=>KitchenLoad>120;
+ public int DtSos=>120+DriveThru*3+(DelayRisk?30:0);
+ public int FcSos=>90+FrontCounter*2+(DelayRisk?20:0);
+ public int DelSos=>180+Delivery*4+(DelayRisk?45:0);
  public string TimeText=>$"{(int)(Minute/60):00}:{(int)(Minute%60):00}";
 }
