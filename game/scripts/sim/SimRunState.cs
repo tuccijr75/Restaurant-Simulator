@@ -1,11 +1,14 @@
 namespace RestaurantSimulator;
 public class SimRunState{
- public int Seed=12345; public string Scenario="normal_day",RecentEvents="",RecentJsonl="",AllJsonl=""; public bool Running,StationOverloaded;
- public double Minute=360,PrepAge; public int Orders,DriveThru,FrontCounter,Delivery,Mobile,EventSeq,Raw=500,Prep=120,Waste; double acc,over,recover;
+ public int Seed=12345; public string Scenario="normal_day",RecentEvents="",RecentJsonl="",AllJsonl="",WasteLedger=""; public bool Running,StationOverloaded;
+ public double Minute=360,PrepAge; public int Orders,DriveThru,FrontCounter,Delivery,Mobile,EventSeq,WasteSeq,Raw=500,Prep=120,Waste; double acc,over,recover;
  public void Step(double d){if(!Running)return;var sm=d*10;Minute+=sm;if(Minute>=1440)Minute-=1440;if(Prep>0)PrepAge+=sm;acc+=Rate()*d;while(acc>=1){AddOrder();acc-=1;}if(PrepAge>=30)ExpirePrep();if(Prep<60)DoPrep();UpdateOverload(sm);}
- void AddOrder(){var ch=Channel();Orders++;if(ch=="drive_thru")DriveThru++;else if(ch=="front_counter")FrontCounter++;else if(ch=="delivery")Delivery++;else Mobile++;Prep-=2;if(Prep<0){Waste++;Prep=0;Emit("waste.recorded",$"{{\"reason\":\"prep_shortage\",\"waste_units\":{Waste}}}");}Emit("order.created",$"{{\"order_id\":\"ord_{Orders:000000}\",\"channel\":\"{ch}\",\"total_orders\":{Orders}}}");if(Orders%3==0)Emit("ticket.updated",$"{{\"ticket_id\":\"tkt_{Tickets:000000}\",\"status\":\"active\",\"active_tickets\":{Tickets}}}");}
+ void AddOrder(){var ch=Channel();Orders++;if(ch=="drive_thru")DriveThru++;else if(ch=="front_counter")FrontCounter++;else if(ch=="delivery")Delivery++;else Mobile++;Prep-=2;if(Prep<0){RecordWaste("prep_shortage",1);Prep=0;}Emit("order.created",$"{{\"order_id\":\"ord_{Orders:000000}\",\"channel\":\"{ch}\",\"total_orders\":{Orders}}}");if(Orders%3==0)Emit("ticket.updated",$"{{\"ticket_id\":\"tkt_{Tickets:000000}\",\"status\":\"active\",\"active_tickets\":{Tickets}}}");}
+ public void ManualPrep(){DoPrep();}
+ public void ManualDiscard(){if(Prep<=0)return;var w=Prep;Prep=0;PrepAge=0;RecordWaste("manager_discard",w);}
  void DoPrep(){var n=Raw>=80?80:Raw;if(n<=0)return;Raw-=n;Prep+=n;PrepAge=0;Emit("prep.confirmed",$"{{\"prep_units\":{n},\"raw_remaining\":{Raw},\"prep_available\":{Prep}}}");}
- void ExpirePrep(){var w=Prep/4;if(w<1)w=1;Prep-=w;Waste+=w;PrepAge=0;Emit("waste.recorded",$"{{\"reason\":\"hold_time_expired\",\"waste_units\":{w},\"prep_available\":{Prep}}}");}
+ void ExpirePrep(){var w=Prep/4;if(w<1)w=1;Prep-=w;PrepAge=0;RecordWaste("hold_time_expired",w);}
+ void RecordWaste(string r,int u){Waste+=u;WasteSeq++;WasteLedger=$"{WasteSeq} {TimeText} {r} {u}u\n"+WasteLedger;if(WasteLedger.Length>500)WasteLedger=WasteLedger[..500];Emit("waste.recorded",$"{{\"reason\":\"{r}\",\"waste_units\":{u},\"total_waste\":{Waste},\"prep_available\":{Prep}}}");}
  string Channel(){var x=(Seed+Orders*7+(int)Minute)%10;return x<4?"drive_thru":x<7?"front_counter":x<9?"delivery":"mobile";}
  void UpdateOverload(double m){var was=StationOverloaded;if(DelayRisk){over+=m;recover=0;if(over>=5)StationOverloaded=true;}else{over=0;if(StationOverloaded){recover+=m;if(recover>=4)StationOverloaded=false;}}if(!was&&StationOverloaded)Emit("station.overloaded",StationPayload());if(was&&!StationOverloaded)Emit("station.recovered",StationPayload());}
  string StationPayload()=>$"{{\"fryer_load\":{FryerLoad},\"grill_load\":{GrillLoad},\"assembly_load\":{AssemblyLoad},\"expo_load\":{ExpoLoad},\"kitchen_load\":{KitchenLoad}}}";
