@@ -2,8 +2,10 @@ using Godot;
 namespace RestaurantSimulator;
 public partial class MainDashboard:Control{
  public override void _Ready(){
-  var box=new VBoxContainer();AddChild(box);box.SetAnchorsPreset(LayoutPreset.FullRect);
-  box.AddChild(new Label{Text="Restaurant Simulator"});
-  var clock=new ClockPanel();
-  var start=new Button{Text="Start/Pause"};start.Pressed+=clock.Toggle;
-  box.Add
+  var b=new VBoxContainer();AddChild(b);
+  b.AddChild(new Label{Text="Restaurant Simulator"});
+  var c=new ClockPanel();var s=new Button{Text="Start/Pause"};
+  s.Pressed+=c.Toggle;
+  b.AddChild(new ScenarioPanel());b.AddChild(s);b.AddChild(c);
+ }
+}
