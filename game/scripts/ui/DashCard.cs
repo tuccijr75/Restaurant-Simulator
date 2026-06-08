@@ -1,3 +1,4 @@
+#nullable enable
 using Godot;
 
 namespace RestaurantSimulator;
@@ -13,7 +14,8 @@ public partial class DashCard:PanelContainer{
   AddThemeStyleboxOverride("panel",DashTheme.Box(DashTheme.Panel,DashTheme.Border,12,1));
   var margin=new MarginContainer();DashTheme.Pad(margin,10);AddChild(margin);
   Body.AddThemeConstantOverride("separation",6);margin.AddChild(Body);
-  title.Text=string.IsNullOrEmpty(CardTitle)?Name.Replace("Panel",""):CardTitle;
+  var nodeName=Name.ToString();
+  title.Text=string.IsNullOrEmpty(CardTitle)?nodeName.Replace("Panel",""):CardTitle;
   DashTheme.StyleLabel(title,15,DashTheme.Text,true);Body.AddChild(title);
  }
 
