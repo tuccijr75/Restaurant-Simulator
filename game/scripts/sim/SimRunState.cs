@@ -1,25 +1,19 @@
 namespace RestaurantSimulator;
 public class SimRunState{
  public int Seed=12345; public string Scenario="normal_day",RecentEvents="",RecentJsonl="",AllJsonl=""; public bool Running,StationOverloaded;
- public double Minute=360; public int Orders,DriveThru,FrontCounter,Delivery,Mobile,EventSeq; double acc,over,recover;
- public void Step(double d){if(!Running)return;var sm=d*10;Minute+=sm;if(Minute>=1440)Minute-=1440;acc+=Rate()*d;while(acc>=1){AddOrder();acc-=1;}UpdateOverload(sm);}
- void AddOrder(){var ch=Channel();Orders++;if(ch=="drive_thru")DriveThru++;else if(ch=="front_counter")FrontCounter++;else if(ch=="delivery")Delivery++;else Mobile++;Emit("order.created",$"{{\"order_id\":\"ord_{Orders:000000}\",\"channel\":\"{ch}\",\"total_orders\":{Orders}}}");if(Orders%3==0)Emit("ticket.updated",$"{{\"ticket_id\":\"tkt_{Tickets:000000}\",\"status\":\"active\",\"active_tickets\":{Tickets}}}");}
+ public double Minute=360; public int Orders,DriveThru,FrontCounter,Delivery,Mobile,EventSeq,Raw=500,Prep=120,Waste; double acc,over,recover;
+ public void Step(double d){if(!Running)return;var sm=d*10;Minute+=sm;if(Minute>=1440)Minute-=1440;acc+=Rate()*d;while(acc>=1){AddOrder();acc-=1;}if(Prep<60)DoPrep();UpdateOverload(sm);}
+ void AddOrder(){var ch=Channel();Orders++;if(ch=="drive_thru")DriveThru++;else if(ch=="front_counter")FrontCounter++;else if(ch=="delivery")Delivery++;else Mobile++;Prep-=2;if(Prep<0){Waste++;Prep=0;Emit("waste.recorded",$"{{\"reason\":\"prep_shortage\",\"waste_units\":{Waste}}}");}Emit("order.created",$"{{\"order_id\":\"ord_{Orders:000000}\",\"channel\":\"{ch}\",\"total_orders\":{Orders}}}");if(Orders%3==0)Emit("ticket.updated",$"{{\"ticket_id\":\"tkt_{Tickets:000000}\",\"status\":\"active\",\"active_tickets\":{Tickets}}}");}
+ void DoPrep(){var n=Raw>=80?80:Raw;if(n<=0)return;Raw-=n;Prep+=n;Emit("prep.confirmed",$"{{\"prep_units\":{n},\"raw_remaining\":{Raw},\"prep_available\":{Prep}}}");}
  string Channel(){var x=(Seed+Orders*7+(int)Minute)%10;return x<4?"drive_thru":x<7?"front_counter":x<9?"delivery":"mobile";}
  void UpdateOverload(double m){var was=StationOverloaded;if(DelayRisk){over+=m;recover=0;if(over>=5)StationOverloaded=true;}else{over=0;if(StationOverloaded){recover+=m;if(recover>=4)StationOverloaded=false;}}if(!was&&StationOverloaded)Emit("station.overloaded",StationPayload());if(was&&!StationOverloaded)Emit("station.recovered",StationPayload());}
  string StationPayload()=>$"{{\"fryer_load\":{FryerLoad},\"grill_load\":{GrillLoad},\"assembly_load\":{AssemblyLoad},\"expo_load\":{ExpoLoad},\"kitchen_load\":{KitchenLoad}}}";
  void Emit(string t,string p){var e=new SimEvent(++EventSeq,TimeText,t,Scenario,Seed,Daypart,p);AllJsonl+=e.Jsonl+"\n";RecentEvents=e.Text+"\n"+RecentEvents;RecentJsonl=e.Jsonl+"\n"+RecentJsonl;if(RecentEvents.Length>500)RecentEvents=RecentEvents[..500];if(RecentJsonl.Length>1000)RecentJsonl=RecentJsonl[..1000];}
  double Rate()=>Scenario=="rush_day"?.9:Scenario=="weather_disruption"?.35:.5+(Seed%7)*.01;
- public int Tickets=>Orders/3;
- public int FryerLoad=>Delivery*5+DriveThru*3;
- public int GrillLoad=>FrontCounter*4+DriveThru*2;
- public int AssemblyLoad=>Orders*3;
- public int ExpoLoad=>Tickets*7+(Scenario=="equipment_failure"?35:0);
- public int KitchenLoad=>FryerLoad+GrillLoad+AssemblyLoad+ExpoLoad;
- public bool DelayRisk=>FryerLoad>120||GrillLoad>120||AssemblyLoad>160||ExpoLoad>120;
- public string AlertText=>StationOverloaded?"ALERT: station overloaded":DelayRisk?"Warning: station delay risk":"Alerts: none";
- public int DtSos=>120+DriveThru*3+(StationOverloaded?30:0);
- public int FcSos=>90+FrontCounter*2+(StationOverloaded?20:0);
- public int DelSos=>180+Delivery*4+(StationOverloaded?45:0);
+ public int Tickets=>Orders/3; public int FryerLoad=>Delivery*5+DriveThru*3; public int GrillLoad=>FrontCounter*4+DriveThru*2; public int AssemblyLoad=>Orders*3; public int ExpoLoad=>Tickets*7+(Scenario=="equipment_failure"?35:0);
+ public int KitchenLoad=>FryerLoad+GrillLoad+AssemblyLoad+ExpoLoad; public bool DelayRisk=>FryerLoad>120||GrillLoad>120||AssemblyLoad>160||ExpoLoad>120;
+ public string AlertText=>StationOverloaded?"ALERT: station overloaded":DelayRisk?"Warning: station delay risk":Prep<40?"Warning: prep low":"Alerts: none";
+ public int DtSos=>120+DriveThru*3+(StationOverloaded?30:0); public int FcSos=>90+FrontCounter*2+(StationOverloaded?20:0); public int DelSos=>180+Delivery*4+(StationOverloaded?45:0);
  public string Daypart=>Minute<600?"breakfast":Minute<690?"mid_morning":Minute<840?"lunch":Minute<990?"afternoon":Minute<1230?"dinner":"late_night";
  public string TimeText=>$"{(int)(Minute/60):00}:{(int)(Minute%60):00}";
 }
