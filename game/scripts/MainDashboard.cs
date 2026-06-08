@@ -5,24 +5,21 @@ namespace RestaurantSimulator;
 public partial class MainDashboard : Control
 {
     private Label _clock = new();
-    private bool _running;
-    private double _minutes = 360;
+    private bool _run;
+    private double _min = 360;
 
     public override void _Ready()
     {
-        foreach (Node child in GetChildren()) child.QueueFree();
-        SetAnchorsPreset(LayoutPreset.FullRect);
-
+        foreach (Node c in GetChildren()) c.QueueFree();
         var root = new VBoxContainer();
+        AddChild(root);
         root.SetAnchorsPreset(LayoutPreset.FullRect);
         root.OffsetLeft = 20; root.OffsetTop = 16;
         root.OffsetRight = -20; root.OffsetBottom = -16;
-        AddChild(root);
-
-        root.AddChild(new Label { Text = "Restaurant Simulator - Manager Dashboard" });
-
-        var bar = new HBoxContainer();
-        root.AddChild(bar);
-
-        var scenario = new OptionButton();
-        foreach (var name in new[] { "Normal Day", "Rush Day", "Weather Disruption", "Staffing Call-Off", "Health Inspection"
+        root.AddChild(new Label { Text = "Restaurant Simulator" });
+        var row = new HBoxContainer(); root.AddChild(row);
+        var scn = new OptionButton(); row.AddChild(scn);
+        scn.AddItem("Normal Day"); scn.AddItem("Rush Day"); scn.AddItem("Weather"); scn.AddItem("Call-Off");
+        var btn = new Button { Text = "Start/Pause" }; row.AddChild(btn);
+        btn.Pressed += () => _run = !_run;
+        _clock.Text = "06:00"; row.AddChild(_clock
