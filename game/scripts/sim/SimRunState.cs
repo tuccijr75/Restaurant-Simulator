@@ -3,9 +3,11 @@ public class SimRunState{
  public int Seed=12345; public string Scenario="normal_day",RecentEvents="",RecentJsonl=""; public bool Running,StationOverloaded;
  public double Minute=360; public int Orders,DriveThru,FrontCounter,Delivery,Mobile,EventSeq; double acc,over,recover;
  public void Step(double d){if(!Running)return;var sm=d*10;Minute+=sm;if(Minute>=1440)Minute-=1440;acc+=Rate()*d;while(acc>=1){AddOrder();acc-=1;}UpdateOverload(sm);}
- void AddOrder(){var x=(Seed+Orders*7+(int)Minute)%10;if(x<4)DriveThru++;else if(x<7)FrontCounter++;else if(x<9)Delivery++;else Mobile++;Orders++;Emit("order.created");if(Orders%3==0)Emit("ticket.updated");}
- void UpdateOverload(double m){var was=StationOverloaded;if(DelayRisk){over+=m;recover=0;if(over>=5)StationOverloaded=true;}else{over=0;if(StationOverloaded){recover+=m;if(recover>=4)StationOverloaded=false;}}if(!was&&StationOverloaded)Emit("station.overloaded");if(was&&!StationOverloaded)Emit("station.recovered");}
- void Emit(string t){var e=new SimEvent(++EventSeq,TimeText,t,Scenario,Seed,Daypart);RecentEvents=e.Text+"\n"+RecentEvents;RecentJsonl=e.Jsonl+"\n"+RecentJsonl;if(RecentEvents.Length>500)RecentEvents=RecentEvents[..500];if(RecentJsonl.Length>1000)RecentJsonl=RecentJsonl[..1000];}
+ void AddOrder(){var ch=Channel();Orders++;if(ch=="drive_thru")DriveThru++;else if(ch=="front_counter")FrontCounter++;else if(ch=="delivery")Delivery++;else Mobile++;Emit("order.created",$"{{\"order_id\":\"ord_{Orders:000000}\",\"channel\":\"{ch}\",\"total_orders\":{Orders}}}");if(Orders%3==0)Emit("ticket.updated",$"{{\"ticket_id\":\"tkt_{Tickets:000000}\",\"status\":\"active\",\"active_tickets\":{Tickets}}}");}
+ string Channel(){var x=(Seed+Orders*7+(int)Minute)%10;return x<4?"drive_thru":x<7?"front_counter":x<9?"delivery":"mobile";}
+ void UpdateOverload(double m){var was=StationOverloaded;if(DelayRisk){over+=m;recover=0;if(over>=5)StationOverloaded=true;}else{over=0;if(StationOverloaded){recover+=m;if(recover>=4)StationOverloaded=false;}}if(!was&&StationOverloaded)Emit("station.overloaded",StationPayload());if(was&&!StationOverloaded)Emit("station.recovered",StationPayload());}
+ string StationPayload()=>$"{{\"fryer_load\":{FryerLoad},\"grill_load\":{GrillLoad},\"assembly_load\":{AssemblyLoad},\"expo_load\":{ExpoLoad},\"kitchen_load\":{KitchenLoad}}}";
+ void Emit(string t,string p){var e=new SimEvent(++EventSeq,TimeText,t,Scenario,Seed,Daypart,p);RecentEvents=e.Text+"\n"+RecentEvents;RecentJsonl=e.Jsonl+"\n"+RecentJsonl;if(RecentEvents.Length>500)RecentEvents=RecentEvents[..500];if(RecentJsonl.Length>1000)RecentJsonl=RecentJsonl[..1000];}
  double Rate()=>Scenario=="rush_day"?.9:Scenario=="weather_disruption"?.35:.5+(Seed%7)*.01;
  public int Tickets=>Orders/3;
  public int FryerLoad=>Delivery*5+DriveThru*3;
