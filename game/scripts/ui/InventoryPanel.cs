@@ -1,5 +1,6 @@
 using Godot;
 namespace RestaurantSimulator;
 public partial class InventoryPanel:Label{
- public override void _Ready(){Text="Inventory: counts pending";}
+ SimRunState? s; public void Bind(SimRunState st){s=st;}
+ public override void _Process(double d){if(s==null)return;Text=$"Inventory: raw {s.Raw} prep {s.Prep} waste {s.Waste}";}
 }
