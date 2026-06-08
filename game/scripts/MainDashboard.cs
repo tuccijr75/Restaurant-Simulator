@@ -5,10 +5,10 @@ public partial class MainDashboard:Control{
   var st=new SimRunState();var b=new VBoxContainer();AddChild(b);
   var sc=new ScenarioPanel();sc.Bind(st);var c=new ClockPanel();c.Bind(st);
   var p=new PosPanel();p.Bind(st);var k=new KdsPanel();k.Bind(st);
-  var sp=new StationPanel();sp.Bind(st);var so=new SosPanel();so.Bind(st);
+  var sp=new StationPanel();sp.Bind(st);var so=new SosPanel();so.Bind(st);var a=new AlertPanel();a.Bind(st);
   var btn=new Button{Text="Start/Pause"};btn.Pressed+=()=>st.Running=!st.Running;
   b.AddChild(new Label{Text="Restaurant Simulator"});b.AddChild(sc);b.AddChild(btn);b.AddChild(c);
   b.AddChild(p);b.AddChild(k);b.AddChild(sp);b.AddChild(new LaborPanel());
-  b.AddChild(new InventoryPanel());b.AddChild(so);b.AddChild(new AlertPanel());
+  b.AddChild(new InventoryPanel());b.AddChild(so);b.AddChild(a);
  }
 }
