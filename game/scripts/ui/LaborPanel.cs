@@ -8,9 +8,10 @@ public partial class LaborPanel:VBoxContainer{
   Add("+ Lead",()=>{if(s!=null)s.Lead++;});Add("- Lead",()=>{if(s!=null&&s.Lead>0)s.Lead--;});
   Add("+ Shift Mgr",()=>{if(s!=null)s.ShiftMgr++;});Add("- Shift Mgr",()=>{if(s!=null&&s.ShiftMgr>1)s.ShiftMgr--;});
   Add("+ Asst Mgr",()=>{if(s!=null)s.AsstMgr++;});Add("- Asst Mgr",()=>{if(s!=null&&s.AsstMgr>0)s.AsstMgr--;});
-  Add("+ Rest Mgr",()=>{if(s!=null)s.RestMgr++;});Add("- Rest Mgr",()=>{if(s!=null&&s.RestMgr>0)s.RestMgr--;});AddChild(l);
+  Add("+ Rest Mgr",()=>{if(s!=null)s.RestMgr++;});Add("- Rest Mgr",()=>{if(s!=null&&s.RestMgr>0)s.RestMgr--;});
+  Add("Start Break",()=>s?.StartBreak());Add("End Break",()=>s?.EndBreak());Add("Call-Off",()=>s?.CallOff());AddChild(l);
  }
  void Add(string t,Action a){var b=new Button{Text=t};b.Pressed+=a;AddChild(b);}
  public void Bind(SimRunState st){s=st;}
- public override void _Process(double d){if(s==null)return;l.Text=$"Labor: crew {s.Crew} lead {s.Lead} shift {s.ShiftMgr} asst {s.AsstMgr} rm {s.RestMgr} cost ${s.LaborCost:0.00} labor {s.LaborPercent:0.0}%";}
+ public override void _Process(double d){if(s==null)return;l.Text=$"Labor: crew {s.Crew} eff {s.EffectiveCrew} break {s.CrewOnBreak} due {s.BreakDue} calloffs {s.CallOffs} cost ${s.LaborCost:0.00} labor {s.LaborPercent:0.0}%";}
 }
