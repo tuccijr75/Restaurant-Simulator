@@ -6,10 +6,11 @@ public partial class MainDashboard:Control{
   var sc=new ScenarioPanel();sc.Bind(st);var c=new ClockPanel();c.Bind(st);
   var p=new PosPanel();p.Bind(st);var k=new KdsPanel();k.Bind(st);
   var sp=new StationPanel();sp.Bind(st);var so=new SosPanel();so.Bind(st);var inv=new InventoryPanel();inv.Bind(st);var ic=new InventoryControlPanel();ic.Bind(st);var lab=new LaborPanel();lab.Bind(st);
+  var sl=new StaffingLedgerPanel();sl.Bind(st);var san=new SanitationPanel();san.Bind(st);var temp=new TemperaturePanel();temp.Bind(st);
   var a=new AlertPanel();a.Bind(st);var e=new EventPanel();e.Bind(st);var j=new JsonlPanel();j.Bind(st);var x=new ExportPanel();x.Bind(st);
   var btn=new Button{Text="Start/Pause"};btn.Pressed+=()=>st.Running=!st.Running;
   b.AddChild(new Label{Text="Restaurant Simulator"});b.AddChild(sc);b.AddChild(btn);b.AddChild(c);
-  b.AddChild(p);b.AddChild(k);b.AddChild(sp);b.AddChild(lab);
-  b.AddChild(inv);b.AddChild(ic);b.AddChild(so);b.AddChild(a);b.AddChild(e);b.AddChild(j);b.AddChild(x);
+  b.AddChild(p);b.AddChild(k);b.AddChild(sp);b.AddChild(lab);b.AddChild(sl);
+  b.AddChild(inv);b.AddChild(ic);b.AddChild(san);b.AddChild(temp);b.AddChild(so);b.AddChild(a);b.AddChild(e);b.AddChild(j);b.AddChild(x);
  }
 }
