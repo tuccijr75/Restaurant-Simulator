@@ -1,8 +1,35 @@
+# Python
 __pycache__/
 *.py[cod]
 .pytest_cache/
 .mypy_cache/
 .ruff_cache/
 .venv/
+venv/
 .env
+
+# Simulator outputs
 outputs/
+*.jsonl.tmp
+
+# Godot generated/editor-local files
+.godot/
+.import/
+export_presets.cfg
+*.translation
+
+# Godot / .NET build outputs
+game/.godot/
+game/bin/
+game/obj/
+game/.mono/
+restaurant-simulator-(4.3)/.godot/
+restaurant-simulator-(4.3)/bin/
+restaurant-simulator-(4.3)/obj/
+restaurant-simulator-(4.3)/.mono/
+
+# OS/editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
