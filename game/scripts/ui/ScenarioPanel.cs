@@ -4,11 +4,12 @@ using Godot;
 namespace RestaurantSimulator;
 
 public partial class ScenarioPanel:DashCard{
+ static readonly string[] Scenarios={"normal_day","slow_day","rush_day","weather_disruption","staffing_call_off","equipment_failure","local_event_surge","school_event_surge","holiday_pattern","multi_rush_condition"};
  SimRunState? s; OptionButton pick=new(); Label status=new();
  public ScenarioPanel(){CardTitle="Scenario";}
  public override void _Ready(){
   base._Ready();
-  pick.AddItem("normal_day");pick.AddItem("rush_day");pick.AddItem("weather_disruption");pick.AddItem("staffing_call_off");pick.AddItem("equipment_failure");
+  foreach(var scenario in Scenarios)pick.AddItem(scenario);
   pick.ItemSelected+=i=>{if(s!=null)s.Scenario=pick.GetItemText((int)i);};
   Body.AddChild(pick);
   status=StatusLabel();
