@@ -1,0 +1,19 @@
+{
+  "schema_version": "1.0.0",
+  "data_classification": "INTERNAL_SIM",
+  "synthetic_data": true,
+  "export_policy": {
+    "asc_export_allowed": false,
+    "aggregate_station_capacity_export_allowed": true
+  },
+  "profiles": [
+    {"profile_id":"steady_operator","pace_multiplier":1.0,"consistency":0.95,"focus_stability":0.95,"attendance_reliability":0.96,"rush_tolerance":0.95,"task_switching_speed":0.90},
+    {"profile_id":"fast_but_inconsistent","pace_multiplier":1.18,"consistency":0.72,"focus_stability":0.78,"attendance_reliability":0.90,"rush_tolerance":0.86,"task_switching_speed":1.05},
+    {"profile_id":"slow_but_reliable","pace_multiplier":0.78,"consistency":0.96,"focus_stability":0.94,"attendance_reliability":0.98,"rush_tolerance":0.88,"task_switching_speed":0.75},
+    {"profile_id":"trainee","pace_multiplier":0.68,"consistency":0.70,"focus_stability":0.78,"attendance_reliability":0.92,"rush_tolerance":0.62,"task_switching_speed":0.64},
+    {"profile_id":"cross_trained_floater","pace_multiplier":0.95,"consistency":0.88,"focus_stability":0.87,"attendance_reliability":0.94,"rush_tolerance":0.92,"task_switching_speed":1.15},
+    {"profile_id":"rush_sensitive","pace_multiplier":0.93,"consistency":0.74,"focus_stability":0.68,"attendance_reliability":0.90,"rush_tolerance":0.55,"task_switching_speed":0.82},
+    {"profile_id":"strong_fryer","pace_multiplier":1.02,"consistency":0.91,"focus_stability":0.88,"attendance_reliability":0.93,"rush_tolerance":0.91,"task_switching_speed":0.86,"station_aptitude_bonus":{"fryer":1.18}},
+    {"profile_id":"strong_drive_thru","pace_multiplier":1.0,"consistency":0.89,"focus_stability":0.92,"attendance_reliability":0.93,"rush_tolerance":0.96,"task_switching_speed":1.04,"station_aptitude_bonus":{"drive_thru":1.16,"front_counter":1.08}}
+  ]
+}
