@@ -9,10 +9,10 @@ public class SimRunState{
  }
 
  public int Seed=12345; public string Scenario="normal_day",RecentEvents="",RecentJsonl="",AllJsonl="",WasteLedger="",StaffingLedger=""; public bool Running,StationOverloaded;
- public double Minute=360,PrepAge,LaborCost,ShiftMinutes,BreakTimer,SanitizerAge,TempCheckAge,CoolerTemp=38,HotHoldTemp=145; public int Orders,DriveThru,FrontCounter,Delivery,Mobile,EventSeq,WasteSeq,StaffingSeq,Raw=500,Prep=120,Waste,Crew=6,Lead=1,ShiftMgr=1,AsstMgr=0,RestMgr=0,CrewOnBreak,BreaksTaken,CallOffs,SanitationTasks,CompletedTickets,FriesSold,DrinksSold,MainsSold; double acc,over,recover;
+ public double Minute=360,TimeScale=1.0,PrepAge,LaborCost,ShiftMinutes,BreakTimer,SanitizerAge,TempCheckAge,CoolerTemp=38,HotHoldTemp=145; public int Orders,DriveThru,FrontCounter,Delivery,Mobile,EventSeq,WasteSeq,StaffingSeq,Raw=500,Prep=120,Waste,Crew=6,Lead=1,ShiftMgr=1,AsstMgr=0,RestMgr=0,CrewOnBreak,BreaksTaken,CallOffs,SanitationTasks,CompletedTickets,FriesSold,DrinksSold,MainsSold; double acc,over,recover;
  readonly List<Ticket> activeTickets=new(); readonly int[] tickets30=new int[48]; readonly double[] sales30=new double[48];
 
- public void Step(double d){if(!Running)return;var sm=d*10;Minute+=sm;ShiftMinutes+=sm;if(Minute>=1440)Minute-=1440;LaborCost+=LaborHourly*sm/60;if(CrewOnBreak>0)BreakTimer+=sm;if(Prep>0)PrepAge+=sm;SanitizerAge+=sm;TempCheckAge+=sm;UpdateTemperatures();ProcessTickets(sm);acc+=RatePerSimMinute()*sm;while(acc>=1){AddOrder();acc-=1;}if(PrepAge>=30)ExpirePrep();if(Prep<80)DoPrep();UpdateOverload(sm);}
+ public void Step(double d){if(!Running)return;var sm=Math.Max(0,d)*TimeScale/60.0;Minute+=sm;ShiftMinutes+=sm;if(Minute>=1440)Minute-=1440;LaborCost+=LaborHourly*sm/60;if(CrewOnBreak>0)BreakTimer+=sm;if(Prep>0)PrepAge+=sm;SanitizerAge+=sm;TempCheckAge+=sm;UpdateTemperatures();ProcessTickets(sm);acc+=RatePerSimMinute()*sm;while(acc>=1){AddOrder();acc-=1;}if(PrepAge>=30)ExpirePrep();if(Prep<80)DoPrep();UpdateOverload(sm);}
 
  void AddOrder(){
   var ch=Channel();Orders++;if(ch=="drive_thru")DriveThru++;else if(ch=="front_counter")FrontCounter++;else if(ch=="delivery")Delivery++;else Mobile++;
