@@ -37,17 +37,17 @@ public partial class MainDashboard:Control{
 
   var sc=new ScenarioPanel();sc.Bind(st);var c=new ClockPanel();c.Bind(st);
   var a=new AlertPanel();a.Bind(st);var p=new PosPanel();p.Bind(st);var k=new KdsPanel();k.Bind(st);
-  var sp=new StationPanel();sp.Bind(st);var lab=new LaborPanel();lab.Bind(st);var sl=new StaffingLedgerPanel();sl.Bind(st);
+  var sp=new StationPanel();sp.Bind(st);var cov=new CoveragePanel();cov.Bind(st);var lab=new LaborPanel();lab.Bind(st);var sl=new StaffingLedgerPanel();sl.Bind(st);
   var inv=new InventoryPanel();inv.Bind(st);var ic=new InventoryControlPanel();ic.Bind(st);var san=new SanitationPanel();san.Bind(st);
   var temp=new TemperaturePanel();temp.Bind(st);var so=new SosPanel();so.Bind(st);var e=new EventPanel();e.Bind(st);
   var j=new JsonlPanel();j.Bind(st);var x=new ExportPanel();x.Bind(st);
 
   grid.AddChild(sc);grid.AddChild(c);grid.AddChild(a);
   grid.AddChild(p);grid.AddChild(k);grid.AddChild(sp);
-  grid.AddChild(lab);grid.AddChild(sl);grid.AddChild(inv);
-  grid.AddChild(ic);grid.AddChild(san);grid.AddChild(temp);
-  grid.AddChild(so);grid.AddChild(e);grid.AddChild(j);
-  grid.AddChild(x);
+  grid.AddChild(cov);grid.AddChild(lab);grid.AddChild(sl);
+  grid.AddChild(inv);grid.AddChild(ic);grid.AddChild(san);
+  grid.AddChild(temp);grid.AddChild(so);grid.AddChild(e);
+  grid.AddChild(j);grid.AddChild(x);
  }
 
  void AddBackground(){
