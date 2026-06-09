@@ -6,7 +6,7 @@ namespace RestaurantSimulator;
 
 public partial class LaborPanel:DashCard{
  SimRunState? s; Label status=new();
- public LaborPanel(){CardTitle="Labor";CustomMinimumSize=new Vector2(330,240);}
+ public LaborPanel(){CardTitle="Labor";CustomMinimumSize=new Vector2(330,260);}
  public override void _Ready(){
   base._Ready();
   AddRoleRow("Crew",()=>s?.CutCrew(),()=>s?.AddCrew());
@@ -21,5 +21,9 @@ public partial class LaborPanel:DashCard{
   var r=Row();var l=new Label{Text=name,CustomMinimumSize=new Vector2(58,28),VerticalAlignment=VerticalAlignment.Center};DashTheme.StyleLabel(l,12,DashTheme.Text);r.AddChild(l);AddRowButton(r,"-",minus);AddRowButton(r,"+",plus,true);
  }
  public void Bind(SimRunState st){s=st;}
- public override void _Process(double d){if(s==null)return;status.Text=$"Crew {s.Crew} | Eff {s.EffectiveCrew} | Break {s.CrewOnBreak}\nCall-offs {s.CallOffs} | Capacity {s.StaffCapacity}\nCost ${s.LaborCost:0.00} | Labor {s.LaborPercent:0.0}%";}
+ public override void _Process(double d){
+  if(s==null)return;
+  var sign=s.LaborHoursVarianceThis30>=0?"+":"";
+  status.Text=$"Crew {s.Crew} | Eff {s.EffectiveCrew} | Break {s.CrewOnBreak}\nCost ${s.LaborCost:0.00} | Run {s.ProjectedLaborPercentThis30:0.0}% / Allow {s.LaborTargetPercent*100:0.0}%\nHours run {s.ScheduledLaborHoursThis30:0.00} | Allow {s.AllowedLaborHoursThis30:0.00}\nOver/Under {sign}{s.LaborHoursVarianceThis30:0.00} hrs";
+ }
 }
