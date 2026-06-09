@@ -7,7 +7,7 @@ public class SimRunState{
  class Ticket{public int Id;public string Channel="drive_thru";public double Created,Grill,Fryer,Assembly,Beverage,Expo;public bool Done=>Grill<=0&&Fryer<=0&&Assembly<=0&&Beverage<=0&&Expo<=0;}
  readonly List<Ticket> activeTickets=new();readonly int[] tickets30=new int[48];readonly double[] sales30=new double[48];double acc,over,recover;
  public int Seed=12345,Orders,DriveThru,FrontCounter,Delivery,Mobile,EventSeq,WasteSeq,StaffingSeq,Raw=500,Prep=120,Waste,Crew=6,Lead=1,ShiftMgr=1,AsstMgr=0,RestMgr=0,CrewOnBreak,BreaksTaken,CallOffs,SanitationTasks,CompletedTickets,FriesSold,DrinksSold,MainsSold;
- public int KitchenCoverage=2,FryerCoverage=1,DriveCoverage=2,CounterCoverage=1,PrepCoverage=1;
+ public int KitchenCoverage=1,FryerCoverage=1,DriveCoverage=2,CounterCoverage=1,PrepCoverage=1;
  public double Minute=360,TimeScale=1.0,PrepAge,LaborCost,ShiftMinutes,BreakTimer,SanitizerAge,TempCheckAge,CoolerTemp=38,HotHoldTemp=145;
  public string Scenario="normal_day",RecentEvents="",RecentJsonl="",AllJsonl="",WasteLedger="",StaffingLedger="";public bool Running,StationOverloaded;
 
