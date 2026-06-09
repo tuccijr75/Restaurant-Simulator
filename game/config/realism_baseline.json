@@ -1,0 +1,166 @@
+{
+  "schema_version": "0.1.0",
+  "generator_version": "game-0.1.0",
+  "data_classification": "INTERNAL_SIM",
+  "synthetic_data": true,
+  "brand_specific": false,
+  "archetype_id": "normal_volume_burger_chicken_qsr_drive_thru",
+  "description": "Source-backed first realism baseline for a normal-volume burger/chicken QSR with drive-thru, fries, and fountain drinks.",
+  "sources": [
+    {
+      "source_id": "businessinsider_technomic_auv_2024",
+      "url": "https://www.businessinsider.com/how-chick-fil-a-makes-such-high-sales-drive-thru-2024-4",
+      "supports": ["annual_sales_per_unit", "drive_thru_share", "peak_cars_per_hour"]
+    },
+    {
+      "source_id": "washingtonpost_intouch_2024_drive_thru",
+      "url": "https://www.washingtonpost.com/business/2025/03/28/wait-time-drive-through-restaurants/",
+      "supports": ["drive_thru_total_time_seconds", "drive_thru_channel_share"]
+    },
+    {
+      "source_id": "foodandwine_qsr_intouch_2025_drive_thru",
+      "url": "https://www.foodandwine.com/fastest-drive-thru-in-america-qsr-report-2025-11838795",
+      "supports": ["drive_thru_total_time_seconds"]
+    },
+    {
+      "source_id": "fda_food_code_2022",
+      "url": "https://www.fda.gov/media/164194/download?attachment=",
+      "supports": ["cold_holding_f", "hot_holding_f", "cook_temperatures_f", "cooling_windows"]
+    },
+    {
+      "source_id": "nypost_talker_delivery_expectation_2024",
+      "url": "https://nypost.com/2024/10/31/lifestyle/how-long-should-food-delivery-take/",
+      "supports": ["delivery_customer_time_expectation_seconds"]
+    }
+  ],
+  "calibration_status": {
+    "sales_and_ticket_volume": "source_backed_derived",
+    "drive_thru_time": "source_backed",
+    "food_safety_temperatures": "source_backed",
+    "delivery_time": "source_backed_survey",
+    "fries_cook_time": "partially_source_backed_operator_calibration_required",
+    "fries_quality_hold_time": "operator_calibration_required",
+    "drink_service_time": "derived_from_channel_service_time_operator_calibration_required"
+  },
+  "sales_model": {
+    "annual_sales_usd_min": 3000000,
+    "annual_sales_usd_target": 3700000,
+    "annual_sales_usd_max": 4500000,
+    "daily_sales_usd_min": 8200,
+    "daily_sales_usd_target": 10100,
+    "daily_sales_usd_max": 12300,
+    "average_check_usd_min": 10.0,
+    "average_check_usd_target": 11.0,
+    "average_check_usd_max": 12.0,
+    "daily_ticket_count_min": 680,
+    "daily_ticket_count_target": 920,
+    "daily_ticket_count_max": 1230,
+    "operating_hours": 18,
+    "average_tickets_per_hour_min": 38,
+    "average_tickets_per_hour_target": 51,
+    "average_tickets_per_hour_max": 68,
+    "peak_tickets_per_hour_min": 80,
+    "peak_tickets_per_hour_target": 110,
+    "peak_tickets_per_hour_max": 140,
+    "peak_tickets_per_30_min_min": 40,
+    "peak_tickets_per_30_min_target": 55,
+    "peak_tickets_per_30_min_max": 70
+  },
+  "dayparts": [
+    {"daypart": "breakfast", "start": "06:00", "end": "10:00", "ticket_share": 0.18, "curve": "single_peak", "peak_time": "08:00"},
+    {"daypart": "mid_morning", "start": "10:00", "end": "11:30", "ticket_share": 0.07, "curve": "ramp_down", "peak_time": "10:15"},
+    {"daypart": "lunch", "start": "11:30", "end": "14:00", "ticket_share": 0.30, "curve": "single_peak", "peak_time": "12:30"},
+    {"daypart": "afternoon", "start": "14:00", "end": "16:30", "ticket_share": 0.10, "curve": "flat_low", "peak_time": "15:30"},
+    {"daypart": "dinner", "start": "16:30", "end": "20:30", "ticket_share": 0.30, "curve": "single_peak", "peak_time": "18:15"},
+    {"daypart": "late_night", "start": "20:30", "end": "00:00", "ticket_share": 0.05, "curve": "ramp_down", "peak_time": "21:00"}
+  ],
+  "channel_mix": {
+    "drive_thru": {"min": 0.55, "target": 0.60, "max": 0.65},
+    "front_counter": {"min": 0.12, "target": 0.16, "max": 0.20},
+    "mobile": {"min": 0.10, "target": 0.14, "max": 0.18},
+    "delivery": {"min": 0.05, "target": 0.10, "max": 0.12}
+  },
+  "service_time_seconds": {
+    "drive_thru_total": {"min": 258, "target": 335, "max": 480, "source_status": "source_backed"},
+    "front_counter_total": {"min": 180, "target": 300, "max": 480, "source_status": "derived_from_qsr_service_target_operator_calibration_required"},
+    "mobile_ready": {"min": 300, "target": 480, "max": 720, "source_status": "operator_calibration_required"},
+    "delivery_kitchen_ready": {"min": 420, "target": 720, "max": 900, "source_status": "derived_from_delivery_expectation"},
+    "delivery_total_customer": {"min": 1440, "target": 1740, "max": 2100, "source_status": "source_backed_survey"}
+  },
+  "ticket_lifecycle": {
+    "statuses": ["created", "queued", "in_progress", "ready", "handed_off", "completed"],
+    "completion_required_to_clear_board": true,
+    "station_load_basis": "active_work_remaining_not_cumulative_orders",
+    "overload_min_duration_minutes": 5,
+    "recovery_min_duration_minutes": 4
+  },
+  "menu_mix": {
+    "main_item_attachment_rate": {"min": 0.85, "target": 0.95, "max": 1.0, "source_status": "operator_calibration_required"},
+    "fries_attachment_rate": {"min": 0.45, "target": 0.65, "max": 0.80, "source_status": "operator_calibration_required_required_by_archetype"},
+    "drink_attachment_rate": {"min": 0.40, "target": 0.60, "max": 0.75, "source_status": "operator_calibration_required_required_by_archetype"},
+    "multi_item_combo_rate": {"min": 0.35, "target": 0.50, "max": 0.70, "source_status": "operator_calibration_required"}
+  },
+  "station_work_seconds_per_order_component": {
+    "burger_main": {
+      "grill": {"min": 60, "target": 120, "max": 240, "source_status": "operator_calibration_required"},
+      "assembly": {"min": 30, "target": 60, "max": 120, "source_status": "operator_calibration_required"},
+      "expo": {"min": 10, "target": 25, "max": 60, "source_status": "operator_calibration_required"}
+    },
+    "chicken_main": {
+      "fryer": {"min": 180, "target": 300, "max": 420, "source_status": "operator_calibration_required"},
+      "assembly": {"min": 30, "target": 60, "max": 120, "source_status": "operator_calibration_required"},
+      "expo": {"min": 10, "target": 25, "max": 60, "source_status": "operator_calibration_required"}
+    },
+    "fries": {
+      "fryer": {"min": 120, "target": 180, "max": 210, "source_status": "partially_source_backed_operator_calibration_required"},
+      "bagging_or_scoop": {"min": 8, "target": 15, "max": 30, "source_status": "operator_calibration_required"}
+    },
+    "drink": {
+      "beverage_expo": {"min": 10, "target": 25, "max": 45, "source_status": "derived_from_channel_service_time_operator_calibration_required"}
+    }
+  },
+  "station_capacity_work_seconds_per_sim_minute": {
+    "grill": {"base": 60, "per_effective_crew": 24, "source_status": "operator_calibration_required"},
+    "fryer": {"base": 75, "per_effective_crew": 28, "source_status": "operator_calibration_required"},
+    "assembly": {"base": 60, "per_effective_crew": 35, "source_status": "operator_calibration_required"},
+    "beverage_expo": {"base": 90, "per_effective_crew": 25, "source_status": "operator_calibration_required"},
+    "expo": {"base": 80, "per_effective_crew": 30, "source_status": "operator_calibration_required"}
+  },
+  "board_depth_targets": {
+    "normal_active_tickets_min": 4,
+    "normal_active_tickets_target": 8,
+    "normal_active_tickets_max": 12,
+    "rush_active_tickets_min": 12,
+    "rush_active_tickets_target": 20,
+    "rush_active_tickets_max": 30,
+    "severe_active_tickets_threshold": 31,
+    "source_status": "derived_from_service_time_and_ticket_volume_operator_calibration_required"
+  },
+  "food_safety": {
+    "cold_holding_max_f": 41,
+    "hot_holding_min_f": 135,
+    "ground_or_non_intact_meat_min_f": 155,
+    "poultry_min_f": 165,
+    "cooling_135_to_70_max_hours": 2,
+    "cooling_135_to_41_total_max_hours": 6,
+    "temperature_check_interval_minutes_target": 120,
+    "source_status": "fda_food_code_source_backed"
+  },
+  "quality_holding_minutes": {
+    "fries": {"target": null, "source_status": "operator_calibration_required"},
+    "burger_main": {"target": null, "source_status": "operator_calibration_required"},
+    "chicken_main": {"target": null, "source_status": "operator_calibration_required"},
+    "drink": {"target": null, "source_status": "non_tcs_quality_only_operator_calibration_required"}
+  },
+  "validation_requirements": {
+    "must_report_sales_per_30_min": true,
+    "must_report_sales_per_60_min": true,
+    "must_report_tickets_per_30_min": true,
+    "must_report_tickets_per_60_min": true,
+    "must_report_completed_tickets": true,
+    "must_report_active_board_peak": true,
+    "must_report_drive_thru_sos": true,
+    "must_report_food_safety_violations": true,
+    "must_flag_operator_calibration_required_values": true
+  }
+}
