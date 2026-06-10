@@ -252,11 +252,11 @@ public class SimRunState{
  double SumArray(double[] xs){double n=0;foreach(var x in xs)n+=x;return n;}
  double StaffScenarioMultiplier=>Scenario=="staffing_call_off"?.74:Scenario=="multi_rush_condition"?.78:Scenario=="holiday_pattern"?.92:1.0;
  double EquipmentMultiplier(string station)=>Scenario=="equipment_failure"&&station=="fryer"?.55:Scenario=="multi_rush_condition"&&station=="fryer"?.70:Scenario=="multi_rush_condition"&&station=="beverage"?.82:1.0;
- double GrillCapacity=>KitchenCoverage*90*StaffScenarioMultiplier*EquipmentMultiplier("grill");
- double FryerCapacity=>FryerCoverage*125*StaffScenarioMultiplier*EquipmentMultiplier("fryer");
- double AssemblyCapacity=>(KitchenCoverage*70+CounterCoverage*15)*StaffScenarioMultiplier*EquipmentMultiplier("assembly");
- double BeverageCapacity=>(CounterCoverage*50+DriveCoverage*55)*StaffScenarioMultiplier*EquipmentMultiplier("beverage");
- double ExpoCapacity=>(DriveCoverage*70+CounterCoverage*45+KitchenCoverage*15)*StaffScenarioMultiplier;
+ public double GrillCapacity=>KitchenCoverage*90*StaffScenarioMultiplier*EquipmentMultiplier("grill");
+ public double FryerCapacity=>FryerCoverage*125*StaffScenarioMultiplier*EquipmentMultiplier("fryer");
+ public double AssemblyCapacity=>(KitchenCoverage*70+CounterCoverage*15)*StaffScenarioMultiplier*EquipmentMultiplier("assembly");
+ public double BeverageCapacity=>(CounterCoverage*50+DriveCoverage*55)*StaffScenarioMultiplier*EquipmentMultiplier("beverage");
+ public double ExpoCapacity=>(DriveCoverage*70+CounterCoverage*45+KitchenCoverage*15)*StaffScenarioMultiplier;
 
  public double Sales=>SalesTotal;public double SalesBucketTotal=>SumArray(sales30);public double WasteCost=>Waste*0.75;public double FoodCostPercent=>Sales<=0?0:WasteCost/Sales*100;
  public double LaborHourly=>Crew*16+Lead*18+ShiftMgr*22+AsstMgr*28+RestMgr*35;public double LaborPercent=>Sales<=0?0:LaborCost/Sales*100;
