@@ -22,13 +22,17 @@ public class SimRunState{
  public int KitchenCoverage=1,FryerCoverage=1,DriveCoverage=2,CounterCoverage=1,PrepCoverage=1;
  public double Minute=360,TimeScale=1.0,PrepAge,LaborCost,ShiftMinutes,BreakTimer,SanitizerAge,TempCheckAge,CoolerTemp=38,HotHoldTemp=145;
  public string Scenario="normal_day",RecentEvents="",RecentJsonl="",AllJsonl="",WasteLedger="",StaffingLedger="";
- public bool Running,StationOverloaded;
+ public bool Running,StationOverloaded,ShiftStarted,ShiftEnded;
 
  public void Step(double d){
   if(!Running)return;
+  EnsureShiftStarted();
+  if(ShiftEnded)return;
   ClampCoverage();
   var sm=Math.Max(0,d)*TimeScale/60.0;
-  Minute=(Minute+sm)%1440;
+  var finalStep=false;
+  if(Minute+sm>=1439){sm=Math.Max(0,1439-Minute);finalStep=true;}
+  Minute+=sm;
   ShiftMinutes+=sm;
   LaborCost+=LaborHourly*sm/60;
   if(CrewOnBreak>0)BreakTimer+=sm;
@@ -42,6 +46,7 @@ public class SimRunState{
   if(PrepAge>=30)ExpirePrep();
   if(Prep<80&&PrepCoverage>0)DoPrep("auto_threshold");
   UpdateOverload(sm);
+  if(finalStep)EndShift();
  }
 
  void AddOrder(){
@@ -124,6 +129,7 @@ public class SimRunState{
  public void CallOff(){if(Crew<=0)return;Crew--;CallOffs++;if(CrewOnBreak>Crew)CrewOnBreak=Crew;ClampCoverage();RecordStaffing("cook","crew_shift_calloff","fryer",null,"call_off");}
 
  void RecordStaffing(string role,string worker,string? from,string? to,string reason){
+  EnsureShiftStarted();
   StaffingSeq++;
   var src=$"evt_{EventSeq+1:000000}";
   StaffingLedger=$"{StaffingSeq} {TimeText} {role} {worker} {from ?? "none"}->{to ?? "none"} eff {EffectiveCrew} cap {StaffCapacity} coverage {CoverageUsed}/{CoveragePool} reason {reason} src {src}\n"+StaffingLedger;
@@ -163,7 +169,20 @@ public class SimRunState{
   if(overloaded)return $"{{\"station_id\":\"assembly\",\"load_units\":{Num(KitchenLoad)},\"capacity_units\":{Num(StaffCapacity)},\"duration_minutes\":5,\"primary_cause\":\"{OverloadCause}\"}}";
   return $"{{\"station_id\":\"assembly\",\"load_units\":{Num(KitchenLoad)},\"capacity_units\":{Num(StaffCapacity)},\"recovery_duration_minutes\":4,\"recovery_reason\":\"queue_cleared\"}}";
  }
+ void EnsureShiftStarted(){
+  if(ShiftStarted)return;
+  ShiftStarted=true;
+  Emit("shift.started",$"{{\"shift_id\":\"shift_{Seed}\",\"manager_role_ref\":\"manager_on_duty\",\"opening_inventory_snapshot_id\":\"inv_open_{Seed}\",\"scheduled_role_count\":{TotalOnClock}}}");
+ }
+ void EndShift(){
+  if(ShiftEnded)return;
+  ShiftEnded=true;
+  Emit("shift.ended",$"{{\"shift_id\":\"shift_{Seed}\",\"closing_inventory_snapshot_id\":\"inv_close_{Seed}\",\"orders_total\":{Orders},\"waste_events_total\":{WasteSeq},\"overload_events_total\":{(StationOverloaded?1:0)}}}");
+  Running=false;
+ }
  void Emit(string t,string p){
+  if(!ShiftStarted&&t!="shift.started")EnsureShiftStarted();
+  if(ShiftEnded&&t!="shift.ended")return;
   var e=new SimEvent(++EventSeq,TimeText,t,Scenario,Seed,Daypart,p);
   AllJsonl+=e.Jsonl+"\n";
   RecentEvents=e.Text+"\n"+RecentEvents;
