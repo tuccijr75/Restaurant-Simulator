@@ -6,7 +6,7 @@ namespace RestaurantSimulator;
 
 public partial class LaborPanel:DashCard{
  SimRunState? s; Label status=new();
- public LaborPanel(){CardTitle="Labor";CustomMinimumSize=new Vector2(330,280);}
+ public LaborPanel(){CardTitle="Labor";CustomMinimumSize=new Vector2(330,300);}
  public override void _Ready(){
   base._Ready();
   AddRoleRow("Crew",()=>s?.CutCrew(),()=>s?.AddCrew());
@@ -23,7 +23,8 @@ public partial class LaborPanel:DashCard{
  public void Bind(SimRunState st){s=st;}
  public override void _Process(double d){
   if(s==null)return;
-  var sign=s.LaborHoursVarianceThis30>=0?"+":"";
-  status.Text=$"On clock {s.TotalOnClock} | Avail {s.CoveragePool} | Covered {s.CoverageUsed}\nCrew {s.Crew} | Eff {s.EffectiveCrew} | Break {s.CrewOnBreak}\nRun {s.ProjectedLaborPercentThis30:0.0}% / Allow {s.LaborTargetPercent*100:0.0}%\nHours run {s.ScheduledLaborHoursThis30:0.00} | Allow {s.AllowedLaborHoursThis30:0.00}\nOver/Under {sign}{s.LaborHoursVarianceThis30:0.00} hrs";
+  var hourSign=s.LaborHoursVarianceThis30>=0?"+":"";
+  var dollarSign=s.LaborDollarsVarianceThis30>=0?"+":"";
+  status.Text=$"On clock {s.TotalOnClock} | Eff {s.EffectiveCrew} | Break {s.CrewOnBreak}\nCoverage {s.CoverageUsed}/{s.CoveragePool} | Open {s.CoverageOpen}\nLabor actual {s.LaborPercent:0.0}% | Run-rate {s.ProjectedLaborPercentThis30:0.0}%\nAllowance {s.LaborTargetPercent*100:0.0}% | Sales30 ${s.ProjectedSalesThis30:0}\nAllowed ${s.AllowedLaborDollarsThis30:0.00} vs Cost ${s.ProjectedLaborCostThis30:0.00} = {dollarSign}${s.LaborDollarsVarianceThis30:0.00}\nAllowed {s.AllowedLaborHoursThis30:0.00}h vs Scheduled {s.ScheduledLaborHoursThis30:0.00}h = {hourSign}{s.LaborHoursVarianceThis30:0.00}h";
  }
 }
