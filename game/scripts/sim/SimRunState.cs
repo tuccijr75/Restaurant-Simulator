@@ -11,21 +11,34 @@ public class SimRunState{
   public double Created,Grill,Fryer,Assembly,Beverage,Expo;
   public bool Done=>Grill<=0&&Fryer<=0&&Assembly<=0&&Beverage<=0&&Expo<=0;
  }
+ class EquipmentUnit{
+  public string Id="",Station="",Family="";
+  public double BaseCapacity,Load,Assigned,Processed;
+  public int Tasks;
+ }
+ class ItemSpec{
+  public string Id="",Family="",Station="";
+  public double CookSeconds,HoldMinutes,AssemblySeconds,ExpoSeconds,Price;
+ }
 
  readonly List<Ticket> activeTickets=new();
+ readonly List<EquipmentUnit> equipment=new();
+ readonly Dictionary<string,ItemSpec> items=new();
  readonly int[] tickets30=new int[48];
  readonly double[] sales30=new double[48];
  readonly Dictionary<string,double> inventory=new(){["main_protein"]=520,["side_base"]=420,["drink_mix"]=300,["prep_pack"]=260};
  double acc,over,recover,nextTraceMinute=360,lastOverloadMinutes;
+ bool equipmentReady;
  string activeOverloadStation="assembly",lastValidationKey="";
 
- public int Seed=12345,Orders,DriveThru,FrontCounter,Delivery,Mobile,EventSeq,WasteSeq,StaffingSeq,TraceSeq,ValidationSeq,OverloadSeq,Raw=500,Prep=120,Waste,Crew=6,Lead=1,ShiftMgr=1,AsstMgr=0,RestMgr=0,CrewOnBreak,BreaksTaken,CallOffs,SanitationTasks,CompletedTickets,FriesSold,DrinksSold,MainsSold;
+ public int Seed=12345,Orders,DriveThru,FrontCounter,Delivery,Mobile,EventSeq,WasteSeq,StaffingSeq,TraceSeq,ValidationSeq,OverloadSeq,ItemSeq,Raw=500,Prep=120,Waste,Crew=6,Lead=1,ShiftMgr=1,AsstMgr=0,RestMgr=0,CrewOnBreak,BreaksTaken,CallOffs,SanitationTasks,CompletedTickets,FriesSold,DrinksSold,MainsSold;
  public int KitchenCoverage=1,FryerCoverage=1,DriveCoverage=2,CounterCoverage=1,PrepCoverage=1;
  public double Minute=360,TimeScale=1.0,PrepAge,LaborCost,ShiftMinutes,BreakTimer,SanitizerAge,TempCheckAge,CoolerTemp=38,HotHoldTemp=145,SalesTotal;
- public string Scenario="normal_day",RecentEvents="",RecentJsonl="",AllJsonl="",WasteLedger="",StaffingLedger="",TraceLedger="",ValidationLedger="",OverloadLedger="",ValidationStatus="OK";
+ public string Scenario="normal_day",RecentEvents="",RecentJsonl="",AllJsonl="",WasteLedger="",StaffingLedger="",TraceLedger="",ValidationLedger="",OverloadLedger="",EquipmentLedger="",ItemLedger="",ValidationStatus="OK";
  public bool Running,StationOverloaded,ShiftStarted,ShiftEnded;
 
  public void Step(double d){
+  EnsureEquipment();
   if(!Running)return;
   EnsureShiftStarted();
   if(ShiftEnded)return;
@@ -41,6 +54,7 @@ public class SimRunState{
   SanitizerAge+=sm;
   TempCheckAge+=sm;
   UpdateTemperatures();
+  ProcessEquipment(sm);
   ProcessTickets(sm);
   acc+=RatePerSimMinute()*sm;
   while(acc>=1){AddOrder();acc-=1;}
@@ -57,7 +71,7 @@ public class SimRunState{
   Orders++;
   if(ch=="drive_thru")DriveThru++;else if(ch=="lobby")FrontCounter++;else if(ch=="delivery")Delivery++;else Mobile++;
   var oid=$"ord_{Orders:000000}";
-  var mainChicken=Roll(1)<500;
+  var mainFried=Roll(1)<500;
   var hasFries=Roll(2)<650;
   var hasDrink=Roll(3)<600;
   var count=1+(hasFries?1:0)+(hasDrink?1:0);
@@ -68,25 +82,64 @@ public class SimRunState{
   sales30[b]+=check;
   Emit("order.created",$"{{\"order_id\":\"{oid}\",\"customer_segment\":\"{CustomerSegment}\",\"channel\":\"{ch}\",\"estimated_items\":{count},\"expected_ticket_seconds\":{ExpectedTicketSeconds(ch,count)}}}");
   var t=new Ticket{Id=Orders,Channel=ch,Created=Minute};
-  if(mainChicken){
-   MainsSold++;
-   t.Fryer+=Range(180,300,420,4);t.Assembly+=Range(30,60,120,5);t.Expo+=Range(10,25,60,6);
-   Sell(oid,"fried_main","fryer",new Dictionary<string,double>{{"main_protein",1},{"prep_pack",.5}});
-  }else{
-   MainsSold++;
-   t.Grill+=Range(60,120,240,7);t.Assembly+=Range(30,60,120,8);t.Expo+=Range(10,25,60,9);
-   Sell(oid,"grilled_main","grill",new Dictionary<string,double>{{"main_protein",1},{"prep_pack",.5}});
-  }
-  if(hasFries){FriesSold++;t.Fryer+=Range(120,180,210,10);t.Assembly+=Range(8,15,30,11);Sell(oid,"side","fryer",new Dictionary<string,double>{{"side_base",1}});}
-  if(hasDrink){DrinksSold++;t.Beverage+=Range(10,25,45,12);Sell(oid,"beverage","beverage",new Dictionary<string,double>{{"drink_mix",.25}});}
+  var main=mainFried?items["fried_main"]:items["grilled_main"];
+  MainsSold++;
+  QueueItem(t,oid,main,new Dictionary<string,double>{{"main_protein",1},{"prep_pack",.5}});
+  if(hasFries){FriesSold++;QueueItem(t,oid,items["side"],new Dictionary<string,double>{{"side_base",1}});}
+  if(hasDrink){DrinksSold++;QueueItem(t,oid,items["beverage"],new Dictionary<string,double>{{"drink_mix",.25}});}
   Prep=Math.Max(0,Prep-(1+(hasFries?1:0)));
   activeTickets.Add(t);
   Emit("ticket.updated",$"{{\"ticket_id\":\"tkt_{t.Id:000000}\",\"order_id\":\"{oid}\",\"status\":\"queued\",\"queue_seconds\":0,\"station_id\":\"assembly\"}}");
  }
 
- void Sell(string oid,string item,string station,Dictionary<string,double> draw){
+ void QueueItem(Ticket t,string oid,ItemSpec spec,Dictionary<string,double> draw){
+  var primary=AddEquipmentTask(spec,oid,spec.Family,spec.CookSeconds,"cook");
+  if(spec.Station=="fryer")t.Fryer+=spec.CookSeconds;else if(spec.Station=="grill")t.Grill+=spec.CookSeconds;else if(spec.Station=="beverage")t.Beverage+=spec.CookSeconds;
+  if(spec.AssemblySeconds>0){t.Assembly+=spec.AssemblySeconds;AddEquipmentTask(spec,oid,"assembly",spec.AssemblySeconds,"assembly");}
+  if(spec.ExpoSeconds>0){t.Expo+=spec.ExpoSeconds;AddEquipmentTask(spec,oid,"expo",spec.ExpoSeconds,"expo");}
+  Sell(oid,spec,primary,draw);
+ }
+
+ string AddEquipmentTask(ItemSpec spec,string oid,string family,double seconds,string phase){
+  var unit=SelectEquipment(family);
+  if(unit==null)return "unassigned";
+  unit.Load+=seconds;
+  unit.Assigned+=seconds;
+  unit.Tasks++;
+  EquipmentLedger+=$"{TimeText} assign order {oid} item {spec.Id} phase {phase} equipment {unit.Id} family {family} cook {Num(seconds)}s hold {Num(spec.HoldMinutes)}m load {Num(unit.Load)} cap_min {Num(EquipmentCapacity(unit))}\n";
+  return unit.Id;
+ }
+
+ EquipmentUnit? SelectEquipment(string family){
+  EnsureEquipment();
+  EquipmentUnit? best=null;
+  var bestRatio=double.MaxValue;
+  foreach(var e in equipment){
+   if(e.Family!=family||!EquipmentAvailable(e))continue;
+   var cap=Math.Max(1,EquipmentCapacity(e));
+   var ratio=e.Load/cap;
+   if(ratio<bestRatio){best=e;bestRatio=ratio;}
+  }
+  if(best!=null)return best;
+  foreach(var e in equipment){if(e.Family==family){best=e;break;}}
+  return best;
+ }
+
+ void Sell(string oid,ItemSpec spec,string equipmentId,Dictionary<string,double> draw){
   foreach(var kv in draw)inventory[kv.Key]=Math.Max(0,inventory.GetValueOrDefault(kv.Key)-kv.Value);
-  Emit("item.sold",$"{{\"order_id\":\"{oid}\",\"item_id\":\"{item}\",\"quantity\":1,\"station_ids\":[\"{station}\"],\"inventory_draw\":{DrawJson(draw)}}}");
+  ItemSeq++;
+  ItemLedger+=$"{ItemSeq} {TimeText} order {oid} item {spec.Id} equipment {equipmentId} station {spec.Station} cook {Num(spec.CookSeconds)}s hold {Num(spec.HoldMinutes)}m assembly {Num(spec.AssemblySeconds)}s expo {Num(spec.ExpoSeconds)}s price ${spec.Price:0.00}\n";
+  Emit("item.sold",$"{{\"order_id\":\"{oid}\",\"item_id\":\"{spec.Id}\",\"quantity\":1,\"station_ids\":[\"{equipmentId}\"],\"inventory_draw\":{DrawJson(draw)}}}");
+ }
+
+ void ProcessEquipment(double sm){
+  EnsureEquipment();
+  foreach(var e in equipment){
+   var cap=EquipmentCapacity(e)*sm;
+   var done=Math.Min(e.Load,Math.Max(0,cap));
+   e.Load-=done;
+   e.Processed+=done;
+  }
  }
 
  void ProcessTickets(double sm){
@@ -152,15 +205,6 @@ public class SimRunState{
   Emit("waste.recorded",$"{{\"waste_id\":\"waste_{WasteSeq:000000}\",\"inventory_item_id\":\"prep_pack\",\"quantity\":{Num(u)},\"unit\":\"units\",\"reason\":\"{r}\",\"station_id\":\"{station}\"}}");
  }
 
- string Channel(){
-  var x=Roll(20);
-  return x<600?"drive_thru":x<760?"lobby":x<860?"delivery":"mobile";
- }
- int Roll(int salt){var v=(long)Seed*1103515245L+(long)(Orders+1)*12345L+(long)salt*9973L+(long)((int)Minute)*31L;return (int)(Math.Abs(v)%1000);}
- double Range(double min,double target,double max,int salt){var r=Roll(salt)/999.0;return r<.5?min+(target-min)*(r*2):target+(max-target)*((r-.5)*2);}
- double CheckAmount(int items)=>10.0+(Roll(30)%201)/100.0+Math.Max(0,items-2)*1.25;
- int ExpectedTicketSeconds(string channel,int items)=>150+items*35+(channel=="delivery"?160:channel=="mobile"?45:channel=="lobby"?25:0);
-
  void UpdateOverload(double m){
   var was=StationOverloaded;
   var station=BottleneckStation;
@@ -182,12 +226,13 @@ public class SimRunState{
  }
  void RecordOverload(string state){
   var station=activeOverloadStation;
-  OverloadLedger+=$"{OverloadSeq} {TimeText} {state} station {station} cause {OverloadCause} load {Num(StationLoad(station))} cap {Num(StationCapacity(station))} backlog {Num(StationBacklog(station))}m tickets {Tickets} fryer {FryerLoad}/{Num(FryerCapacity)} grill {GrillLoad}/{Num(GrillCapacity)} assembly {AssemblyLoad}/{Num(AssemblyCapacity)} expo {ExpoLoad}/{Num(ExpoCapacity+BeverageCapacity)} coverage {CoverageUsed}/{CoveragePool} labor_pct {Num(LaborPercent)}\n";
+  OverloadLedger+=$"{OverloadSeq} {TimeText} {state} station {station} equipment {BottleneckEquipment} cause {OverloadCause} load {Num(StationLoad(station))} cap {Num(StationCapacity(station))} backlog {Num(StationBacklog(station))}m tickets {Tickets} fryer {FryerLoad}/{Num(FryerCapacity)} grill {GrillLoad}/{Num(GrillCapacity)} assembly {AssemblyLoad}/{Num(AssemblyCapacity)} expo {ExpoLoad}/{Num(ExpoCapacity+BeverageCapacity)} coverage {CoverageUsed}/{CoveragePool} labor_pct {Num(LaborPercent)} equipment_summary {EquipmentSummary}\n";
   Trace($"overload_{state}");
  }
 
  void EnsureShiftStarted(){
   if(ShiftStarted)return;
+  EnsureEquipment();
   ShiftStarted=true;
   Emit("shift.started",$"{{\"shift_id\":\"shift_{Seed}\",\"manager_role_ref\":\"manager_on_duty\",\"opening_inventory_snapshot_id\":\"inv_open_{Seed}\",\"scheduled_role_count\":{TotalOnClock}}}");
  }
@@ -211,8 +256,9 @@ public class SimRunState{
  }
 
  void Trace(string reason){
+  EnsureEquipment();
   TraceSeq++;
-  TraceLedger+=$"{{\"trace_id\":\"trace_{TraceSeq:000000}\",\"time\":\"{TimeText}\",\"minute\":{Num(Minute)},\"reason\":\"{Json(reason)}\",\"event_seq\":{EventSeq},\"scenario\":\"{Scenario}\",\"daypart\":\"{Daypart}\",\"speed\":{Num(TimeScale)},\"orders\":{Orders},\"completed\":{CompletedTickets},\"active_tickets\":{Tickets},\"channels\":{{\"drive_thru\":{DriveThru},\"lobby\":{FrontCounter},\"delivery\":{Delivery},\"mobile\":{Mobile}}},\"sales_total\":{Num(Sales)},\"labor_cost\":{Num(LaborCost)},\"labor_percent\":{Num(LaborPercent)},\"projected_sales_30\":{Num(ProjectedSalesThis30)},\"projected_labor_percent_30\":{Num(ProjectedLaborPercentThis30)},\"labor_target_percent\":{Num(LaborTargetPercent*100)},\"allowed_labor_dollars_30\":{Num(AllowedLaborDollarsThis30)},\"labor_dollars_variance_30\":{Num(LaborDollarsVarianceThis30)},\"allowed_labor_hours_30\":{Num(AllowedLaborHoursThis30)},\"scheduled_labor_hours_30\":{Num(ScheduledLaborHoursThis30)},\"labor_hours_variance_30\":{Num(LaborHoursVarianceThis30)},\"crew\":{Crew},\"effective_crew\":{EffectiveCrew},\"coverage_used\":{CoverageUsed},\"coverage_pool\":{CoveragePool},\"bottleneck_station\":\"{BottleneckStation}\",\"overload_cause\":\"{OverloadCause}\",\"station_overloaded\":{JsonBool(StationOverloaded)},\"loads\":{{\"fryer\":{FryerLoad},\"grill\":{GrillLoad},\"assembly\":{AssemblyLoad},\"expo\":{ExpoLoad}}},\"capacities\":{{\"fryer\":{Num(FryerCapacity)},\"grill\":{Num(GrillCapacity)},\"assembly\":{Num(AssemblyCapacity)},\"expo\":{Num(ExpoCapacity+BeverageCapacity)},\"total\":{StaffCapacity}}},\"backlog_minutes\":{{\"fryer\":{Num(FryerBacklogMinutes)},\"grill\":{Num(GrillBacklogMinutes)},\"assembly\":{Num(AssemblyBacklogMinutes)},\"expo\":{Num(ExpoBacklogMinutes)},\"total\":{Num(KitchenBacklogMinutes)}}},\"inventory\":{{\"raw\":{Raw},\"prep\":{Prep},\"waste\":{Waste},\"main_protein\":{Num(inventory["main_protein"])},\"side_base\":{Num(inventory["side_base"])},\"drink_mix\":{Num(inventory["drink_mix"])},\"prep_pack\":{Num(inventory["prep_pack"])}}},\"temps\":{{\"cooler\":{Num(CoolerTemp)},\"hot_hold\":{Num(HotHoldTemp)}}},\"validation_status\":\"{ValidationStatus}\"}}\n";
+  TraceLedger+=$"{{\"trace_id\":\"trace_{TraceSeq:000000}\",\"time\":\"{TimeText}\",\"minute\":{Num(Minute)},\"reason\":\"{Json(reason)}\",\"event_seq\":{EventSeq},\"scenario\":\"{Scenario}\",\"daypart\":\"{Daypart}\",\"speed\":{Num(TimeScale)},\"orders\":{Orders},\"completed\":{CompletedTickets},\"active_tickets\":{Tickets},\"channels\":{{\"drive_thru\":{DriveThru},\"lobby\":{FrontCounter},\"delivery\":{Delivery},\"mobile\":{Mobile}}},\"sales_total\":{Num(Sales)},\"labor_cost\":{Num(LaborCost)},\"labor_percent\":{Num(LaborPercent)},\"projected_sales_30\":{Num(ProjectedSalesThis30)},\"projected_labor_percent_30\":{Num(ProjectedLaborPercentThis30)},\"labor_target_percent\":{Num(LaborTargetPercent*100)},\"allowed_labor_dollars_30\":{Num(AllowedLaborDollarsThis30)},\"labor_dollars_variance_30\":{Num(LaborDollarsVarianceThis30)},\"allowed_labor_hours_30\":{Num(AllowedLaborHoursThis30)},\"scheduled_labor_hours_30\":{Num(ScheduledLaborHoursThis30)},\"labor_hours_variance_30\":{Num(LaborHoursVarianceThis30)},\"crew\":{Crew},\"effective_crew\":{EffectiveCrew},\"coverage_used\":{CoverageUsed},\"coverage_pool\":{CoveragePool},\"bottleneck_station\":\"{BottleneckStation}\",\"bottleneck_equipment\":\"{BottleneckEquipment}\",\"overload_cause\":\"{OverloadCause}\",\"station_overloaded\":{JsonBool(StationOverloaded)},\"loads\":{{\"fryer\":{FryerLoad},\"grill\":{GrillLoad},\"assembly\":{AssemblyLoad},\"expo\":{ExpoLoad}}},\"capacities\":{{\"fryer\":{Num(FryerCapacity)},\"grill\":{Num(GrillCapacity)},\"assembly\":{Num(AssemblyCapacity)},\"expo\":{Num(ExpoCapacity+BeverageCapacity)},\"total\":{StaffCapacity}}},\"equipment_summary\":\"{Json(EquipmentSummary)}\",\"backlog_minutes\":{{\"fryer\":{Num(FryerBacklogMinutes)},\"grill\":{Num(GrillBacklogMinutes)},\"assembly\":{Num(AssemblyBacklogMinutes)},\"expo\":{Num(ExpoBacklogMinutes)},\"total\":{Num(KitchenBacklogMinutes)}}},\"inventory\":{{\"raw\":{Raw},\"prep\":{Prep},\"waste\":{Waste},\"main_protein\":{Num(inventory["main_protein"])},\"side_base\":{Num(inventory["side_base"])},\"drink_mix\":{Num(inventory["drink_mix"])},\"prep_pack\":{Num(inventory["prep_pack"])}}},\"temps\":{{\"cooler\":{Num(CoolerTemp)},\"hot_hold\":{Num(HotHoldTemp)}}},\"validation_status\":\"{ValidationStatus}\"}}\n";
  }
 
  public void RefreshValidation(string context="manual"){
@@ -227,6 +273,7 @@ public class SimRunState{
   ValidationLedger+="\n";
  }
  List<string> ValidationIssues(){
+  EnsureEquipment();
   var issues=new List<string>();
   if(OrderChannelTotal!=Orders)issues.Add($"orders/channel mismatch orders={Orders} channels={OrderChannelTotal}");
   if(Tickets+CompletedTickets!=Orders)issues.Add($"ticket reconciliation mismatch orders={Orders} active={Tickets} completed={CompletedTickets}");
@@ -234,13 +281,29 @@ public class SimRunState{
   if(Math.Abs(Sales-SalesBucketTotal)>.01)issues.Add($"sales total mismatch total={Num(Sales)} buckets={Num(SalesBucketTotal)}");
   if(Sales>0&&Math.Abs(LaborPercent-(LaborCost/Sales*100.0))>.01)issues.Add("labor percent formula mismatch");
   foreach(var kv in inventory)if(kv.Value<0)issues.Add($"negative inventory {kv.Key}={Num(kv.Value)}");
+  foreach(var e in equipment)if(e.Load<-.01)issues.Add($"negative equipment load {e.Id}={Num(e.Load)}");
+  if(EquipmentCount<10)issues.Add($"equipment model incomplete count={EquipmentCount}");
   if(StationOverloaded&&OverloadSeq<=0)issues.Add("station overloaded without overload ledger entry");
   return issues;
  }
  public string BuildValidationReport(){
   RefreshValidation("export");
-  return $"validation_status={ValidationStatus}\nscenario={Scenario}\nseed={Seed}\nevents={EventSeq}\norders={Orders}\nchannel_total={OrderChannelTotal}\ncompleted_tickets={CompletedTickets}\nactive_tickets={Tickets}\nsales_total={Num(Sales)}\nsales_bucket_total={Num(SalesBucketTotal)}\nlabor_cost={Num(LaborCost)}\nlabor_percent={Num(LaborPercent)}\nprojected_labor_percent_30={Num(ProjectedLaborPercentThis30)}\nlabor_allowance_percent={Num(LaborTargetPercent*100)}\nallowed_labor_dollars_30={Num(AllowedLaborDollarsThis30)}\nprojected_labor_cost_30={Num(ProjectedLaborCostThis30)}\nlabor_dollars_variance_30={Num(LaborDollarsVarianceThis30)}\nallowed_labor_hours_30={Num(AllowedLaborHoursThis30)}\nscheduled_labor_hours_30={Num(ScheduledLaborHoursThis30)}\nlabor_hours_variance_30={Num(LaborHoursVarianceThis30)}\noverload_events={OverloadSeq}\nactive_overload={StationOverloaded}\nbottleneck_station={BottleneckStation}\nbottleneck_backlog_minutes={Num(BottleneckBacklogMinutes)}\nvalidation_ledger:\n{ValidationLedger}";
+  return $"validation_status={ValidationStatus}\nscenario={Scenario}\nseed={Seed}\nevents={EventSeq}\norders={Orders}\nchannel_total={OrderChannelTotal}\ncompleted_tickets={CompletedTickets}\nactive_tickets={Tickets}\nsales_total={Num(Sales)}\nsales_bucket_total={Num(SalesBucketTotal)}\nlabor_cost={Num(LaborCost)}\nlabor_percent={Num(LaborPercent)}\nprojected_labor_percent_30={Num(ProjectedLaborPercentThis30)}\nlabor_allowance_percent={Num(LaborTargetPercent*100)}\nallowed_labor_dollars_30={Num(AllowedLaborDollarsThis30)}\nprojected_labor_cost_30={Num(ProjectedLaborCostThis30)}\nlabor_dollars_variance_30={Num(LaborDollarsVarianceThis30)}\nallowed_labor_hours_30={Num(AllowedLaborHoursThis30)}\nscheduled_labor_hours_30={Num(ScheduledLaborHoursThis30)}\nlabor_hours_variance_30={Num(LaborHoursVarianceThis30)}\noverload_events={OverloadSeq}\nactive_overload={StationOverloaded}\nbottleneck_station={BottleneckStation}\nbottleneck_equipment={BottleneckEquipment}\nbottleneck_backlog_minutes={Num(BottleneckBacklogMinutes)}\nequipment_count={EquipmentCount}\nequipment_summary={EquipmentSummary}\nvalidation_ledger:\n{ValidationLedger}";
  }
+
+ void EnsureEquipment(){
+  if(equipmentReady)return;
+  equipmentReady=true;
+  AddEquipment("fryer_fries_1","fryer","fries",70);AddEquipment("fryer_fries_2","fryer","fries",70);AddEquipment("fryer_main_1","fryer","fried_main",70);AddEquipment("fryer_main_2","fryer","fried_main",70);
+  AddEquipment("burger_press_1","grill","grilled_main",95);
+  AddEquipment("soda_1","beverage","beverage",45);AddEquipment("soda_2","beverage","beverage",45);AddEquipment("soda_3","beverage","beverage",45);AddEquipment("soda_4","beverage","beverage",45);
+  AddEquipment("assembly_rail_1","assembly","assembly",60);AddEquipment("assembly_rail_2","assembly","assembly",60);AddEquipment("expo_lane_1","expo","expo",65);AddEquipment("expo_lane_2","expo","expo",65);
+  items["fried_main"]=new ItemSpec{Id="fried_main",Family="fried_main",Station="fryer",CookSeconds=330,HoldMinutes=20,AssemblySeconds=60,ExpoSeconds=25,Price=6.25};
+  items["grilled_main"]=new ItemSpec{Id="grilled_main",Family="grilled_main",Station="grill",CookSeconds=150,HoldMinutes=15,AssemblySeconds=55,ExpoSeconds=25,Price=6.35};
+  items["side"]=new ItemSpec{Id="side",Family="fries",Station="fryer",CookSeconds=180,HoldMinutes=7,AssemblySeconds=15,ExpoSeconds=5,Price=2.75};
+  items["beverage"]=new ItemSpec{Id="beverage",Family="beverage",Station="beverage",CookSeconds=22,HoldMinutes=0,AssemblySeconds=0,ExpoSeconds=5,Price=2.35};
+ }
+ void AddEquipment(string id,string station,string family,double cap){equipment.Add(new EquipmentUnit{Id=id,Station=station,Family=family,BaseCapacity=cap});}
 
  double RatePerSimMinute(){if(Minute<360)return 0;var daily=Scenario=="slow_day"?620:Scenario=="rush_day"?1180:Scenario=="weather_disruption"?760:Scenario=="local_event_surge"?1050:Scenario=="school_event_surge"?980:Scenario=="holiday_pattern"?840:Scenario=="multi_rush_condition"?1240:920;return daily*DaypartShare()/DaypartMinutes()*Curve()*ScenarioMultiplier();}
  double ScenarioMultiplier()=>Scenario=="rush_day"?1.10:Scenario=="weather_disruption"?.86:Scenario=="equipment_failure"?.95:Scenario=="staffing_call_off"?.97:Scenario=="multi_rush_condition"?1.18:1.0;
@@ -251,12 +314,16 @@ public class SimRunState{
  int CountActive(string ch){var n=0;foreach(var t in activeTickets)if(t.Channel==ch)n++;return n;}
  double SumArray(double[] xs){double n=0;foreach(var x in xs)n+=x;return n;}
  double StaffScenarioMultiplier=>Scenario=="staffing_call_off"?.74:Scenario=="multi_rush_condition"?.78:Scenario=="holiday_pattern"?.92:1.0;
- double EquipmentMultiplier(string station)=>Scenario=="equipment_failure"&&station=="fryer"?.55:Scenario=="multi_rush_condition"&&station=="fryer"?.70:Scenario=="multi_rush_condition"&&station=="beverage"?.82:1.0;
- public double GrillCapacity=>KitchenCoverage*90*StaffScenarioMultiplier*EquipmentMultiplier("grill");
- public double FryerCapacity=>FryerCoverage*125*StaffScenarioMultiplier*EquipmentMultiplier("fryer");
- public double AssemblyCapacity=>(KitchenCoverage*70+CounterCoverage*15)*StaffScenarioMultiplier*EquipmentMultiplier("assembly");
- public double BeverageCapacity=>(CounterCoverage*50+DriveCoverage*55)*StaffScenarioMultiplier*EquipmentMultiplier("beverage");
- public double ExpoCapacity=>(DriveCoverage*70+CounterCoverage*45+KitchenCoverage*15)*StaffScenarioMultiplier;
+ double CoverageFactor(string station)=>station=="fryer"?(FryerCoverage<=0?0:Math.Min(1.25,.35+.325*FryerCoverage)):station=="grill"?(KitchenCoverage<=0?0:Math.Min(1.2,.50+.35*KitchenCoverage)):station=="beverage"?(DriveCoverage+CounterCoverage<=0?0:Math.Min(1.25,.25+.20*(DriveCoverage+CounterCoverage))):station=="assembly"?(KitchenCoverage+CounterCoverage<=0?0:Math.Min(1.2,.30+.30*(KitchenCoverage+CounterCoverage))):Math.Min(1.2,.25+.20*(DriveCoverage+CounterCoverage+KitchenCoverage));
+ bool EquipmentAvailable(EquipmentUnit e)=>!(Scenario=="equipment_failure"&&(e.Id=="fryer_main_2"||e.Id=="soda_4"));
+ double EquipmentCapacity(EquipmentUnit e)=>EquipmentAvailable(e)?e.BaseCapacity*CoverageFactor(e.Station)*StaffScenarioMultiplier:0;
+ double EquipmentStationCapacity(string station){EnsureEquipment();double n=0;foreach(var e in equipment)if(e.Station==station)n+=EquipmentCapacity(e);return n;}
+ double EquipmentLoadByFamily(string family){EnsureEquipment();double n=0;foreach(var e in equipment)if(e.Family==family)n+=Math.Max(0,e.Load);return n;}
+ public double GrillCapacity=>EquipmentStationCapacity("grill");
+ public double FryerCapacity=>EquipmentStationCapacity("fryer");
+ public double AssemblyCapacity=>EquipmentStationCapacity("assembly");
+ public double BeverageCapacity=>EquipmentStationCapacity("beverage");
+ public double ExpoCapacity=>EquipmentStationCapacity("expo");
 
  public double Sales=>SalesTotal;public double SalesBucketTotal=>SumArray(sales30);public double WasteCost=>Waste*0.75;public double FoodCostPercent=>Sales<=0?0:WasteCost/Sales*100;
  public double LaborHourly=>Crew*16+Lead*18+ShiftMgr*22+AsstMgr*28+RestMgr*35;public double LaborPercent=>Sales<=0?0:LaborCost/Sales*100;
@@ -266,13 +333,22 @@ public class SimRunState{
  public int PrepQuality=>PrepAge>=30?0:100-(int)(PrepAge*3);public int Tickets=>activeTickets.Count;public int FryerLoad=>(int)Math.Ceiling(Sum(t=>t.Fryer));public int GrillLoad=>(int)Math.Ceiling(Sum(t=>t.Grill));public int AssemblyLoad=>(int)Math.Ceiling(Sum(t=>t.Assembly));public int ExpoLoad=>(int)Math.Ceiling(Sum(t=>t.Expo)+Sum(t=>t.Beverage));public int KitchenLoad=>FryerLoad+GrillLoad+AssemblyLoad+ExpoLoad;public bool DelayRisk=>Tickets>30||(StaffCapacity<=0&&Tickets>0)||KitchenBacklogMinutes>10||FryerBacklogMinutes>8||GrillBacklogMinutes>8||AssemblyBacklogMinutes>7||ExpoBacklogMinutes>7;
  public string BottleneckStation{get{var station="fryer";var best=FryerBacklogMinutes;if(GrillBacklogMinutes>best){station="grill";best=GrillBacklogMinutes;}if(AssemblyBacklogMinutes>best){station="assembly";best=AssemblyBacklogMinutes;}if(ExpoBacklogMinutes>best){station="expo";best=ExpoBacklogMinutes;}return station;}}
  public double BottleneckBacklogMinutes=>StationBacklog(BottleneckStation);
+ public string BottleneckEquipment{get{EnsureEquipment();string id="none";var best=-1.0;foreach(var e in equipment){var cap=Math.Max(1,EquipmentCapacity(e));var ratio=e.Load/cap;if(ratio>best){best=ratio;id=e.Id;}}return id;}}
+ public int EquipmentCount{get{EnsureEquipment();return equipment.Count;}}
+ public string EquipmentSummary{get{EnsureEquipment();var parts=new List<string>();foreach(var e in equipment)parts.Add($"{e.Id}:{Num(e.Load)}/{Num(EquipmentCapacity(e))}");return string.Join(";",parts);}}
+ public string ItemCatalogJson=>"[{\"item_id\":\"fried_main\",\"equipment\":\"fryer_main_1|fryer_main_2\",\"cook_seconds\":330,\"hold_minutes\":20},{\"item_id\":\"grilled_main\",\"equipment\":\"burger_press_1\",\"cook_seconds\":150,\"hold_minutes\":15},{\"item_id\":\"side\",\"equipment\":\"fryer_fries_1|fryer_fries_2\",\"cook_seconds\":180,\"hold_minutes\":7},{\"item_id\":\"beverage\",\"equipment\":\"soda_1|soda_2|soda_3|soda_4\",\"cook_seconds\":22,\"hold_minutes\":0}]";
  double StationLoad(string station)=>station=="fryer"?FryerLoad:station=="grill"?GrillLoad:station=="assembly"?AssemblyLoad:ExpoLoad;
  double StationCapacity(string station)=>station=="fryer"?FryerCapacity:station=="grill"?GrillCapacity:station=="assembly"?AssemblyCapacity:ExpoCapacity+BeverageCapacity;
  double StationBacklog(string station){var cap=StationCapacity(station);var load=StationLoad(station);return cap<=0?(load>0?999:0):load/cap;}
- public bool SanitizerDue=>SanitizerAge>=120;public bool TempCheckDue=>TempCheckAge>=120;public bool TempOutOfRange=>CoolerTemp>41||HotHoldTemp<135;public string AlertText=>StationOverloaded?$"ALERT: {activeOverloadStation} overloaded | {OverloadCause} | {StationBacklog(activeOverloadStation):0.0}m backlog":TempOutOfRange?"ALERT: temperature out of range":TempCheckDue?"Warning: temperature check due":SanitizerDue?"Warning: sanitizer change due":BreakDue?"Warning: break due":DelayRisk?$"Warning: {BottleneckStation} delay risk | {BottleneckBacklogMinutes:0.0}m backlog":PrepQuality<50?"Warning: prep quality low":Prep<80?"Warning: prep low":"Alerts: none";public int DtSos=>(int)Math.Min(900,258+CountActive("drive_thru")*18+(DriveCoverage<=0?120:0)+(StationOverloaded?90:0));public int FcSos=>(int)Math.Min(720,180+CountActive("lobby")*20+(CounterCoverage<=0?120:0)+(StationOverloaded?75:0));public int DelSos=>(int)Math.Min(2100,420+CountActive("delivery")*35+(StationOverloaded?180:0));public int TicketsThis30=>tickets30[(int)(Minute/30)%48];public int TicketsThis60=>tickets30[(int)(Minute/30)%48]+tickets30[((int)(Minute/30)+47)%48];public double SalesThis30=>sales30[(int)(Minute/30)%48];public double SalesThis60=>sales30[(int)(Minute/30)%48]+sales30[((int)(Minute/30)+47)%48];public string Daypart=>Minute<360?"late_night":Minute<600?"breakfast":Minute<690?"mid_morning":Minute<840?"lunch":Minute<990?"afternoon":Minute<1230?"dinner":"late_night";public string TimeText=>$"{(int)(Minute/60):00}:{(int)(Minute%60):00}";
+ public bool SanitizerDue=>SanitizerAge>=120;public bool TempCheckDue=>TempCheckAge>=120;public bool TempOutOfRange=>CoolerTemp>41||HotHoldTemp<135;public string AlertText=>StationOverloaded?$"ALERT: {activeOverloadStation} overloaded | {OverloadCause} | {StationBacklog(activeOverloadStation):0.0}m backlog | equipment {BottleneckEquipment}":TempOutOfRange?"ALERT: temperature out of range":TempCheckDue?"Warning: temperature check due":SanitizerDue?"Warning: sanitizer change due":BreakDue?"Warning: break due":DelayRisk?$"Warning: {BottleneckStation} delay risk | {BottleneckBacklogMinutes:0.0}m backlog | equipment {BottleneckEquipment}":PrepQuality<50?"Warning: prep quality low":Prep<80?"Warning: prep low":"Alerts: none";public int DtSos=>(int)Math.Min(900,258+CountActive("drive_thru")*18+(DriveCoverage<=0?120:0)+(StationOverloaded?90:0));public int FcSos=>(int)Math.Min(720,180+CountActive("lobby")*20+(CounterCoverage<=0?120:0)+(StationOverloaded?75:0));public int DelSos=>(int)Math.Min(2100,420+CountActive("delivery")*35+(StationOverloaded?180:0));public int TicketsThis30=>tickets30[(int)(Minute/30)%48];public int TicketsThis60=>tickets30[(int)(Minute/30)%48]+tickets30[((int)(Minute/30)+47)%48];public double SalesThis30=>sales30[(int)(Minute/30)%48];public double SalesThis60=>sales30[(int)(Minute/30)%48]+sales30[((int)(Minute/30)+47)%48];public string Daypart=>Minute<360?"late_night":Minute<600?"breakfast":Minute<690?"mid_morning":Minute<840?"lunch":Minute<990?"afternoon":Minute<1230?"dinner":"late_night";public string TimeText=>$"{(int)(Minute/60):00}:{(int)(Minute%60):00}";
 
+ string Channel(){var x=Roll(20);return x<600?"drive_thru":x<760?"lobby":x<860?"delivery":"mobile";}
+ int Roll(int salt){var v=(long)Seed*1103515245L+(long)(Orders+1)*12345L+(long)salt*9973L+(long)((int)Minute)*31L;return (int)(Math.Abs(v)%1000);}
+ double Range(double min,double target,double max,int salt){var r=Roll(salt)/999.0;return r<.5?min+(target-min)*(r*2):target+(max-target)*((r-.5)*2);}
+ double CheckAmount(int items)=>10.0+(Roll(30)%201)/100.0+Math.Max(0,items-2)*1.25;
+ int ExpectedTicketSeconds(string channel,int items)=>150+items*35+(channel=="delivery"?160:channel=="mobile"?45:channel=="lobby"?25:0);
  string CustomerSegment=>Daypart=="breakfast"?"commuter_breakfast":Daypart=="dinner"?"family_dinner":Daypart=="late_night"?"late_night_guest":"general_guest";
- string OverloadCause=>Scenario=="equipment_failure"?"equipment_constraint":Scenario=="staffing_call_off"||CoverageOpen<=0&&CoverageUsed>=CoveragePool?"staffing_gap":Scenario=="multi_rush_condition"?"multi_rush":Scenario=="rush_day"||Scenario=="local_event_surge"||Scenario=="school_event_surge"?"rush_demand":BottleneckStation=="fryer"&&FryerLoad>GrillLoad+AssemblyLoad?"menu_mix":"menu_mix";
+ string OverloadCause=>Scenario=="equipment_failure"?"equipment_constraint":Scenario=="staffing_call_off"||CoverageOpen<=0&&CoverageUsed>=CoveragePool?"staffing_gap":Scenario=="multi_rush_condition"?"multi_rush":Scenario=="rush_day"||Scenario=="local_event_surge"||Scenario=="school_event_surge"?"rush_demand":BottleneckStation=="fryer"?"item_cook_time_mix":"menu_mix";
  string StaffReason(string reason)=>reason=="call_off"?"call_off":reason=="break_coverage"?"break_coverage":reason=="manager_adjustment"?"manager_adjustment":"rush_support";
  string JsonStringOrNull(string? v)=>v==null?"null":$"\"{v}\"";
  string Num(double n)=>n.ToString("0.##",CultureInfo.InvariantCulture);
