@@ -1,6 +1,6 @@
 {
   "project": "Restaurant Daily Flow Simulator",
-  "active_task_id": "RS-EN-001",
+  "active_task_id": "RS-VA-001",
   "lanes": {
     "source": {
       "active_task_id": "RS-SP-001",
@@ -19,10 +19,10 @@
     },
     "validation": {
       "active_task_id": "RS-VA-001",
-      "status": "ready",
+      "status": "ready_for_review",
       "branch": "main"
     }
   },
-  "last_updated": "2026-06-10T13:45:00-04:00",
-  "next_action": "Start RS-VA-001 for determinism and output gate verification."
+  "last_updated": "2026-06-10T14:05:00-04:00",
+  "next_action": "Review RS-VA-001, then start RS-PL-001 for plausibility and realism validation profile."
 }
