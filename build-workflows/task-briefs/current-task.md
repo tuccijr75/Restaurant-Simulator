@@ -4,7 +4,7 @@ Task ID: RS-SC-001
 Task Brief: `build-workflows/task-briefs/RS-SC-001.md`
 Branch: `main`
 Lane: Schema / Contracts
-Status: active
+Status: ready_for_review
 Previous Task: RS-SP-001 — Source Pack Workflow Activation
 Previous Task Closure: completed on main with receipt `build-workflows/episodes/RS-SP-001/receipt.json`
 Active Source Task: RS-SP-001 — ready_for_review
