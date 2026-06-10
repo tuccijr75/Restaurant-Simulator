@@ -9,6 +9,21 @@ from pathlib import Path
 from restaurant_simulator.core import DAYPARTS, EVENT_TYPES, SCENARIOS, build_simulation, run_to_path
 
 
+REQUIRED_PROVENANCE_FIELDS = {
+    "simulation_id",
+    "scenario_id",
+    "seed",
+    "schema_version",
+    "generator_version",
+    "source_pack_version",
+    "task_id",
+    "workflow_id",
+    "created_at",
+    "synthetic_data",
+    "data_classification",
+}
+
+
 class EngineContractTests(unittest.TestCase):
     def test_all_scenarios_generate_required_outputs(self) -> None:
         for scenario in SCENARIOS:
@@ -53,6 +68,8 @@ class EngineContractTests(unittest.TestCase):
         self.assertIn("item.taken", event_types)
         self.assertIn("item.completed", event_types)
 
+        taken_by_instance: dict[str, dict[str, str]] = {}
+        completed_instances: set[str] = set()
         taken_by_order: dict[str, Counter[str]] = defaultdict(Counter)
         completed_by_order: dict[str, Counter[str]] = defaultdict(Counter)
         ticket_completed_orders: set[str] = set()
@@ -62,9 +79,19 @@ class EngineContractTests(unittest.TestCase):
             payload = event["payload"]
             if event_type == "item.taken":
                 self.assertEqual(payload["status"], "taken")
+                item_instance_id = payload["item_instance_id"]
+                taken_by_instance[item_instance_id] = {
+                    "order_id": payload["order_id"],
+                    "item_id": payload["item_id"],
+                }
                 taken_by_order[payload["order_id"]][payload["item_id"]] += int(payload["quantity"])
             elif event_type == "item.completed":
                 self.assertEqual(payload["status"], "completed")
+                item_instance_id = payload["item_instance_id"]
+                self.assertIn(item_instance_id, taken_by_instance)
+                self.assertEqual(taken_by_instance[item_instance_id]["order_id"], payload["order_id"])
+                self.assertEqual(taken_by_instance[item_instance_id]["item_id"], payload["item_id"])
+                completed_instances.add(item_instance_id)
                 order_id = payload["order_id"]
                 item_id = payload["item_id"]
                 completed_by_order[order_id][item_id] += int(payload["quantity"])
@@ -82,11 +109,33 @@ class EngineContractTests(unittest.TestCase):
                 )
                 ticket_completed_orders.add(order_id)
 
-        self.assertGreater(len(taken_by_order), 0)
+        self.assertGreater(len(taken_by_instance), 0)
+        self.assertEqual(set(taken_by_instance), completed_instances)
         self.assertEqual(set(taken_by_order), set(completed_by_order))
         self.assertEqual(set(taken_by_order), ticket_completed_orders)
         for order_id, taken_counts in taken_by_order.items():
             self.assertEqual(taken_counts, completed_by_order[order_id])
+
+    def test_generated_outputs_include_source_pack_provenance(self) -> None:
+        result = build_simulation("normal_day", 12345)
+        for key in [
+            "run_metadata",
+            "scenario",
+            "inventory_ledger",
+            "staffing_ledger",
+            "recommendation_validation_dataset",
+            "alert_validation_dataset",
+            "end_of_shift_summary",
+        ]:
+            with self.subTest(output=key):
+                output = result[key]
+                for field in REQUIRED_PROVENANCE_FIELDS:
+                    self.assertIn(field, output)
+                self.assertTrue(output["synthetic_data"])
+                self.assertEqual(output["data_classification"], "INTERNAL_SIM")
+                self.assertEqual(output["source_pack_version"], "rs_source_pack_v1.1")
+                self.assertEqual(output["task_id"], "RS-EN-001")
+                self.assertEqual(output["workflow_id"], "wf_RS-EN-001_engine_lifecycle_provenance")
 
     def test_inventory_reconciliation_and_security(self) -> None:
         result = build_simulation("staffing_call_off", 2468)
@@ -105,6 +154,8 @@ class EngineContractTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             receipt = run_to_path("normal_day", 13579, tmp)
             self.assertEqual(receipt["status"], "completed")
+            for field in REQUIRED_PROVENANCE_FIELDS:
+                self.assertIn(field, receipt)
             expected = {
                 "event_stream.jsonl",
                 "inventory_ledger.json",
