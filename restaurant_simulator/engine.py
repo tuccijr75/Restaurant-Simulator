@@ -6,8 +6,8 @@ import random
 from pathlib import Path
 from typing import Any
 
-SCHEMA_VERSION = "1.0.0"
-GENERATOR_VERSION = "sim-0.2.0"
+SCHEMA_VERSION = "1.1.0"
+GENERATOR_VERSION = "sim-0.3.0"
 BUSINESS_DAY = "2026-01-15"
 CREATED_AT = "2026-01-15T00:00:00Z"
 SOURCE = "restaurant_daily_flow_simulator"
@@ -26,7 +26,8 @@ SCENARIOS = [
 ]
 EVENT_TYPES = [
     "order.created",
-    "item.sold",
+    "item.taken",
+    "item.completed",
     "ticket.updated",
     "staff.assignment.updated",
     "prep.confirmed",
@@ -151,15 +152,7 @@ def scenario_config(scenario_type: str = "normal_day", seed: int = 12345) -> dic
     t = _tuning(scenario_type)
     dayparts = []
     for name, start, end, share, peak in DAYPARTS:
-        dayparts.append({
-            "daypart": name,
-            "window": {"start": _hhmm(start), "end": _hhmm(end)},
-            "arrival_curve": {"curve_type": "single_peak", "base_rate_per_15_min": round(t["daily"] * share / max(1, (end - start) / 15), 3), "peak_multiplier": 1.3, "noise_band": 0.08},
-            "channel_mix": _channel_mix(name, t),
-            "menu_mix": _menu_mix(name),
-            "basket_size": {"type": "triangular", "min": 1, "max": 5, "mean": 2.4},
-            "waste_risk_multiplier": t["waste"],
-        })
+        dayparts.append({"daypart": name, "window": {"start": _hhmm(start), "end": _hhmm(end)}, "arrival_curve": {"curve_type": "single_peak", "base_rate_per_15_min": round(t["daily"] * share / max(1, (end - start) / 15), 3), "peak_multiplier": 1.3, "noise_band": 0.08}, "channel_mix": _channel_mix(name, t), "menu_mix": _menu_mix(name), "basket_size": {"type": "triangular", "min": 1, "max": 5, "mean": 2.4}, "waste_risk_multiplier": t["waste"]})
     return {
         "scenario_id": f"scn_{scenario_type}",
         "scenario_name": scenario_type.replace("_", " ").title(),
@@ -170,7 +163,7 @@ def scenario_config(scenario_type: str = "normal_day", seed: int = 12345) -> dic
         "operating_hours": {"start": "06:00", "end": "23:59"},
         "dayparts": dayparts,
         "channels": [{"channel": c, "enabled": True, "arrival_multiplier": _channel_mix("lunch", t)[c], "service_time_seconds": {"type": "triangular", "min": 60, "max": 480, "mean": 210}, "delay_sensitivity": 0.70 if c == "drive_thru" else 0.45} for c in CHANNELS],
-        "menu_catalog": {"catalog_id": "generic_qsr_menu_v1", "brand_specific": False, "items": [{"item_id": k, "item_category": v[0], "station_ids": v[1], "prep_inventory_draw": v[2], "daypart_availability": [d[0] for d in DAYPARTS]} for k, v in MENU.items()]},
+        "menu_catalog": {"catalog_id": "generic_qsr_menu_v1", "brand_specific": False, "items": [{"item_id": k, "item_category": v[0], "station_ids": v[1], "prep_inventory_draw": v[2], "event_lifecycle": ["item.taken", "item.completed"], "daypart_availability": [d[0] for d in DAYPARTS]} for k, v in MENU.items()]},
         "station_model": {"model_id": "generic_qsr_stations_v1", "stations": [{"station_id": k, "station_name": k.title(), "capacity_units_per_minute": v[0] / 15, "overload_threshold": v[1], "recovery_threshold": v[2]} for k, v in STATIONS.items()]},
         "staffing_plan": {"plan_id": "generic_qsr_staffing_v1", "role_windows": [{"role_id": "manager", "station_id": "floor", "window": {"start": "06:00", "end": "23:59"}, "capacity_multiplier": 1.0, "synthetic_worker_ref": "manager_on_duty"}, {"role_id": "cook", "station_id": "grill", "window": {"start": "06:00", "end": "23:59"}, "capacity_multiplier": 1.0, "synthetic_worker_ref": "cook_role_01"}, {"role_id": "runner", "station_id": "drive_thru", "window": {"start": "06:00", "end": "23:59"}, "capacity_multiplier": 1.0, "synthetic_worker_ref": "runner_role_01"}]},
         "prep_inventory_model": {"model_id": "generic_qsr_prep_v1", "items": [{"inventory_item_id": k, "opening_quantity": v, "unit": "units", "holding_minutes": 240, "reorder_threshold": THRESHOLD[k]} for k, v in OPENING.items()]},
@@ -234,6 +227,7 @@ class Engine:
         for minute in range(360, 1439, 15):
             self.interval(minute)
         self.close_inventory(1439)
+        self.close_recoveries(1438)
         self.event(1439, "shift.ended", {"shift_id": f"shift_{self.seed}", "closing_inventory_snapshot_id": f"inv_close_{self.seed}", "orders_total": self.orders, "waste_events_total": int(self.waste > 0), "overload_events_total": sum(self.overloads.values())})
         validation = self.validation()
         return {"scenario": self.cfg, "events": self.events, "inventory_ledger": self.inventory_ledger(), "staffing_ledger": self.staffing_ledger(), "recommendation_validation_dataset": self.rec_dataset(), "alert_validation_dataset": self.alert_dataset(), "end_of_shift_summary": self.summary(validation), "validation": validation}
@@ -267,20 +261,26 @@ class Engine:
         expected = 150 + 35 * len(basket) + (160 if channel == "delivery" else 45 if channel == "mobile" else 25 if channel == "lobby" else 0)
         self.event(minute, "order.created", {"order_id": oid, "customer_segment": "commuter_breakfast" if daypart == "breakfast" else "family_dinner" if daypart == "dinner" else "general_guest", "channel": channel, "estimated_items": len(basket), "expected_ticket_seconds": expected})
         self.event(minute, "ticket.updated", {"ticket_id": f"tkt_{self.orders:06d}", "order_id": oid, "status": "queued", "queue_seconds": 0, "station_id": "assembly"})
+        total_work = 0.0
         for item in basket:
             _, stations, draw, units = MENU[item]
-            src = self.event(minute, "item.sold", {"order_id": oid, "item_id": item, "quantity": 1, "station_ids": stations, "inventory_draw": draw})
+            src = self.event(minute, "item.taken", {"order_id": oid, "item_id": item, "quantity": 1, "station_ids": stations, "inventory_draw": draw, "status": "taken"})
+            total_work += sum(units.values())
             for station, amount in units.items():
                 station_load[station] += amount
             for inv_item, qty in draw.items():
                 self.stock[inv_item] = round(self.stock.get(inv_item, 0.0) - qty, 2)
-                self.inv_entry(minute, inv_item, "item_consumed", -qty, f"sold:{item}", src)
+                self.inv_entry(minute, inv_item, "item_consumed", -qty, f"taken:{item}", src)
         delay = max(0, int((sum(station_load.values()) / max(1, sum(self.capacity(daypart).values())) - 1) * 480))
+        completed_minute = min(minute + max(3, expected // 60) + delay // 60, 1438)
+        for item in basket:
+            _, stations, _, _ = MENU[item]
+            self.event(completed_minute, "item.completed", {"order_id": oid, "item_id": item, "quantity": 1, "station_ids": stations, "completed_station_id": stations[-1], "elapsed_seconds": expected + delay, "work_units": round(total_work, 2), "status": "completed"})
         if delay > expected * 0.35:
             self.delayed += 1
             self.event(minute + 2, "ticket.updated", {"ticket_id": f"tkt_{self.orders:06d}", "order_id": oid, "status": "delayed", "queue_seconds": expected + delay, "station_id": "assembly"})
         self.completed += 1
-        self.event(min(minute + max(3, expected // 60), 1438), "ticket.updated", {"ticket_id": f"tkt_{self.orders:06d}", "order_id": oid, "status": "completed", "queue_seconds": expected + delay, "station_id": "assembly"})
+        self.event(completed_minute, "ticket.updated", {"ticket_id": f"tkt_{self.orders:06d}", "order_id": oid, "status": "completed", "queue_seconds": expected + delay, "station_id": "assembly"})
 
     def pick_item(self, daypart: str) -> str:
         item = _choice(self.rng, _menu_mix(daypart))
@@ -315,6 +315,13 @@ class Engine:
                 self.state[station] = False
                 src = self.event(minute, "station.recovered", {"station_id": station, "load_units": round(load, 2), "capacity_units": round(cap[station], 2), "recovery_duration_minutes": 15, "recovery_reason": "queue_cleared"})
                 self.alert(minute, "station returned below recovery threshold", "station_recovered", "info", [src])
+
+    def close_recoveries(self, minute: int) -> None:
+        for station, active in list(self.state.items()):
+            if active:
+                self.state[station] = False
+                src = self.event(minute, "station.recovered", {"station_id": station, "load_units": 0, "capacity_units": round(self.capacity(_daypart(minute))[station], 2), "recovery_duration_minutes": 15, "recovery_reason": "end_of_shift_queue_clear"})
+                self.alert(minute, "station recovered at close", "station_recovered", "info", [src])
 
     def close_inventory(self, minute: int) -> None:
         waste_qty = round(min(self.stock["prep_pack"] * 0.10, 22.0) * self.t["waste"], 2)
@@ -370,7 +377,7 @@ class Engine:
         return {"status": "passed" if not errors else "failed", "schema_valid": True, "security_valid": True, "deterministic_replay_valid": True, "ledgers_reconcile": not errors, "realism_status": "passed" if not errors else "review_required", "asc_compatibility_status": "pending_contract", "errors": errors}
 
     def summary(self, validation: dict[str, Any]) -> dict[str, Any]:
-        return {"simulation_id": self.simulation_id, "scenario_id": self.cfg["scenario_id"], "seed": self.seed, "synthetic_data": True, "schema_version": SCHEMA_VERSION, "business_day": BUSINESS_DAY, "demand_summary": {"metrics": {"orders_total": self.orders, "completed_tickets": self.completed, "delayed_tickets": self.delayed}, "notes": ["Demand is daypart-shaped and modifier-driven."]}, "channel_summary": {"metrics": self.channels, "notes": ["Channel mix changes by daypart and scenario."]}, "station_summary": {"metrics": {**{f"{k}_load_units": round(v, 2) for k, v in self.load.items()}, **{f"{k}_overloads": v for k, v in self.overloads.items()}}, "notes": ["Overloads require capacity threshold breach."]}, "inventory_summary": {"metrics": {k: round(v, 2) for k, v in self.stock.items()}, "notes": ["Inventory reconciles from item.sold, prep.confirmed, and waste.recorded."]}, "waste_summary": {"metrics": {"waste_units": round(self.waste, 2)}, "notes": ["Waste is reason-coded."]}, "staffing_summary": {"metrics": {"call_off_recorded": self.t["calloff"], "staffing_entries": len(self.staff)}, "notes": ["Staffing is aggregate coverage only; no employee scoring."]}, "equipment_summary": {"metrics": self.t["equip"], "notes": ["Equipment constraints reduce station capacity."]}, "external_factor_summary": {"metrics": {"weather": self.t["weather"], "traffic": self.t["traffic"], "local_event": self.t["local"] or "none"}, "notes": ["External factors affect demand before throughput."]}, "validation_summary": validation}
+        return {"simulation_id": self.simulation_id, "scenario_id": self.cfg["scenario_id"], "seed": self.seed, "synthetic_data": True, "schema_version": SCHEMA_VERSION, "business_day": BUSINESS_DAY, "demand_summary": {"metrics": {"orders_total": self.orders, "completed_tickets": self.completed, "delayed_tickets": self.delayed}, "notes": ["Demand is daypart-shaped and modifier-driven."]}, "channel_summary": {"metrics": self.channels, "notes": ["Channel mix changes by daypart and scenario."]}, "station_summary": {"metrics": {**{f"{k}_load_units": round(v, 2) for k, v in self.load.items()}, **{f"{k}_overloads": v for k, v in self.overloads.items()}}, "notes": ["Overloads require capacity threshold breach."]}, "inventory_summary": {"metrics": {k: round(v, 2) for k, v in self.stock.items()}, "notes": ["Inventory reconciles from item.taken, prep.confirmed, and waste.recorded."]}, "waste_summary": {"metrics": {"waste_units": round(self.waste, 2)}, "notes": ["Waste is reason-coded."]}, "staffing_summary": {"metrics": {"call_off_recorded": self.t["calloff"], "staffing_entries": len(self.staff)}, "notes": ["Staffing is aggregate coverage only; no employee scoring."]}, "equipment_summary": {"metrics": self.t["equip"], "notes": ["Equipment constraints reduce station capacity."]}, "external_factor_summary": {"metrics": {"weather": self.t["weather"], "traffic": self.t["traffic"], "local_event": self.t["local"] or "none"}, "notes": ["External factors affect demand before throughput."]}, "validation_summary": validation}
 
 
 def build_simulation(scenario_type: str = "normal_day", seed: int = 12345) -> dict[str, Any]:
@@ -418,7 +425,7 @@ def run_to_path(scenario_type: str = "normal_day", seed: int = 12345, out: str =
         validation["status"] = "failed"
     out_path = Path(out)
     out_path.mkdir(parents=True, exist_ok=True)
-    file_hashes = {
+    files = {
         "event_stream.jsonl": _write_jsonl(out_path / "event_stream.jsonl", outputs["events"]),
         "inventory_ledger.json": _write_json(out_path / "inventory_ledger.json", outputs["inventory_ledger"]),
         "staffing_ledger.json": _write_json(out_path / "staffing_ledger.json", outputs["staffing_ledger"]),
@@ -426,7 +433,7 @@ def run_to_path(scenario_type: str = "normal_day", seed: int = 12345, out: str =
         "alert_validation_dataset.json": _write_json(out_path / "alert_validation_dataset.json", outputs["alert_validation_dataset"]),
         "end_of_shift_summary.json": _write_json(out_path / "end_of_shift_summary.json", outputs["end_of_shift_summary"]),
     }
-    receipt = {"receipt_id": f"rcpt_{scenario_type}_{seed}", "workflow_id": "wf_generate_simulated_business_day", "simulation_id": outputs["events"][0]["simulation_id"], "scenario_id": f"scn_{scenario_type}", "seed": seed, "runtime_class": "T3", "status": "completed" if validation["status"] == "passed" else "failed", "started_at": CREATED_AT, "completed_at": CREATED_AT, "inputs": [f"scenario_type={scenario_type}", f"seed={seed}", f"out={out}"], "assumptions": ["Synthetic generic QSR archetype", "ASC final ingestion contract pending"], "tools_used": ["restaurant_simulator.engine"], "schema_version": SCHEMA_VERSION, "generator_version": GENERATOR_VERSION, "outputs_created": ["event_stream.jsonl", "inventory_ledger.json", "staffing_ledger.json", "recommendation_validation_dataset.json", "alert_validation_dataset.json", "end_of_shift_summary.json", "run_receipt.json", "hashes.json"], "validations_run": ["schema_shape", "security_gate", "ledger_reconciliation", "deterministic_replay", "causal_realism_smoke"], "validation_results": validation, "approvals": [], "errors": validation.get("errors", []), "rollback": {"safe": True, "method": "discard output directory and rerun"}, "next_actions": ["Reconcile with final ASC ingestion contract", "Run manager plausibility review"]}
-    file_hashes["run_receipt.json"] = _write_json(out_path / "run_receipt.json", receipt)
-    file_hashes["hashes.json"] = _write_json(out_path / "hashes.json", {"content_hashes": hashes, "file_hashes": file_hashes, "replay_hashes": replay_hashes})
-    return {"status": receipt["status"], "scenario_type": scenario_type, "seed": seed, "out": str(out_path), "simulation_id": receipt["simulation_id"], "event_count": len(outputs["events"]), "orders_total": outputs["end_of_shift_summary"]["demand_summary"]["metrics"]["orders_total"], "validation": validation, "outputs": receipt["outputs_created"]}
+    receipt = {"run_id": outputs["scenario"]["scenario_id"] + f"_{seed}", "simulation_id": outputs["inventory_ledger"]["simulation_id"], "scenario_id": outputs["scenario"]["scenario_id"], "seed": seed, "schema_version": SCHEMA_VERSION, "generator_version": GENERATOR_VERSION, "status": "completed" if validation["status"] == "passed" else "completed_with_validation_errors", "deterministic_replay_valid": deterministic, "outputs": files, "hashes": hashes, "replay_hashes": replay_hashes, "created_at": CREATED_AT}
+    files["run_receipt.json"] = _write_json(out_path / "run_receipt.json", receipt)
+    _write_json(out_path / "hashes.json", hashes)
+    return receipt

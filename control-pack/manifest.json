@@ -1,0 +1,51 @@
+{
+  "project": "Restaurant Daily Flow Simulator",
+  "repository": "https://github.com/tuccijr75/Restaurant-Simulator",
+  "source_pack_version": "rs_source_pack_v1.1",
+  "generated_at": "2026-06-10T12:20:00-04:00",
+  "active_control_pack": "control-pack/active",
+  "workflow_pattern_reference": "AI Shift Commander build-workflow pattern adapted for Restaurant Simulator only",
+  "packets": [
+    {
+      "packet": "00",
+      "folder": "00_security",
+      "path": "control-pack/active/00_security/00_security.md",
+      "purpose": "security, privacy, trust boundaries, connector rules, employee-scoring ban"
+    },
+    {
+      "packet": "01",
+      "folder": "01_system",
+      "path": "control-pack/active/01_system/01_system.md",
+      "purpose": "system identity, product boundary, event doctrine, default build path"
+    },
+    {
+      "packet": "02",
+      "folder": "02_workflow",
+      "path": "control-pack/active/02_workflow/02_workflow.md",
+      "purpose": "runtime classes, task brief rules, workflow lifecycle, receipt rules"
+    },
+    {
+      "packet": "03",
+      "folder": "03_schema",
+      "path": "control-pack/active/03_schema/03_schema.json",
+      "purpose": "scenario, event, ledger, validation, workflow, receipt, and error schemas"
+    },
+    {
+      "packet": "04",
+      "folder": "04_context",
+      "path": "control-pack/active/04_context/04_context.md",
+      "purpose": "context loading, memory, provenance, task state, stale-context rules"
+    },
+    {
+      "packet": "05",
+      "folder": "05_diagnostics",
+      "path": "control-pack/active/05_diagnostics/05_diagnostics.md",
+      "purpose": "preflight, gates, debugging, regression, release readiness"
+    }
+  ],
+  "active_task_pointer": "build-workflows/task-briefs/current-task.md",
+  "workflow_state": "build-workflows/state/state.json",
+  "initial_task": "RS-SP-001",
+  "missing_packets": [],
+  "skipped_duplicates": []
+}

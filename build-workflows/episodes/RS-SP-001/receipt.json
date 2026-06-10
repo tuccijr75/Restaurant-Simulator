@@ -1,0 +1,123 @@
+{
+  "receipt_id": "rcpt_RS-SP-001_source_pack_workflow_activation",
+  "task_id": "RS-SP-001",
+  "workflow_id": "wf_RS-SP-001_source_pack_activation",
+  "runtime_class": "T2",
+  "lane": "source",
+  "branch": "main",
+  "status": "completed",
+  "started_at": "2026-06-10T12:20:00-04:00",
+  "completed_at": "2026-06-10T12:20:00-04:00",
+  "source_packets_used": [
+    "control-pack/manifest.json",
+    "control-pack/active/00_security/00_security.md",
+    "control-pack/active/01_system/01_system.md",
+    "control-pack/active/02_workflow/02_workflow.md",
+    "control-pack/active/03_schema/03_schema.json",
+    "control-pack/active/04_context/04_context.md",
+    "control-pack/active/05_diagnostics/05_diagnostics.md"
+  ],
+  "repository_paths_inspected": [
+    "README.md",
+    "restaurant_simulator/engine.py",
+    "game/scripts/sim/SimRunState.cs",
+    "control-pack/manifest.json",
+    "build-workflows/task-briefs/current-task.md"
+  ],
+  "allowed_paths": [
+    "control-pack/manifest.json",
+    "control-pack/active/**",
+    "build-workflows/state/state.json",
+    "build-workflows/task-briefs/current-task.md",
+    "build-workflows/task-briefs/RS-SP-001.md",
+    "build-workflows/audits/RS-SP-001-audit.md",
+    "build-workflows/handoffs/RS-SP-001-handoff.md",
+    "build-workflows/episodes/RS-SP-001/**"
+  ],
+  "prohibited_paths": [
+    "restaurant_simulator/**",
+    "game/**",
+    "tests/**",
+    "outputs/**",
+    "README.md",
+    "pyproject.toml",
+    ".github/**",
+    "AI Shift Commander repository or files"
+  ],
+  "files_created": [
+    "control-pack/manifest.json",
+    "control-pack/active/00_security/00_security.md",
+    "control-pack/active/01_system/01_system.md",
+    "control-pack/active/02_workflow/02_workflow.md",
+    "control-pack/active/03_schema/03_schema.json",
+    "control-pack/active/04_context/04_context.md",
+    "control-pack/active/05_diagnostics/05_diagnostics.md",
+    "build-workflows/state/state.json",
+    "build-workflows/task-briefs/current-task.md",
+    "build-workflows/task-briefs/RS-SP-001.md",
+    "build-workflows/audits/RS-SP-001-audit.md",
+    "build-workflows/handoffs/RS-SP-001-handoff.md",
+    "build-workflows/episodes/RS-SP-001/task.md",
+    "build-workflows/episodes/RS-SP-001/trace.jsonl",
+    "build-workflows/episodes/RS-SP-001/checks.jsonl",
+    "build-workflows/episodes/RS-SP-001/audit.md",
+    "build-workflows/episodes/RS-SP-001/handoff.md",
+    "build-workflows/episodes/RS-SP-001/receipt.json"
+  ],
+  "files_modified": [],
+  "files_deleted": [],
+  "tests_run": [
+    "GitHub repository path absence checks for initial workflow paths",
+    "Path-scope review against RS-SP-001 task brief",
+    "Source-pack structure review",
+    "Security review for secrets, real data, employee scoring, and ASC modification"
+  ],
+  "test_results": [
+    {
+      "name": "workflow_path_precheck",
+      "status": "passed",
+      "notes": "control-pack/manifest.json and current-task.md were absent before activation."
+    },
+    {
+      "name": "path_scope_review",
+      "status": "passed",
+      "notes": "Created files are limited to allowed control-pack and build-workflows activation paths."
+    },
+    {
+      "name": "runtime_unit_tests",
+      "status": "not_run",
+      "notes": "No runtime implementation files were modified in RS-SP-001."
+    }
+  ],
+  "validation_results": {
+    "status": "passed",
+    "schema_valid": true,
+    "security_valid": true,
+    "deterministic_replay_valid": false,
+    "ledgers_reconcile": false,
+    "realism_status": "not_run",
+    "asc_compatibility_status": "not_run",
+    "errors": []
+  },
+  "path_scope_result": {
+    "status": "passed",
+    "prohibited_paths_changed": [],
+    "notes": "No runtime implementation paths were modified."
+  },
+  "approvals": [
+    "User requested adding the rewritten source files to Restaurant Simulator repo and creating the first current-task/task brief."
+  ],
+  "source_conflicts": [],
+  "assumptions": [
+    "RS-SP-001 is the initial source-pack activation task.",
+    "Direct commit to main is acceptable for this explicitly requested bootstrap update.",
+    "RS-SC-001 is the next correct task for schema and contract regression alignment."
+  ],
+  "blockers": [],
+  "security_impact": "Positive. Workflow source governance, path-scope, no-real-data, no-secrets, and no-employee-scoring rules are now active in the repository.",
+  "rollback": {
+    "safe": true,
+    "method": "Revert RS-SP-001 source-pack activation commits if review rejects the workflow structure."
+  },
+  "next_required_action": "Review RS-SP-001, then start RS-SC-001 for schema and contract regression alignment around item.taken -> item.completed."
+}

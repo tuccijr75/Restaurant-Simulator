@@ -8,10 +8,35 @@ public partial class ExportPanel:DashCard{
  public ExportPanel(){CardTitle="Exports";}
  public override void _Ready(){
   base._Ready();
-  export=AddButton("Export JSONL",Save,true);
-  status=StatusLabel("Event stream export writes to user://event_stream.jsonl");
+  export=AddButton("Export Audit Bundle",Save,true);
+  status=StatusLabel("Writes event, staffing, waste, overload, equipment, item, task, trace, and validation files to user://");
  }
  public void Bind(SimRunState st){s=st;}
- public override void _Process(double d){if(s==null)return;status.Text=$"Events ready: {s.EventSeq}\nJSONL chars: {s.AllJsonl.Length}\nTarget: user://event_stream.jsonl";}
- void Save(){if(s==null){export.Text="No run state";return;}var f=FileAccess.Open("user://event_stream.jsonl",FileAccess.ModeFlags.Write);if(f==null){export.Text="Export failed";return;}f.StoreString(s.AllJsonl);f.Close();export.Text=$"Exported {s.EventSeq} events";}
+ public override void _Process(double d){
+  if(s==null)return;
+  status.Text=$"Events {s.EventSeq} | Traces {s.TraceSeq} | Validation {s.ValidationStatus}\nEquipment {s.EquipmentCount} | Items {s.ItemSeq} | Open tasks {s.OpenTaskCount}\nTarget: user:// audit bundle";
+ }
+ void Save(){
+  if(s==null){export.Text="No run state";return;}
+  s.RefreshValidation("export");
+  var ok=Write("event_stream.jsonl",s.AllJsonl);
+  ok=ok&&Write("staffing_ledger.txt",s.StaffingLedger);
+  ok=ok&&Write("waste_ledger.txt",s.WasteLedger);
+  ok=ok&&Write("overload_ledger.txt",s.OverloadLedger);
+  ok=ok&&Write("equipment_ledger.txt",s.EquipmentLedger);
+  ok=ok&&Write("item_ledger.txt",s.ItemLedger);
+  ok=ok&&Write("task_ledger.txt",s.TaskLedger);
+  ok=ok&&Write("item_catalog.json",s.ItemCatalogJson);
+  ok=ok&&Write("trace_ledger.jsonl",s.TraceLedger);
+  ok=ok&&Write("validation_report.txt",s.BuildValidationReport());
+  if(!ok){export.Text="Export failed";return;}
+  export.Text=$"Exported {s.EventSeq} events + {s.TraceSeq} traces";
+ }
+ bool Write(string name,string content){
+  var f=FileAccess.Open($"user://{name}",FileAccess.ModeFlags.Write);
+  if(f==null)return false;
+  f.StoreString(content);
+  f.Close();
+  return true;
+ }
 }

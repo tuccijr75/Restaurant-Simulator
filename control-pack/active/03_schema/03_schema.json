@@ -1,0 +1,157 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/tuccijr75/Restaurant-Simulator/control-pack/active/03_schema/03_schema.json",
+  "title": "Restaurant Daily Flow Simulator Workflow and Simulation Schema",
+  "type": "object",
+  "required": [
+    "metadata",
+    "event_envelope_schema",
+    "event_payload_schemas",
+    "task_brief_schema",
+    "workflow_state_schema",
+    "episode_schema",
+    "receipt_schema",
+    "error_schema"
+  ],
+  "properties": {
+    "metadata": {
+      "type": "object",
+      "required": ["project", "schema_version", "source_pack_version", "synthetic_data_required", "asc_compatible", "employee_scoring_allowed", "deprecated_event_types"],
+      "properties": {
+        "project": {"const": "Restaurant Daily Flow Simulator"},
+        "schema_version": {"type": "string", "pattern": "^\\d+\\.\\d+\\.\\d+$"},
+        "source_pack_version": {"type": "string"},
+        "synthetic_data_required": {"const": true},
+        "asc_compatible": {"type": "boolean"},
+        "employee_scoring_allowed": {"const": false},
+        "deprecated_event_types": {"type": "array", "items": {"type": "string"}}
+      },
+      "additionalProperties": false
+    },
+    "event_envelope_schema": {
+      "type": "object",
+      "required": ["event_id", "simulation_id", "scenario_id", "seed", "event_type", "occurred_at", "business_day", "daypart", "sequence", "source", "synthetic_data", "schema_version", "generator_version", "payload"],
+      "properties": {
+        "event_id": {"type": "string", "pattern": "^evt_[a-z0-9_\\-]+$"},
+        "simulation_id": {"type": "string"},
+        "scenario_id": {"type": "string"},
+        "seed": {"type": "integer", "minimum": 0},
+        "event_type": {"$ref": "#/$defs/event_type"},
+        "occurred_at": {"type": "string", "format": "date-time"},
+        "business_day": {"type": "string", "format": "date"},
+        "daypart": {"$ref": "#/$defs/daypart_name"},
+        "sequence": {"type": "integer", "minimum": 0},
+        "source": {"const": "restaurant_daily_flow_simulator"},
+        "synthetic_data": {"const": true},
+        "schema_version": {"type": "string"},
+        "generator_version": {"type": "string"},
+        "payload": {"type": "object"}
+      },
+      "additionalProperties": false
+    },
+    "event_payload_schemas": {
+      "type": "object",
+      "required": ["order_created", "item_taken", "item_completed", "ticket_updated", "staff_assignment_updated", "prep_confirmed", "waste_recorded", "station_overloaded", "station_recovered", "shift_started", "shift_ended"],
+      "properties": {
+        "order_created": {"$ref": "#/$defs/order_created_payload"},
+        "item_taken": {"$ref": "#/$defs/item_taken_payload"},
+        "item_completed": {"$ref": "#/$defs/item_completed_payload"},
+        "ticket_updated": {"$ref": "#/$defs/ticket_updated_payload"},
+        "staff_assignment_updated": {"$ref": "#/$defs/staff_assignment_updated_payload"},
+        "prep_confirmed": {"$ref": "#/$defs/prep_confirmed_payload"},
+        "waste_recorded": {"$ref": "#/$defs/waste_recorded_payload"},
+        "station_overloaded": {"$ref": "#/$defs/station_overloaded_payload"},
+        "station_recovered": {"$ref": "#/$defs/station_recovered_payload"},
+        "shift_started": {"$ref": "#/$defs/shift_started_payload"},
+        "shift_ended": {"$ref": "#/$defs/shift_ended_payload"}
+      },
+      "additionalProperties": false
+    },
+    "task_brief_schema": {"$ref": "#/$defs/task_brief"},
+    "workflow_state_schema": {"$ref": "#/$defs/workflow_state"},
+    "episode_schema": {"$ref": "#/$defs/episode"},
+    "receipt_schema": {"$ref": "#/$defs/receipt"},
+    "error_schema": {"$ref": "#/$defs/error_record"}
+  },
+  "$defs": {
+    "runtime_class": {"enum": ["T0", "T1", "T2", "T3", "T4", "T5"]},
+    "workflow_lane": {"enum": ["source", "schema", "engine", "godot", "python", "ui", "export", "validation", "compatibility", "docs", "release"]},
+    "task_status": {"enum": ["draft", "ready", "active", "blocked", "ready_for_review", "completed", "failed", "cancelled", "on_hold"]},
+    "daypart_name": {"enum": ["breakfast", "mid_morning", "lunch", "afternoon", "dinner", "late_night"]},
+    "channel": {"enum": ["drive_thru", "lobby", "mobile", "delivery"]},
+    "event_type": {"enum": ["order.created", "item.taken", "item.completed", "ticket.updated", "staff.assignment.updated", "prep.confirmed", "waste.recorded", "station.overloaded", "station.recovered", "shift.started", "shift.ended"]},
+    "validation_status": {"enum": ["passed", "failed", "blocked", "review_required", "not_run", "pending_contract", "simulator_contract_valid_asc_contract_pending"]},
+    "order_created_payload": {
+      "type": "object",
+      "required": ["order_id", "customer_segment", "channel", "estimated_items", "expected_ticket_seconds"],
+      "properties": {"order_id": {"type": "string"}, "customer_segment": {"type": "string"}, "channel": {"$ref": "#/$defs/channel"}, "estimated_items": {"type": "integer", "minimum": 1}, "expected_ticket_seconds": {"type": "integer", "minimum": 0}},
+      "additionalProperties": false
+    },
+    "item_taken_payload": {
+      "type": "object",
+      "required": ["order_id", "item_id", "quantity", "station_ids", "inventory_draw", "status"],
+      "properties": {"item_instance_id": {"type": "string"}, "order_id": {"type": "string"}, "item_id": {"type": "string"}, "quantity": {"type": "integer", "minimum": 1}, "station_ids": {"type": "array", "items": {"type": "string"}}, "inventory_draw": {"type": "object", "additionalProperties": {"type": "number", "minimum": 0}}, "status": {"const": "taken"}},
+      "additionalProperties": false
+    },
+    "item_completed_payload": {
+      "type": "object",
+      "required": ["order_id", "item_id", "quantity", "station_ids", "completed_station_id", "elapsed_seconds", "status"],
+      "properties": {"item_instance_id": {"type": "string"}, "order_id": {"type": "string"}, "item_id": {"type": "string"}, "quantity": {"type": "integer", "minimum": 1}, "station_ids": {"type": "array", "items": {"type": "string"}}, "completed_station_id": {"type": "string"}, "elapsed_seconds": {"type": "integer", "minimum": 0}, "work_units": {"type": "number", "minimum": 0}, "status": {"const": "completed"}},
+      "additionalProperties": false
+    },
+    "ticket_updated_payload": {
+      "type": "object",
+      "required": ["ticket_id", "order_id", "status", "queue_seconds", "station_id"],
+      "properties": {"ticket_id": {"type": "string"}, "order_id": {"type": "string"}, "status": {"enum": ["created", "queued", "in_progress", "delayed", "completed", "cancelled", "abandoned"]}, "queue_seconds": {"type": "integer", "minimum": 0}, "station_id": {"type": "string"}},
+      "additionalProperties": false
+    },
+    "staff_assignment_updated_payload": {
+      "type": "object",
+      "required": ["assignment_id", "synthetic_worker_ref", "role_id", "from_station_id", "to_station_id", "reason"],
+      "properties": {"assignment_id": {"type": "string"}, "synthetic_worker_ref": {"type": "string"}, "role_id": {"type": "string"}, "from_station_id": {"type": ["string", "null"]}, "to_station_id": {"type": ["string", "null"]}, "reason": {"enum": ["shift_start", "call_off", "rush_support", "station_recovery", "break_coverage", "shift_end", "manager_adjustment"]}},
+      "additionalProperties": false
+    },
+    "prep_confirmed_payload": {
+      "type": "object",
+      "required": ["prep_batch_id", "inventory_item_id", "quantity", "unit", "station_id", "confirmed_by_role"],
+      "properties": {"prep_batch_id": {"type": "string"}, "inventory_item_id": {"type": "string"}, "quantity": {"type": "number", "minimum": 0}, "unit": {"type": "string"}, "station_id": {"type": "string"}, "confirmed_by_role": {"type": "string"}},
+      "additionalProperties": false
+    },
+    "waste_recorded_payload": {
+      "type": "object",
+      "required": ["waste_id", "inventory_item_id", "quantity", "unit", "reason", "station_id"],
+      "properties": {"waste_id": {"type": "string"}, "inventory_item_id": {"type": "string"}, "quantity": {"type": "number", "minimum": 0}, "unit": {"type": "string"}, "reason": {"enum": ["holding_time_exceeded", "over_prep", "quality_discard", "production_error", "equipment_issue", "end_of_day_discard"]}, "station_id": {"type": "string"}},
+      "additionalProperties": false
+    },
+    "station_overloaded_payload": {
+      "type": "object",
+      "required": ["station_id", "load_units", "capacity_units", "duration_minutes", "primary_cause"],
+      "properties": {"station_id": {"type": "string"}, "load_units": {"type": "number", "minimum": 0}, "capacity_units": {"type": "number", "minimum": 0}, "duration_minutes": {"type": "number", "minimum": 0}, "primary_cause": {"enum": ["rush_demand", "staffing_gap", "equipment_constraint", "menu_mix", "multi_rush", "inventory_issue"]}},
+      "additionalProperties": false
+    },
+    "station_recovered_payload": {
+      "type": "object",
+      "required": ["station_id", "load_units", "capacity_units", "recovery_duration_minutes", "recovery_reason"],
+      "properties": {"station_id": {"type": "string"}, "load_units": {"type": "number", "minimum": 0}, "capacity_units": {"type": "number", "minimum": 0}, "recovery_duration_minutes": {"type": "number", "minimum": 0}, "recovery_reason": {"enum": ["demand_drop", "staff_reassigned", "equipment_restored", "queue_cleared", "daypart_transition", "end_of_shift_queue_clear"]}},
+      "additionalProperties": false
+    },
+    "shift_started_payload": {"type": "object", "required": ["shift_id", "manager_role_ref", "opening_inventory_snapshot_id", "scheduled_role_count"], "additionalProperties": true},
+    "shift_ended_payload": {"type": "object", "required": ["shift_id", "closing_inventory_snapshot_id", "orders_total", "waste_events_total", "overload_events_total"], "additionalProperties": true},
+    "task_brief": {
+      "type": "object",
+      "required": ["task_id", "task_name", "task_type", "target_layer", "runtime_class", "owner", "approval_required", "expected_output", "repository_branch", "files_allowed_to_modify", "files_prohibited_from_modifying", "objective", "source_packets_to_load", "existing_implementation_sources", "requirements", "non_goals", "data_contracts", "required_tests", "acceptance_criteria", "stop_rule"],
+      "properties": {"task_id": {"type": "string", "pattern": "^RS-[A-Z]{2,4}-[0-9]{3}[A-Z]?$"}, "task_name": {"type": "string"}, "task_type": {"type": "string"}, "target_layer": {"type": "string"}, "runtime_class": {"$ref": "#/$defs/runtime_class"}, "owner": {"const": "Michael Robertucci"}, "approval_required": {"type": "string"}, "expected_output": {"type": "string"}, "repository_branch": {"type": "string"}, "files_allowed_to_modify": {"type": "array", "items": {"type": "string"}}, "files_prohibited_from_modifying": {"type": "array", "items": {"type": "string"}}, "objective": {"type": "string"}, "source_packets_to_load": {"type": "array", "items": {"type": "string"}}, "existing_implementation_sources": {"type": "array", "items": {"type": "string"}}, "requirements": {"type": "array", "items": {"type": "string"}}, "non_goals": {"type": "array", "items": {"type": "string"}}, "data_contracts": {"type": "array", "items": {"type": "string"}}, "required_tests": {"type": "array", "items": {"type": "string"}}, "acceptance_criteria": {"type": "array", "items": {"type": "string"}}, "stop_rule": {"type": "string"}},
+      "additionalProperties": false
+    },
+    "workflow_state": {
+      "type": "object",
+      "required": ["project", "active_task_id", "lanes", "last_updated", "next_action"],
+      "properties": {"project": {"const": "Restaurant Daily Flow Simulator"}, "active_task_id": {"type": "string"}, "lanes": {"type": "object"}, "last_updated": {"type": "string", "format": "date-time"}, "next_action": {"type": "string"}},
+      "additionalProperties": false
+    },
+    "episode": {"type": "object", "required": ["task_id", "task", "trace", "checks", "audit", "handoff", "receipt"], "additionalProperties": true},
+    "receipt": {"type": "object", "required": ["receipt_id", "task_id", "workflow_id", "runtime_class", "lane", "branch", "status", "started_at", "completed_at", "source_packets_used", "repository_paths_inspected", "allowed_paths", "prohibited_paths", "files_created", "files_modified", "files_deleted", "tests_run", "test_results", "validation_results", "path_scope_result", "approvals", "source_conflicts", "assumptions", "blockers", "security_impact", "rollback", "next_required_action"], "additionalProperties": true},
+    "error_record": {"type": "object", "required": ["error_id", "error_class", "severity", "detected_at", "symptom", "probable_cause", "evidence", "affected_outputs", "safe_to_retry", "requires_approval", "recommended_fix", "status"], "additionalProperties": true}
+  },
+  "additionalProperties": false
+}

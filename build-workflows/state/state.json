@@ -1,0 +1,28 @@
+{
+  "project": "Restaurant Daily Flow Simulator",
+  "active_task_id": "RS-SC-001",
+  "lanes": {
+    "source": {
+      "active_task_id": "RS-SP-001",
+      "status": "ready_for_review",
+      "branch": "main"
+    },
+    "schema": {
+      "active_task_id": "RS-SC-001",
+      "status": "ready_for_review",
+      "branch": "main"
+    },
+    "engine": {
+      "active_task_id": "RS-EN-001",
+      "status": "ready",
+      "branch": "main"
+    },
+    "validation": {
+      "active_task_id": "RS-VA-001",
+      "status": "ready",
+      "branch": "main"
+    }
+  },
+  "last_updated": "2026-06-10T13:05:00-04:00",
+  "next_action": "Review RS-SC-001, then start RS-EN-001 for engine lifecycle/provenance verification."
+}
