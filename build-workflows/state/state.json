@@ -1,6 +1,6 @@
 {
   "project": "Restaurant Daily Flow Simulator",
-  "active_task_id": "RS-VA-001",
+  "active_task_id": "RS-PL-001",
   "lanes": {
     "source": {
       "active_task_id": "RS-SP-001",
@@ -18,11 +18,11 @@
       "branch": "main"
     },
     "validation": {
-      "active_task_id": "RS-VA-001",
-      "status": "completed",
+      "active_task_id": "RS-PL-001",
+      "status": "ready_for_review",
       "branch": "main"
     }
   },
-  "last_updated": "2026-06-10T14:10:00-04:00",
-  "next_action": "Start RS-PL-001 for plausibility and realism validation profile."
+  "last_updated": "2026-06-10T14:30:00-04:00",
+  "next_action": "Review RS-PL-001, then start RS-CX-001 for ASC compatibility contract profile."
 }
