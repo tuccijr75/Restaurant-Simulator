@@ -1,0 +1,120 @@
+{
+  "receipt_id": "rcpt_RS-VA-001_validation_gate",
+  "task_id": "RS-VA-001",
+  "workflow_id": "wf_RS-VA-001_determinism_output_gate",
+  "runtime_class": "T3",
+  "lane": "validation",
+  "branch": "main",
+  "status": "ready_for_review",
+  "started_at": "2026-06-10T13:50:00-04:00",
+  "completed_at": "2026-06-10T14:05:00-04:00",
+  "source_packets_used": [
+    "control-pack/manifest.json",
+    "control-pack/active/00_security/00_security.md",
+    "control-pack/active/01_system/01_system.md",
+    "control-pack/active/02_workflow/02_workflow.md",
+    "control-pack/active/03_schema/03_schema.json",
+    "control-pack/active/04_context/04_context.md",
+    "control-pack/active/05_diagnostics/05_diagnostics.md",
+    "build-workflows/episodes/RS-EN-001/receipt.json"
+  ],
+  "repository_paths_inspected": [
+    "build-workflows/task-briefs/current-task.md",
+    "build-workflows/state/state.json",
+    "build-workflows/episodes/RS-EN-001/receipt.json",
+    "restaurant_simulator/engine.py",
+    "restaurant_simulator/core.py",
+    "tests/test_engine_contract.py",
+    "control-pack/active/03_schema/03_schema.json"
+  ],
+  "allowed_paths": [
+    "build-workflows/state/state.json",
+    "build-workflows/task-briefs/current-task.md",
+    "build-workflows/task-briefs/RS-VA-001.md",
+    "tests/test_validation_gate.py",
+    "build-workflows/audits/RS-VA-001-audit.md",
+    "build-workflows/handoffs/RS-VA-001-handoff.md",
+    "build-workflows/episodes/RS-VA-001/**"
+  ],
+  "prohibited_paths": [
+    "restaurant_simulator/engine.py",
+    "restaurant_simulator/core.py",
+    "game/**",
+    "outputs/**",
+    "README.md",
+    "pyproject.toml",
+    ".github/**",
+    "control-pack/active/**",
+    "AI Shift Commander repository or files"
+  ],
+  "files_created": [
+    "build-workflows/task-briefs/RS-VA-001.md",
+    "tests/test_validation_gate.py",
+    "build-workflows/audits/RS-VA-001-audit.md",
+    "build-workflows/handoffs/RS-VA-001-handoff.md",
+    "build-workflows/episodes/RS-VA-001/task.md",
+    "build-workflows/episodes/RS-VA-001/trace.jsonl",
+    "build-workflows/episodes/RS-VA-001/checks.jsonl",
+    "build-workflows/episodes/RS-VA-001/audit.md",
+    "build-workflows/episodes/RS-VA-001/handoff.md",
+    "build-workflows/episodes/RS-VA-001/receipt.json"
+  ],
+  "files_modified": [
+    "build-workflows/task-briefs/current-task.md",
+    "build-workflows/state/state.json"
+  ],
+  "files_deleted": [],
+  "tests_run": [
+    "Static source-pack and engine inspection",
+    "Validation test design review"
+  ],
+  "test_results": [
+    {
+      "name": "validation_gate_tests_added",
+      "status": "passed",
+      "notes": "Added deterministic replay, output bundle, digest, parseability, governance, and deprecated-event checks."
+    },
+    {
+      "name": "runtime_scope_check",
+      "status": "passed",
+      "notes": "No simulator runtime files modified in this validation task."
+    },
+    {
+      "name": "local_unit_tests",
+      "status": "not_run",
+      "notes": "Connector environment did not execute local repo tests. Run python -m unittest discover -s tests."
+    }
+  ],
+  "validation_results": {
+    "status": "review_required",
+    "schema_valid": true,
+    "security_valid": true,
+    "deterministic_replay_valid": false,
+    "ledgers_reconcile": false,
+    "realism_status": "not_run",
+    "asc_compatibility_status": "pending_contract",
+    "errors": []
+  },
+  "path_scope_result": {
+    "status": "passed",
+    "prohibited_paths_changed": [],
+    "notes": "Only workflow files and validation tests were changed."
+  },
+  "approvals": [
+    "User requested RS-VA-001."
+  ],
+  "source_conflicts": [],
+  "assumptions": [
+    "RS-VA-001 is validation-only; engine defects must be handled by a follow-up engine task.",
+    "Output regeneration artifacts are not committed to the repository."
+  ],
+  "blockers": [
+    "Local/CI test execution pending."
+  ],
+  "security_impact": "Neutral. Added validation tests only; no real data, live connectors, employee scoring, ASC writes, deployment changes, or public claims introduced.",
+  "rollback": {
+    "safe": true,
+    "method": "Revert RS-VA-001 workflow and test commits if validation gate design is rejected."
+  },
+  "next_required_action": "Run python -m unittest discover -s tests, then mark RS-VA-001 completed if tests pass."
+}
