@@ -1,0 +1,119 @@
+{
+  "receipt_id": "rcpt_RS-AU-001_repository_stabilization_audit",
+  "task_id": "RS-AU-001",
+  "workflow_id": "wf_RS-AU-001_repository_stabilization_audit",
+  "runtime_class": "T3",
+  "lane": "audit",
+  "branch": "main",
+  "status": "ready_for_review",
+  "started_at": "2026-06-12T10:00:00-04:00",
+  "completed_at": "2026-06-12T10:12:00-04:00",
+  "source_packets_used": [
+    "control-pack/active/04_context.md",
+    "control-pack/active/05_diagnostics.md",
+    "build-workflows/episodes/RS-VA-001/receipt.json",
+    "build-workflows/episodes/RS-3D-001/receipt.json",
+    "build-workflows/episodes/RS-ST-001/receipt.json"
+  ],
+  "repository_paths_inspected": [
+    ".gitignore",
+    "build-workflows/task-briefs/current-task.md",
+    "build-workflows/state/state.json",
+    "build-workflows/state.json",
+    "build-workflows/episodes/RS-3D-001/receipt.json",
+    "build-workflows/episodes/RS-ST-001/receipt.json",
+    "game/project.godot",
+    "game/scripts/sim/SimRunState.cs",
+    "game/scripts/sim/SelfTest.cs",
+    "tools/engine-selftest/Program.cs"
+  ],
+  "allowed_paths": [
+    ".gitignore",
+    "build-workflows/state/state.json",
+    "build-workflows/task-briefs/current-task.md",
+    "build-workflows/task-briefs/RS-AU-001.md",
+    "build-workflows/audits/RS-AU-001-audit.md",
+    "build-workflows/handoffs/RS-AU-001-handoff.md",
+    "build-workflows/episodes/RS-AU-001/**"
+  ],
+  "prohibited_paths": [
+    "restaurant_simulator/**",
+    "game/**",
+    "tools/**",
+    "docs/**",
+    "outputs/**",
+    "control-pack/active/**",
+    "README.md",
+    "pyproject.toml",
+    "AI Shift Commander repository or files"
+  ],
+  "files_created": [
+    "build-workflows/task-briefs/RS-AU-001.md",
+    "build-workflows/audits/RS-AU-001-audit.md",
+    "build-workflows/handoffs/RS-AU-001-handoff.md",
+    "build-workflows/episodes/RS-AU-001/task.md",
+    "build-workflows/episodes/RS-AU-001/trace.jsonl",
+    "build-workflows/episodes/RS-AU-001/checks.jsonl",
+    "build-workflows/episodes/RS-AU-001/audit.md",
+    "build-workflows/episodes/RS-AU-001/handoff.md",
+    "build-workflows/episodes/RS-AU-001/receipt.json"
+  ],
+  "files_modified": [
+    ".gitignore",
+    "build-workflows/task-briefs/current-task.md",
+    "build-workflows/state/state.json"
+  ],
+  "files_deleted": [],
+  "tests_run": [
+    "Repository compare inspection",
+    "Workflow-state inspection",
+    "Ignore-rule inspection",
+    "Focused contract review",
+    "Receipt review for RS-3D-001 and RS-ST-001"
+  ],
+  "test_results": [
+    {"name": "checkpoint_compare", "status": "passed", "notes": "Current main is 5 commits ahead of the RS-VA-001 checkpoint."},
+    {"name": "ignore_rule_protection", "status": "passed", "notes": "Godot/editor/cache/build paths are covered before later tracking housekeeping."},
+    {"name": "local_file_preservation", "status": "passed", "notes": "No generated Godot/cache files were removed in RS-AU-001."},
+    {"name": "workflow_state_conflict", "status": "review_required", "notes": "Multiple workflow state sources disagreed before RS-AU-001."},
+    {"name": "contract_review", "status": "passed", "notes": "No active contract-breaking event emission was found in the focused review."}
+  ],
+  "validation_results": {
+    "status": "review_required",
+    "schema_valid": true,
+    "security_valid": true,
+    "deterministic_replay_valid": true,
+    "ledgers_reconcile": true,
+    "realism_status": "pending_local_godot_review",
+    "asc_compatibility_status": "pending_contract",
+    "errors": []
+  },
+  "path_scope_result": {
+    "status": "passed",
+    "prohibited_paths_changed": [],
+    "notes": "No runtime, game, docs, tools, control-pack, README, pyproject, output, or ASC files were modified by RS-AU-001."
+  },
+  "approvals": [
+    "User requested RS-AU-001.",
+    "User instructed that generated Godot/cache files must remain locally."
+  ],
+  "source_conflicts": [
+    "current-task.md and workflow state did not agree before RS-AU-001.",
+    "build-workflows/state.json duplicates workflow-state information outside the authoritative state path."
+  ],
+  "assumptions": [
+    "build-workflows/state/state.json remains the authoritative workflow state path.",
+    "Generated/editor/cache files should remain on local disk during later housekeeping.",
+    "RS-GC-001 should be scoped separately."
+  ],
+  "blockers": [
+    "Local Godot editor run remains pending from RS-3D-001 and RS-ST-001 evidence.",
+    "Tracked generated/editor/cache artifacts remain until a later housekeeping task."
+  ],
+  "security_impact": "Neutral to positive. Added ignore-rule clarification and audit evidence only; no runtime behavior or external integration was changed.",
+  "rollback": {
+    "safe": true,
+    "method": "Revert RS-AU-001 workflow artifacts and .gitignore clarification if rejected. No runtime files were changed."
+  },
+  "next_required_action": "Start RS-GC-001 for repository generated-artifact tracking cleanup using index-only untracking so local files remain."
+}
