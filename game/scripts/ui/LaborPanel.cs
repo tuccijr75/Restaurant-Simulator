@@ -15,6 +15,7 @@ public partial class LaborPanel:DashCard{
   AddRoleRow("Asst",()=>s?.CutAsstMgr(),()=>s?.AddAsstMgr());
   AddRoleRow("Rest",()=>s?.CutRestMgr(),()=>s?.AddRestMgr());
   var r=Row();AddRowButton(r,"Break",()=>s?.StartBreak());AddRowButton(r,"Return",()=>s?.EndBreak());AddRowButton(r,"CallOff",()=>s?.CallOff(),true);
+  var r2=Row();AddRowButton(r2,"Auto Schedule",()=>s?.EnableAutoSchedule(),true);
   status=StatusLabel();
  }
  void AddRoleRow(string name,Action minus,Action plus){
@@ -25,6 +26,6 @@ public partial class LaborPanel:DashCard{
   if(s==null)return;
   var hourSign=s.LaborHoursVarianceThis30>=0?"+":"";
   var dollarSign=s.LaborDollarsVarianceThis30>=0?"+":"";
-  status.Text=$"On clock {s.TotalOnClock} | Eff {s.EffectiveCrew} | Break {s.CrewOnBreak}\nCoverage {s.CoverageUsed}/{s.CoveragePool} | Open {s.CoverageOpen}\nLabor actual {s.LaborPercent:0.0}% | Run-rate {s.ProjectedLaborPercentThis30:0.0}%\nAllowance {s.LaborTargetPercent*100:0.0}% | Sales30 ${s.ProjectedSalesThis30:0}\nAllowed ${s.AllowedLaborDollarsThis30:0.00} vs Cost ${s.ProjectedLaborCostThis30:0.00} = {dollarSign}${s.LaborDollarsVarianceThis30:0.00}\nAllowed {s.AllowedLaborHoursThis30:0.00}h vs Scheduled {s.ScheduledLaborHoursThis30:0.00}h = {hourSign}{s.LaborHoursVarianceThis30:0.00}h";
+  status.Text=$"Mode: {(s.AutoSchedule?"AUTO SCHEDULE":"MANUAL (Auto Schedule to resume)")} | Sched {SimRunState.ScheduledCrewAt((int)s.Minute)} crew\nOn clock {s.TotalOnClock} | Eff {s.EffectiveCrew} | Break {s.CrewOnBreak}\nCoverage {s.CoverageUsed}/{s.CoveragePool} | Open {s.CoverageOpen}\nLabor actual {s.LaborPercent:0.0}% | Run-rate {s.ProjectedLaborPercentThis30:0.0}%\nAllowance {s.LaborTargetPercent*100:0.0}% | Sales30 ${s.ProjectedSalesThis30:0}\nAllowed ${s.AllowedLaborDollarsThis30:0.00} vs Cost ${s.ProjectedLaborCostThis30:0.00} = {dollarSign}${s.LaborDollarsVarianceThis30:0.00}\nAllowed {s.AllowedLaborHoursThis30:0.00}h vs Scheduled {s.ScheduledLaborHoursThis30:0.00}h = {hourSign}{s.LaborHoursVarianceThis30:0.00}h";
  }
 }

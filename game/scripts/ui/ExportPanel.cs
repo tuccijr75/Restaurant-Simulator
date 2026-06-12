@@ -19,9 +19,16 @@ public partial class ExportPanel:DashCard{
  void Save(){
   if(s==null){export.Text="No run state";return;}
   s.RefreshValidation("export");
-  var ok=Write("event_stream.jsonl",s.AllJsonl);
-  ok=ok&&Write("staffing_ledger.txt",s.StaffingLedger);
-  ok=ok&&Write("waste_ledger.txt",s.WasteLedger);
+  // README output contract (8 files) into a per-run folder.
+  var dir=$"user://outputs/sim_{s.Scenario}_{s.Seed}";
+  DirAccess.MakeDirRecursiveAbsolute(ProjectSettings.GlobalizePath(dir));
+  var ok=true;
+  foreach(var (name,content) in Exports.BuildAll(s,System.DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ssZ",System.Globalization.CultureInfo.InvariantCulture)))
+   ok=ok&&Write($"{dir}/{name}",content,true);
+  // Existing audit bundle (kept for debugging).
+  ok=ok&&Write("event_stream.jsonl",s.AllJsonl);
+  ok=ok&&Write("staffing_ledger.txt",s.StaffingLedgerFull);
+  ok=ok&&Write("waste_ledger.txt",s.WasteLedgerFull);
   ok=ok&&Write("overload_ledger.txt",s.OverloadLedger);
   ok=ok&&Write("equipment_ledger.txt",s.EquipmentLedger);
   ok=ok&&Write("item_ledger.txt",s.ItemLedger);
@@ -30,10 +37,10 @@ public partial class ExportPanel:DashCard{
   ok=ok&&Write("trace_ledger.jsonl",s.TraceLedger);
   ok=ok&&Write("validation_report.txt",s.BuildValidationReport());
   if(!ok){export.Text="Export failed";return;}
-  export.Text=$"Exported {s.EventSeq} events + {s.TraceSeq} traces";
+  export.Text=$"Exported contract bundle ({s.EventSeq} events)";
  }
- bool Write(string name,string content){
-  var f=FileAccess.Open($"user://{name}",FileAccess.ModeFlags.Write);
+ bool Write(string name,string content,bool absolute=false){
+  var f=FileAccess.Open(absolute?name:$"user://{name}",FileAccess.ModeFlags.Write);
   if(f==null)return false;
   f.StoreString(content);
   f.Close();

@@ -93,11 +93,11 @@
   "project": {
     "version": "1.0.0",
     "restore": {
-      "projectUniqueName": "E:\\GitHub Projects\\Restaurant Simulator\\Restaurant Simulator\\game\\RestaurantSimulator.csproj",
+      "projectUniqueName": "C:\\Users\\micha\\Downloads\\Workflow\\files\\game\\RestaurantSimulator.csproj",
       "projectName": "RestaurantSimulator",
-      "projectPath": "E:\\GitHub Projects\\Restaurant Simulator\\Restaurant Simulator\\game\\RestaurantSimulator.csproj",
+      "projectPath": "C:\\Users\\micha\\Downloads\\Workflow\\files\\game\\RestaurantSimulator.csproj",
       "packagesPath": "C:\\Users\\micha\\.nuget\\packages\\",
-      "outputPath": "E:\\GitHub Projects\\Restaurant Simulator\\Restaurant Simulator\\game\\.godot\\mono\\temp\\obj\\",
+      "outputPath": "C:\\Users\\micha\\Downloads\\Workflow\\files\\game\\.godot\\mono\\temp\\obj\\",
       "projectStyle": "PackageReference",
       "configFilePaths": [
         "C:\\Users\\micha\\AppData\\Roaming\\NuGet\\NuGet.Config",

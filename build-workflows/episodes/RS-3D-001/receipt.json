@@ -1,0 +1,131 @@
+{
+  "receipt_id": "rcpt_RS-3D-001_engine_repair_3d_world",
+  "task_id": "RS-3D-001",
+  "workflow_id": "wf_RS-3D-001_engine_repair_3d_world",
+  "runtime_class": "T3",
+  "lane": "godot",
+  "branch": "main",
+  "status": "ready_for_review",
+  "started_at": "2026-06-10T17:30:00-04:00",
+  "completed_at": "2026-06-10T19:45:00-04:00",
+  "source_packets_used": [
+    "control-pack/manifest.json",
+    "control-pack/active/00_security/00_security.md",
+    "control-pack/active/01_system/01_system.md",
+    "control-pack/active/02_workflow/02_workflow.md",
+    "control-pack/active/03_schema/03_schema.json",
+    "control-pack/active/04_context/04_context.md",
+    "control-pack/active/05_diagnostics/05_diagnostics.md"
+  ],
+  "repository_paths_inspected": [
+    "game/scripts/sim/SimRunState.cs",
+    "game/scripts/sim/SimEvent.cs",
+    "game/scripts/MainDashboard.cs",
+    "game/scripts/ui/*",
+    "game/config/realism_baseline.json",
+    "game/config/human_behavior_profiles.json",
+    "docs/00_WORKFLOW_CONTROL.md",
+    "docs/06_REALISM_CALIBRATION.md",
+    "restaurant-simulator-(4.3)/**",
+    "README.md",
+    "pyproject.toml"
+  ],
+  "allowed_paths": [
+    "game/**",
+    "docs/07_3D_WORLD_AND_CAMERAS.md",
+    "tools/engine-selftest/**",
+    "build-workflows/state/state.json",
+    "build-workflows/task-briefs/current-task.md",
+    "build-workflows/task-briefs/RS-3D-001.md",
+    "build-workflows/audits/RS-3D-001-audit.md",
+    "build-workflows/handoffs/RS-3D-001-handoff.md",
+    "build-workflows/episodes/RS-3D-001/**"
+  ],
+  "prohibited_paths": [
+    "control-pack/active/**",
+    "restaurant_simulator/**",
+    "README.md",
+    "pyproject.toml",
+    ".github/**",
+    "AI Shift Commander repository or files"
+  ],
+  "files_created": [
+    "game/scripts/sim/Exports.cs",
+    "game/scripts/sim/SelfTest.cs",
+    "game/scripts/Main.cs",
+    "game/scripts/ui/Hud3D.cs",
+    "game/scripts/world/WorldBuilder.cs",
+    "game/scripts/world/CameraDirector.cs",
+    "game/scripts/world/CharacterRig.cs",
+    "game/scripts/world/AgentManager.cs",
+    "game/scripts/world/CustomerAgent.cs",
+    "game/scripts/world/EmployeeAgent.cs",
+    "game/scripts/world/CarAgent.cs",
+    "game/icon.svg",
+    "docs/07_3D_WORLD_AND_CAMERAS.md",
+    "tools/engine-selftest/Program.cs",
+    "tools/engine-selftest/harness.csproj",
+    "tools/engine-selftest/nuget.config",
+    "build-workflows/task-briefs/RS-3D-001.md",
+    "build-workflows/audits/RS-3D-001-audit.md",
+    "build-workflows/handoffs/RS-3D-001-handoff.md",
+    "build-workflows/episodes/RS-3D-001/task.md",
+    "build-workflows/episodes/RS-3D-001/trace.jsonl",
+    "build-workflows/episodes/RS-3D-001/checks.jsonl",
+    "build-workflows/episodes/RS-3D-001/audit.md",
+    "build-workflows/episodes/RS-3D-001/handoff.md",
+    "build-workflows/episodes/RS-3D-001/receipt.json"
+  ],
+  "files_modified": [
+    "game/scripts/sim/SimRunState.cs",
+    "game/scripts/ui/ClockPanel.cs",
+    "game/scripts/MainDashboard.cs",
+    "game/scripts/ui/ScenarioPanel.cs",
+    "game/scripts/ui/ExportPanel.cs",
+    "game/scenes/Main.tscn",
+    "build-workflows/state/state.json",
+    "build-workflows/task-briefs/current-task.md"
+  ],
+  "files_deleted": [],
+  "tests_run": [
+    "tools/engine-selftest dotnet harness: SelfTest for all 10 scenarios at seed 12345 (each scenario run twice for replay comparison)"
+  ],
+  "test_results": [
+    {"name": "deterministic_replay_all_scenarios", "status": "passed", "notes": "event-stream + ledger SHA-256 identical across replays"},
+    {"name": "ledger_reconciliation", "status": "passed", "notes": "inventory equation reconciles for every component"},
+    {"name": "item_lifecycle_and_chronology", "status": "passed", "notes": "item.taken -> item.completed -> ticket completed; sequence monotonic; no item.sold"},
+    {"name": "realism_bands", "status": "passed", "notes": "normal_day: 942 tickets, $10.73 avg check, labor 24.2%, boards clear; stress scenarios degrade directionally"},
+    {"name": "godot_editor_run", "status": "not_run", "notes": "Godot unavailable in build environment; .NET 8 compile clean; open locally once"}
+  ],
+  "validation_results": {
+    "status": "ready_for_review",
+    "schema_valid": true,
+    "security_valid": true,
+    "deterministic_replay_valid": true,
+    "ledgers_reconcile": true,
+    "realism_status": "passed_automated_bands_manager_review_pending",
+    "asc_compatibility_status": "simulator_contract_valid_asc_contract_pending",
+    "errors": []
+  },
+  "path_scope_result": {
+    "status": "passed",
+    "prohibited_paths_changed": [],
+    "notes": "control-pack, README, pyproject, and the stale prototype were inspected but not modified."
+  },
+  "approvals": ["User requested full audit, fixes, and 3D build with cameras and animated characters."],
+  "source_conflicts": [
+    "F-16: control-pack authority order vs docs/00 authority order — flagged, no contract semantics changed."
+  ],
+  "assumptions": [
+    "RS-3D-001 subsumes RS-EN-001 verification goals (self-test gate implemented and executed).",
+    "Batch sizes (8/6/4) and 30s assembly are operator_calibration_required derivations from common QSR equipment.",
+    "Stale restaurant-simulator-(4.3)/ removal awaits owner approval (F-14)."
+  ],
+  "blockers": [
+    "One local Godot 4.6 editor open/run to confirm the scene layer compiles in-engine.",
+    "Owner decisions on F-14 (delete stale folder), F-15 (Python package vs README), F-16 (doctrine merge)."
+  ],
+  "security_impact": "Positive: deterministic replay provable in-engine; provenance-complete outputs; no employee scoring introduced; visual layer is read-only over the sim core.",
+  "rollback": {"safe": true, "method": "Revert RS-3D-001 commits; engine patches are isolated to listed files."},
+  "next_required_action": "Open game/ in Godot 4.6, press F9 (self-test) and F5 (export), review docs/07; then start RS-CF-001 to wire config files into the engine."
+}

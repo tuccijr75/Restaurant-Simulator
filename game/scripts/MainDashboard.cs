@@ -3,8 +3,9 @@ using Godot;
 namespace RestaurantSimulator;
 
 public partial class MainDashboard:Control{
+ public SimRunState? Shared;
  public override void _Ready(){
-  var st=new SimRunState();
+  var st=Shared??new SimRunState();
   AddBackground();
 
   var center=new CenterContainer();

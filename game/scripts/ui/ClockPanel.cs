@@ -12,5 +12,5 @@ public partial class ClockPanel:DashCard{
   run=AddButton("Start / Pause",()=>{if(s!=null)s.Running=!s.Running;},true);
  }
  public void Bind(SimRunState state){s=state;}
- public override void _Process(double d){if(s==null)return;s.Step(d);status.Text=$"Time: {s.TimeText}\nRunning: {s.Running}\nShift minutes: {s.ShiftMinutes:0}";}
+ public override void _Process(double d){if(s==null)return;if(!s.ExternallyDriven)s.Step(d);status.Text=$"Time: {s.TimeText}\nRunning: {s.Running}\nShift minutes: {s.ShiftMinutes:0}";}
 }
