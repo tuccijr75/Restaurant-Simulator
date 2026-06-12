@@ -13,6 +13,9 @@ outputs/
 *.jsonl.tmp
 
 # Godot generated/editor-local files
+# Keep these ignored before any later tracked-cache cleanup.
+# Existing tracked copies must be removed with git rm --cached in a separate cleanup task,
+# so local files remain on disk.
 .godot/
 .import/
 export_presets.cfg
