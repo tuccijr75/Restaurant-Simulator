@@ -1,10 +1,10 @@
 # Current Task
 
-Task ID: RS-AU-001
-Task Brief: `build-workflows/task-briefs/RS-AU-001.md`
+Task ID: RS-GC-001
+Task Brief: `build-workflows/task-briefs/RS-GC-001.md`
 Branch: `main`
-Lane: Audit / Stabilization
+Lane: Repository Hygiene
 Status: ready_for_review
-Previous Task: RS-VA-001
-Active Task: RS-AU-001 — Post-change repository stabilization audit
-Next Task: RS-GC-001 — repository housekeeping plan
+Previous Task: RS-AU-001
+Active Task: RS-GC-001 — Repository tracking hygiene plan
+Next Task: Local tracking-status adjustment
