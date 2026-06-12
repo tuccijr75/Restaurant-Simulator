@@ -1,0 +1,4 @@
+{"check_id":"check_RS-GC-001_001","task_id":"RS-GC-001","check_type":"scope","target":"source_paths","status":"passed","evidence":"No source paths were modified by this task.","notes":"Workflow records only."}
+{"check_id":"check_RS-GC-001_002","task_id":"RS-GC-001","check_type":"preservation","target":"working_tree_assets","status":"passed","evidence":"No asset paths were changed by this task.","notes":"Local-first action remains pending."}
+{"check_id":"check_RS-GC-001_003","task_id":"RS-GC-001","check_type":"ignore_coverage","target":".gitignore","status":"passed","evidence":"Repository byproduct groups are covered by ignore rules.","notes":"Rules were expanded before this task."}
+{"check_id":"check_RS-GC-001_004","task_id":"RS-GC-001","check_type":"next_action","target":"local_clone","status":"review_required","evidence":"Tracking-status adjustment must be run locally.","notes":"Remote file operations are not appropriate for this step."}
