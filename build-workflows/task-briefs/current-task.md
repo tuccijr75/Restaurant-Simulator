@@ -1,7 +1,10 @@
-# Current task
+# Current Task
 
-None in flight. Six-task integration (RS-FE/HQ/GP/VS/CF/IN-001) completed 2026-06-11, 120/120 PASS.
-
-## Suggested next
-- RS-RM-001: multi-day career mode (reputation carryover, persistent roster, seeded weeks) for ASC longitudinal validation.
-- In-editor smoke test of the visual layer (Godot-only code paths).
+Task ID: RS-AU-001
+Task Brief: `build-workflows/task-briefs/RS-AU-001.md`
+Branch: `main`
+Lane: Audit / Stabilization
+Status: ready_for_review
+Previous Task: RS-VA-001
+Active Task: RS-AU-001 — Post-change repository stabilization audit
+Next Task: RS-GC-001 — repository housekeeping plan
