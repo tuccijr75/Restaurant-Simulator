@@ -40,7 +40,8 @@ public partial class GameplayUi : CanvasLayer
         _toastTitle = StyledLabel(tv, 16, new Color(1f, 0.9f, 0.75f));
         _toastDeadline = StyledLabel(tv, 12, new Color(0.9f, 0.7f, 0.5f));
         var hb = new HBoxContainer(); tv.AddChild(hb);
-        _optA = new Button(); _optB = new Button();
+        _optA = new Button { FocusMode = Control.FocusModeEnum.None };
+        _optB = new Button { FocusMode = Control.FocusModeEnum.None };
         hb.AddChild(_optA); hb.AddChild(_optB);
         _optA.Pressed += () => Answer(true);
         _optB.Pressed += () => Answer(false);
@@ -89,7 +90,7 @@ public partial class GameplayUi : CanvasLayer
 
     void Btn(Node parent, string text, System.Action act)
     {
-        var b = new Button { Text = text };
+        var b = new Button { Text = text, FocusMode = Control.FocusModeEnum.None };
         b.Pressed += () => act();
         parent.AddChild(b);
     }

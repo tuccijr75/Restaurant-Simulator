@@ -18,7 +18,7 @@ public static class Exports
 
     public static string Provenance(SimRunState s) =>
         $"{{\"simulation_id\":\"sim_{s.Scenario}_{s.Seed}\",\"scenario_id\":\"scn_{s.Scenario}\"," +
-        $"\"seed\":{s.Seed},\"schema_version\":\"1.0.0\",\"generator_version\":\"game-0.2.0\"," +
+        $"\"seed\":{s.Seed},\"schema_version\":\"1.0.0\",\"generator_version\":\"game-0.3.0\"," +
         $"\"source_pack_version\":\"rs_source_pack_v1.1\",\"business_day\":\"{SimEvent.BusinessDay}\"," +
         "\"synthetic_data\":true,\"data_classification\":\"INTERNAL_SIM\"}";
 
@@ -76,7 +76,7 @@ public static class Exports
     }
 
     public static string RunReceipt(SimRunState s, string createdAtIso) =>
-        $"{{\"receipt_id\":\"rcpt_run_sim_{s.Scenario}_{s.Seed}\",\"task_id\":\"RS-3D-001\"," +
+        $"{{\"receipt_id\":\"rcpt_run_sim_{s.Scenario}_{s.Seed}\",\"task_id\":\"RS-INTEGRATED-6T\"," +
         "\"workflow_id\":\"wf_generate_simulated_business_day\",\"runtime_class\":\"T3\"," +
         $"\"provenance\":{Provenance(s)},\"created_at\":\"{createdAtIso}\"," +
         $"\"event_count\":{s.EventSeq},\"orders_total\":{s.Orders},\"completed_tickets\":{s.CompletedTickets}," +

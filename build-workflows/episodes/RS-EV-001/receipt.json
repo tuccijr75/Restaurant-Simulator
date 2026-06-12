@@ -1,0 +1,11 @@
+{
+  "receipt_id": "rcpt_task_RS-EV-001",
+  "task_id": "RS-EV-001",
+  "workflow_id": "wf_engine_defect_fix",
+  "created_at": "2026-06-12T20:31:21Z",
+  "status": "completed",
+  "parent_defect": "RS-CX-001-D1",
+  "change": "game/scripts/sim/SimEvent.cs: event-envelope generator_version game-0.2.0 -> game-0.3.0 (one line), aligning every event line with Exports.cs bundle provenance",
+  "evidence": "compatibility suite 14/14 OK post-fix on regenerated bundles; SelfTest 120/120 PASS",
+  "follow_up_recommendation": "single-source the version string (one const consumed by both SimEvent and Exports) in a future engine pass"
+}

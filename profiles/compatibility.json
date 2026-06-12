@@ -1,0 +1,99 @@
+{
+  "profile_id": "asc_compatibility_v1",
+  "task_id": "RS-CX-001",
+  "schema_version": "1.0.0",
+  "synthetic_data": true,
+  "data_classification": "INTERNAL_SIM",
+  "description": "Declarative contract proving simulator output bundles are ingestion-ready for AI Shift Commander without integrating with ASC runtime. tests/test_compatibility.py enforces every rule below against real exported bundles.",
+
+  "bundle_contract": {
+    "required_files": [
+      "event_stream.jsonl",
+      "inventory_ledger.json",
+      "staffing_ledger.json",
+      "recommendation_validation_dataset.json",
+      "alert_validation_dataset.json",
+      "end_of_shift_summary.json",
+      "run_receipt.json",
+      "hashes.json"
+    ],
+    "hashes_rule": "hashes.json maps every other bundle file to the sha256 of its exact utf-8 content",
+    "all_json_artifacts_must_parse": true
+  },
+
+  "event_envelope_required_fields": [
+    "event_id", "simulation_id", "scenario_id", "seed", "event_type",
+    "occurred_at", "business_day", "daypart", "sequence", "source",
+    "synthetic_data", "schema_version", "generator_version", "payload"
+  ],
+
+  "event_type_contract": {
+    "always_required": [
+      "shift.started", "order.created", "item.taken", "item.completed",
+      "ticket.updated", "staff.assignment.updated", "prep.confirmed",
+      "waste.recorded"
+    ],
+    "required_at_shift_close": ["shift.ended"],
+    "conditional": {
+      "station.overloaded": "required iff end_of_shift_summary.overload_events_total > 0",
+      "station.recovered": "required iff an overload started and recovered before close"
+    },
+    "deprecated_forbidden": ["item.sold"]
+  },
+
+  "ordering_rules": {
+    "sequence": "strictly monotonic increasing across the full stream",
+    "occurred_at": "non-regressive (equal timestamps allowed within the same simulated second)"
+  },
+
+  "item_lifecycle_rules": {
+    "completed_requires_prior_taken": "per order_id, cumulative item.completed count never exceeds cumulative item.taken count at any point in the stream",
+    "ticket_completion_gate": "a ticket.updated status=completed event requires completed item count == taken item count for that order at that moment",
+    "abandonment_exception": "abandoned tickets may close with taken > completed; that is the modeled guest walking away"
+  },
+
+  "ledger_rules": {
+    "inventory_equation": "opening + prep_confirmed_or_received - consumed_item_taken - waste_recorded + approved_adjustments = closing (tolerance 0.01 per component)",
+    "inventory_reconciles_flag": "every component row must carry reconciles:true and the equation must verify independently",
+    "staffing_model": "scheduled_roles - call_offs + reassignments + breaks/returns = active_role_coverage_by_interval",
+    "staffing_reason_enum": ["shift_start", "shift_end", "call_off", "break_coverage", "rush_support", "manager_adjustment", "station_recovery"],
+    "staffing_aggregate_only": "entries describe roles, synthetic worker refs, and coverage counts; never individual performance"
+  },
+
+  "provenance_rules": {
+    "consistent_across_bundle": ["simulation_id", "scenario_id", "seed", "schema_version", "generator_version"],
+    "required_flags": { "synthetic_data": true, "data_classification": "INTERNAL_SIM" },
+    "event_stream_must_match": "every event line carries the same simulation_id, scenario_id, seed, schema_version, generator_version as the bundle provenance blocks"
+  },
+
+  "safety_rules": {
+    "forbidden_field_markers": [
+      "individual_score", "individual_rank", "disciplinary_prediction",
+      "named_employee_performance_label", "performance_score", "payroll"
+    ],
+    "forbidden_secret_markers": [
+      "api_key", "access_token", "client_secret", "BEGIN PRIVATE KEY", "connection_string"
+    ],
+    "pii_heuristics": {
+      "email_regex": "[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}",
+      "ssn_regex": "\\b\\d{3}-\\d{2}-\\d{4}\\b"
+    },
+    "synthetic_declaration": "synthetic_data:true must appear in every provenance block and every event envelope"
+  },
+
+  "supported_scenario_types": [
+    "normal_day", "slow_day", "rush_day", "weather_disruption",
+    "staffing_call_off", "equipment_failure", "local_event_surge",
+    "school_event_surge", "holiday_pattern", "multi_rush_condition"
+  ],
+
+  "bundle_discovery": {
+    "env_override": "RS_COMPAT_BUNDLES (path-separator-joined list of bundle directories)",
+    "default_globs": [
+      "outputs/sim_*_*",
+      "sample_outputs/sim_*_*",
+      "/tmp/sample_outputs/sim_*_*"
+    ],
+    "behavior_when_none_found": "tests skip with an instruction to export a bundle (F5 in-game or ExportPanel) and point RS_COMPAT_BUNDLES at it"
+  }
+}

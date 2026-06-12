@@ -45,6 +45,15 @@ public partial class Main : Node3D
         AddChild(_vitals);
         _vitals.Init(_sim, _world);
 
+        // Once any Button is clicked it grabs keyboard focus, and Godot's GUI
+        // focus navigation then consumes TAB (and SPACE re-presses the button)
+        // before game input ever sees it. Two-layer kill: nothing in the panel
+        // UI is focusable, and the focus-traversal actions are unbound.
+        KillFocus(_dashLayer);
+        KillFocus(_gameplay);
+        if (InputMap.HasAction("ui_focus_next")) InputMap.ActionEraseEvents("ui_focus_next");
+        if (InputMap.HasAction("ui_focus_prev")) InputMap.ActionEraseEvents("ui_focus_prev");
+
         // Existing 2D dashboard, shared sim, hidden until TAB.
         _dashLayer = new CanvasLayer { Visible = false, Layer = 5, Name = "Dashboard" };
         AddChild(_dashLayer);
@@ -98,12 +107,39 @@ public partial class Main : Node3D
             _gameplay.OpenStation(collider.GetMeta("station").AsString());
     }
 
+    static void KillFocus(Node n)
+    {
+        if (n is Control c) c.FocusMode = Control.FocusModeEnum.None;
+        foreach (Node ch in n.GetChildren()) KillFocus(ch);
+    }
+
     void LoadConfig()
     {
         var baseline = FileAccess.Open("res://config/realism_baseline.json", FileAccess.ModeFlags.Read);
         if (baseline != null) { SimConfig.LoadBaseline(baseline.GetAsText()); baseline.Close(); }
         var profiles = FileAccess.Open("res://config/human_behavior_profiles.json", FileAccess.ModeFlags.Read);
         if (profiles != null) { SimConfig.LoadProfiles(profiles.GetAsText()); profiles.Close(); }
+    }
+
+    // TAB is also Godot's focus-traversal key: once any dashboard button holds
+    // focus, _UnhandledInput never sees TAB again. Intercept it BEFORE the GUI,
+    // and drop keyboard focus whenever the dashboard toggles so a previously
+    // clicked button can't keep eating SPACE/arrow keys afterward.
+    public override void _Input(InputEvent @event)
+    {
+        if (@event is not InputEventKey k || !k.Pressed || k.Echo) return;
+        if (k.Keycode == Key.Tab)
+        {
+            _dashLayer.Visible = !_dashLayer.Visible;
+            GetViewport().GuiReleaseFocus();
+            GetViewport().SetInputAsHandled();
+        }
+        else if (k.Keycode == Key.Escape && _dashLayer.Visible)
+        {
+            _dashLayer.Visible = false;
+            GetViewport().GuiReleaseFocus();
+            GetViewport().SetInputAsHandled();
+        }
     }
 
     public override void _UnhandledInput(InputEvent @event)
@@ -124,7 +160,6 @@ public partial class Main : Node3D
         switch (k.Keycode)
         {
             case Key.Space: _sim.Running = !_sim.Running; break;
-            case Key.Tab: _dashLayer.Visible = !_dashLayer.Visible; break;
             case Key.C: _cams.NextCam(); break;
             case Key.T: _cams.ToggleTour(); break;
             case Key.F: _cams.ToggleFree(); break;

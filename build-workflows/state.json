@@ -1,5 +1,5 @@
 {
- "last_updated": "2026-06-11",
+ "last_updated": "2026-06-12",
  "completed_tasks": [
   "RS-3D-001",
   "RS-CF-001",
@@ -12,5 +12,5 @@
  ],
  "current_task": null,
  "engine_verification": "120/120 PASS, 10 scenarios, seed 12345",
- "notes": "Six-task integration complete: service labor, hold pans + satisfaction + abandonment, Manager Mode decisions + clickable stations, day/night + KDS visuals, config wiring, inspections + wear."
+ "notes": "Six-task integration complete: service labor, hold pans + satisfaction + abandonment, Manager Mode decisions + clickable stations, day/night + KDS visuals, config wiring, inspections + wear. Field-feedback episode RS-FIELD-001: TAB focus fix + five causal engine fixes from first in-editor run; 120/120 PASS; cooked hold waste -93%, csat 90.5. RS-CX-001 ready_for_review: ASC compatibility profile+tests (14/14 on 4 bundles incl. field export); defect D1 generator_version dual-sourcing fixed under RS-EV-001; repo game/ flagged stale vs RS-FIELD-001."
 }

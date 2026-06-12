@@ -1,6 +1,6 @@
 {
   "project": "Restaurant Daily Flow Simulator",
-  "active_task_id": "RS-PL-001",
+  "active_task_id": "RS-ST-001",
   "lanes": {
     "source": {
       "active_task_id": "RS-SP-001",
@@ -14,20 +14,20 @@
     },
     "engine": {
       "active_task_id": "RS-ST-001",
-      "status": "completed",
+      "status": "ready_for_review",
       "branch": "main"
     },
     "godot": {
       "active_task_id": "RS-3D-001",
-      "status": "completed",
+      "status": "ready_for_review",
       "branch": "main"
     },
     "validation": {
-      "active_task_id": "RS-PL-001",
-      "status": "completed",
+      "active_task_id": "RS-VA-001",
+      "status": "ready",
       "branch": "main"
     }
   },
-  "last_updated": "2026-06-12T15:55:00-04:00",
-  "next_action": "Start RS-CX-001 AI Shift Commander compatibility profile, or resolve open decisions F-14/F-15/F-16."
+  "last_updated": "2026-06-11T04:30:00-04:00",
+  "next_action": "Review RS-3D-001 + RS-ST-001 (open game/ in Godot 4.6, F9/F5), then RS-FE-001 (front-end service work) and RS-CF-001 (config wiring)."
 }

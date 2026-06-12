@@ -28,6 +28,7 @@ public class SimRunState{
   public double CycleSeconds,BatchQty,Capacity;
   public int LimitMin;
   public int InFlight;
+  public double InFlightQty;
   public readonly List<(double Qty,double At)> Batches=new();
   public double Level{get{double n=0;foreach(var b in Batches)n+=b.Qty;return n;}}
  }
@@ -41,6 +42,7 @@ public class SimRunState{
   public List<EquipTask> Queue=new();
  }
  class EquipTask{
+  public double BatchUnits;   // RS-HQ-001: partial hold batches off-peak
   public int Id,TicketId,DependencyId;
   public string OrderId="",ItemId="",Phase="",Station="",Family="",EquipmentId="";
   public double WorkSeconds,Remaining;
@@ -68,9 +70,21 @@ public class SimRunState{
  bool equipmentReady;
  string activeOverloadStation="assembly",lastValidationKey="";
 
- public int Seed=12345,Orders,DriveThru,FrontCounter,Delivery,Mobile,EventSeq,WasteSeq,StaffingSeq,TraceSeq,ValidationSeq,OverloadSeq,ItemSeq,TaskSeq,Raw=500,Prep=120,Waste,Crew=4,Lead=1,ShiftMgr=1,AsstMgr=0,RestMgr=0,CrewOnBreak,BreaksTaken,CallOffs,SanitationTasks,CompletedTickets,FriesSold,DrinksSold,MainsSold;
+ public int Seed=12345,Orders,DriveThru,FrontCounter,Delivery,Mobile,EventSeq,WasteSeq,StaffingSeq,TraceSeq,ValidationSeq,OverloadSeq,ItemSeq,TaskSeq,Raw=500,Waste,Crew=4,Lead=1,ShiftMgr=1,AsstMgr=0,RestMgr=0,CrewOnBreak,BreaksTaken,CallOffs,SanitationTasks,CompletedTickets,FriesSold,DrinksSold,MainsSold;
  public int KitchenCoverage=1,FryerCoverage=1,DriveCoverage=2,CounterCoverage=1,PrepCoverage=1;
- public double Minute=360,TimeScale=1.0,PrepAge,LaborCost,ShiftMinutes,BreakTimer,SanitizerAge,TempCheckAge,CoolerTemp=38,HotHoldTemp=145,SalesTotal;
+ // RS-HQ-001 follow-up: prep is FIFO batches with per-batch 30-min life — the
+ // old single-clock pool expired a quarter of everything every 30 minutes and
+ // let one Discard click dump the whole pool.
+ readonly List<(double Qty,double At)> prepBatches=new();
+ public int Prep{get{double n=0;foreach(var b in prepBatches)n+=b.Qty;return (int)Math.Round(n);}}
+ public double PrepAge=>prepBatches.Count==0?0:Math.Max(0,Minute-prepBatches[0].At);
+ void ConsumePrep(double n){
+  while(n>0&&prepBatches.Count>0){
+   var b=prepBatches[0];var take=Math.Min(b.Qty,n);n-=take;
+   if(b.Qty-take<=.0001)prepBatches.RemoveAt(0);else prepBatches[0]=(b.Qty-take,b.At);
+  }
+ }
+ public double Minute=360,TimeScale=1.0,LaborCost,ShiftMinutes,BreakTimer,SanitizerAge,TempCheckAge,CoolerTemp=38,HotHoldTemp=145,SalesTotal;
  public string Scenario="normal_day",RecentEvents="",RecentJsonl="",ValidationStatus="OK",RecommendationRows="",AlertRows="";
  readonly StringBuilder allJsonl=new(),wasteSb=new(),staffingSb=new(),traceSb=new(),validationSb=new(),overloadSb=new(),equipmentSb=new(),itemSb=new(),taskSb=new();
  string wasteRecent="",staffingRecent="";
@@ -117,7 +131,6 @@ public class SimRunState{
   ShiftMinutes+=sm;
   LaborCost+=LaborHourly*sm/60;
   if(CrewOnBreak>0)BreakTimer+=sm;
-  if(Prep>0)PrepAge+=sm;
   SanitizerAge+=sm;
   TempCheckAge+=sm;
   UpdateTemperatures();
@@ -167,7 +180,6 @@ public class SimRunState{
   if(secondMain){MainsSold++;var sm2=Roll(5)<500;RegisterItem(t,sm2?items["fried_main"]:items["grilled_main"],new Dictionary<string,double>{{sm2?"cooked_fried_main":"cooked_grilled_main",1},{"prep_pack",.5}});}
   if(hasFries){FriesSold++;RegisterItem(t,items["side"],new Dictionary<string,double>{{"cooked_fries",1}});}
   if(hasDrink){DrinksSold++;RegisterItem(t,items["beverage"],new Dictionary<string,double>{{"drink_mix",.25}});}
-  Prep=Math.Max(0,Prep-(1+(hasFries?1:0)));
   TryTakeItems(t);
   QueueReadyTasks(t);
   Emit("ticket.updated",$"{{\"ticket_id\":\"tkt_{t.Id:000000}\",\"order_id\":\"{oid}\",\"status\":\"queued\",\"queue_seconds\":0,\"station_id\":\"{FirstOpenStation(t)}\"}}");
@@ -186,13 +198,14 @@ public class SimRunState{
     ok=false;
     if(coockedToPan.TryGetValue(kv.Key,out var pf2)){
      var p2=pans[pf2];
-     if(p2.InFlight==0&&RawAvailable(p2))QueueBatch(p2);  // cook-to-order
+     if(p2.InFlight==0&&RawAvailable(p2))QueueBatch(p2,Math.Max(2,p2.BatchQty*0.5));  // cook-to-order
     }
     break;
    }
    if(!ok)continue;
    foreach(var kv in pi.Draw){
     if(coockedToPan.TryGetValue(kv.Key,out var pf)){t.MinQuality=Math.Min(t.MinQuality,DrawCooked(pans[pf],kv.Value));continue;}
+    if(kv.Key=="prep_pack")ConsumePrep(kv.Value);   // FIFO age tracking; inventory book below
     var have=inventory.GetValueOrDefault(kv.Key);
     var take=Math.Min(have,kv.Value);
     inventory[kv.Key]=have-take;
@@ -320,10 +333,11 @@ public class SimRunState{
  void BatchComplete(EquipTask task){
   var pan=pans[task.Family];
   pan.InFlight=Math.Max(0,pan.InFlight-1);
+  pan.InFlightQty=Math.Max(0,pan.InFlightQty-(task.BatchUnits>0?task.BatchUnits:pan.BatchQty));
   var space=Math.Max(0,pan.Capacity-pan.Level);
   var rawAvail=double.MaxValue;
   foreach(var (c,q) in pan.Raw)rawAvail=Math.Min(rawAvail,inventory.GetValueOrDefault(c)/Math.Max(.0001,q));
-  var qty=Math.Floor(Math.Min(pan.BatchQty,Math.Min(space,rawAvail)));
+  var qty=Math.Floor(Math.Min(task.BatchUnits>0?task.BatchUnits:pan.BatchQty,Math.Min(space,rawAvail)));
   if(qty<=0)return;
   foreach(var (c,q) in pan.Raw){
    var need=qty*q;var take=Math.Min(inventory.GetValueOrDefault(c),need);
@@ -389,7 +403,8 @@ public class SimRunState{
  void ClampCoverage(){while(CoverageUsed>CoveragePool){if(PrepCoverage>0)PrepCoverage--;else if(CounterCoverage>0)CounterCoverage--;else if(DriveCoverage>0)DriveCoverage--;else if(KitchenCoverage>0)KitchenCoverage--;else if(FryerCoverage>0)FryerCoverage--;else break;}}
 
  public void ManualPrep(){if(PrepCoverage>0)DoPrep("manager_adjustment");}
- public void ManualDiscard(){if(Prep<=0)return;var w=Prep;Prep=0;PrepAge=0;RecordWaste("quality_discard",w,"assembly");}
+ /// Discards only the OLDEST prep batch (the quality action targets aged product).
+ public void ManualDiscard(){if(prepBatches.Count==0)return;var w=prepBatches[0].Qty;prepBatches.RemoveAt(0);RecordWaste("quality_discard",(int)Math.Round(w),"assembly");}
  public void ChangeSanitizer(){SanitizerAge=0;SanitationTasks++;Trace("sanitizer_changed");}
  public void CheckTemps(){TempCheckAge=0;UpdateTemperatures();Trace("temperature_checked");}
  public void AddCrew(){AutoSchedule=false;Crew++;RecordStaffing("crew_member","crew_shift_pool",null,"grill","manager_adjustment");}
@@ -411,8 +426,20 @@ public class SimRunState{
   {var sl=$"{StaffingSeq} {TimeText} {role} {worker} {from ?? "none"}->{to ?? "none"} eff {EffectiveCrew} cap {StaffCapacity} coverage {CoverageUsed}/{CoveragePool} labor_pct {Num(LaborPercent)} projected_labor_pct {Num(ProjectedLaborPercentThis30)} allowed_hrs {Num(AllowedLaborHoursThis30)} variance_hrs {Num(LaborHoursVarianceThis30)} reason {reason} src {src}\n";staffingSb.Append(sl);staffingRecent=sl+staffingRecent;if(staffingRecent.Length>900)staffingRecent=staffingRecent[..900];}
   Emit("staff.assignment.updated",$"{{\"assignment_id\":\"asg_{StaffingSeq:000000}\",\"synthetic_worker_ref\":\"{worker}\",\"role_id\":\"{role}\",\"from_station_id\":{JsonStringOrNull(from)},\"to_station_id\":{JsonStringOrNull(to)},\"reason\":\"{StaffReason(reason)}\"}}");
  }
- void DoPrep(string reason){var n=Math.Min(Raw,Math.Max(40,PrepCoverage*80));if(n<=0)return;Raw-=n;Prep+=n;PrepAge=0;inventory["prep_pack"]+=n;invReceived["prep_pack"]=invReceived.GetValueOrDefault("prep_pack")+n;Trace($"prep_{reason}");Emit("prep.confirmed",$"{{\"prep_batch_id\":\"prep_{EventSeq+1:000000}\",\"inventory_item_id\":\"prep_pack\",\"quantity\":{Num(n)},\"unit\":\"units\",\"station_id\":\"prep\",\"confirmed_by_role\":\"cook\"}}");}
- void ExpirePrep(){var w=Math.Max(1,Prep/4);Prep-=w;PrepAge=0;RecordWaste("holding_time_exceeded",w,"assembly");}
+ void DoPrep(string reason){
+  // Sell-through sizing, same principle as the hold pans: prep only what the
+  // line consumes inside 70% of the 30-minute shelf life (true burn ~0.62/order).
+  // Prepping 36 minutes of demand against a 30-minute shelf guaranteed tail
+  // expiry every batch and torched Raw at ~3x demand by mid-morning.
+  var par=Math.Clamp(RatePerSimMinute()*0.62*21,10,160);
+  var n=(int)Math.Floor(Math.Min(Raw,Math.Min(par,Math.Max(0,par*2-Prep))));
+  if(n<=0)return;Raw-=n;prepBatches.Add((n,Minute));inventory["prep_pack"]+=n;invReceived["prep_pack"]=invReceived.GetValueOrDefault("prep_pack")+n;Trace($"prep_{reason}");Emit("prep.confirmed",$"{{\"prep_batch_id\":\"prep_{EventSeq+1:000000}\",\"inventory_item_id\":\"prep_pack\",\"quantity\":{Num(n)},\"unit\":\"units\",\"station_id\":\"prep\",\"confirmed_by_role\":\"cook\"}}");}
+ void ExpirePrep(){
+  while(prepBatches.Count>0&&Minute-prepBatches[0].At>30){
+   var w=(int)Math.Round(prepBatches[0].Qty);prepBatches.RemoveAt(0);
+   if(w>0)RecordWaste("holding_time_exceeded",w,"assembly");
+  }
+ }
  void RecordWaste(string r,int u,string station){Waste+=u;WasteSeq++;var wTake=Math.Min(inventory["prep_pack"],u);inventory["prep_pack"]-=wTake;invWasted["prep_pack"]=invWasted.GetValueOrDefault("prep_pack")+wTake;{var wl=$"{WasteSeq} {TimeText} {r} {u}u ${u*0.75:0.00} prep {Prep} raw {Raw} inv_prep {Num(inventory["prep_pack"])} station {station}\n";wasteSb.Append(wl);wasteRecent=wl+wasteRecent;if(wasteRecent.Length>900)wasteRecent=wasteRecent[..900];}Emit("waste.recorded",$"{{\"waste_id\":\"waste_{WasteSeq:000000}\",\"inventory_item_id\":\"prep_pack\",\"quantity\":{Num(u)},\"unit\":\"units\",\"reason\":\"{r}\",\"station_id\":\"{station}\"}}");}
 
  void UpdateOverload(double m){var was=StationOverloaded;var station=BottleneckStation;if(DelayRisk){over+=m;recover=0;lastOverloadMinutes=over;if(over>=5){StationOverloaded=true;if(!was){activeOverloadStation=station;OverloadSeq++;RecordOverload("started");}}}else{over=0;if(StationOverloaded){recover+=m;if(recover>=4){StationOverloaded=false;RecordOverload("recovered");}}}if(!was&&StationOverloaded)Emit("station.overloaded",StationPayload(true));if(was&&!StationOverloaded)Emit("station.recovered",StationPayload(false));}
@@ -545,10 +572,11 @@ public class SimRunState{
   if(supplyArrivalMin>0&&Minute>=supplyArrivalMin){
    supplyArrivalMin=-1;
    Receive("main_protein",300);Receive("side_base",150);Receive("drink_mix",40);
+   Raw+=200;   // prep raw material — the thing surge days actually exhaust first
    Trace("emergency_supply_arrived");
   }
   if(supplyRunsUsed>=2||supplyDecisionOpen||supplyArrivalMin>0||m>1350)return;
-  if(inventory.GetValueOrDefault("main_protein")<80||inventory.GetValueOrDefault("side_base")<50){
+  if(inventory.GetValueOrDefault("main_protein")<80||inventory.GetValueOrDefault("side_base")<50||Raw<60){
    supplyDecisionOpen=true;
    RaiseDecision("supply","Product running out before close","Emergency supply run ($120, arrives in 45 min)","Ride it out",defaultA:true);
   }
@@ -558,20 +586,29 @@ public class SimRunState{
   if(!AutoHold)return;
   foreach(var pan in pans.Values){
    var demand=RatePerSimMinute()*FamilyPerOrder(pan.Family);
-   var par=Math.Min(pan.Capacity,demand*Math.Min(15,pan.LimitMin)*1.2);
-   if(par<pan.BatchQty*0.5)continue;   // too slow to pre-cook fresh: cook to order
-   var projected=pan.Level+pan.InFlight*pan.BatchQty;
-   while(projected<par&&RawAvailable(pan)){QueueBatch(pan);projected+=pan.BatchQty;}
+   var par=Math.Min(pan.Capacity,demand*pan.LimitMin*0.7);   // sell through inside 70% of hold life
+   if(par<1.5)continue;                                      // near-zero demand: cook to order
+   var want=par-pan.Level-pan.InFlightQty;
+   // Batch size floor scales with demand x cycle time: a 2u load still costs a
+   // full cycle, so tiny batches at peak quarter the station's throughput and
+   // spiral into permanent stockout. Off-peak the floor stays at 2u (low waste);
+   // at peak it reaches the full batch (full throughput).
+   var minQ=Math.Min(pan.BatchQty,Math.Max(2,demand*(pan.CycleSeconds/60.0)*1.2));
+   while(want>0.5&&RawAvailable(pan)){
+    var q=Math.Clamp(Math.Max(want,minQ),minQ,pan.BatchQty);
+    QueueBatch(pan,q);want-=q;
+   }
   }
  }
  bool RawAvailable(HoldPan pan){foreach(var (c,q) in pan.Raw)if(inventory.GetValueOrDefault(c)<q*pan.BatchQty)return false;return true;}
- void QueueBatch(HoldPan pan){
-  var task=new EquipTask{Id=++TaskSeq,TicketId=0,OrderId="hold",ItemId=pan.Family,Phase="batch_cook",Station=pan.Station,Family=pan.Family,WorkSeconds=pan.CycleSeconds,Remaining=pan.CycleSeconds,DependencyId=0};
+ void QueueBatch(HoldPan pan,double qty=0){
+  if(qty<=0)qty=pan.BatchQty;
+  var task=new EquipTask{Id=++TaskSeq,TicketId=0,OrderId="hold",ItemId=pan.Family,Phase="batch_cook",Station=pan.Station,Family=pan.Family,WorkSeconds=pan.CycleSeconds,Remaining=pan.CycleSeconds,DependencyId=0,BatchUnits=qty};
   var unit=SelectEquipment(pan.Family);
   if(unit==null)return;
   task.Queued=true;task.EquipmentId=unit.Id;
   unit.Queue.Add(task);unit.Assigned+=task.WorkSeconds;unit.Tasks++;
-  pan.InFlight++;
+  pan.InFlight++;pan.InFlightQty+=qty;
   taskSb.Append($"{TimeText} queued task_{task.Id:000000} order hold item {pan.Family} phase batch_cook equipment {unit.Id}\n");
  }
  public void DropBatch(string family){if(pans.TryGetValue(family,out var pan)&&RawAvailable(pan)&&pan.Level+pan.InFlight*pan.BatchQty<pan.Capacity)QueueBatch(pan);}
@@ -688,6 +725,7 @@ public class SimRunState{
   Trace($"decision_resolved_{d.Kind}_{(optionA?"a":"b")}");
  }
  public void ToggleManagerMode(){ManagerMode=!ManagerMode;AutoHold=!ManagerMode;}
+ public double InventoryLevel(string c)=>inventory.GetValueOrDefault(c);
  public double HoldLevel(string f)=>pans.TryGetValue(f,out var p)?p.Level:0;
  public double HoldCapacity(string f)=>pans.TryGetValue(f,out var p)?p.Capacity:0;
  public int HoldInFlight(string f)=>pans.TryGetValue(f,out var p)?p.InFlight:0;
@@ -733,7 +771,7 @@ public class SimRunState{
   // draws take seconds). Fries keep a 15 s scoop at the fryer; beverage stays made-to-order.
   items["fried_main"]=new ItemSpec{Id="fried_main",Family="fried_main",Station="fryer",CookSeconds=0,HoldFamily="fried_main",HoldMinutes=SimConfig.HoldLimitFriedMin,AssemblySeconds=30,ExpoSeconds=20,Price=6.25};
   items["grilled_main"]=new ItemSpec{Id="grilled_main",Family="grilled_main",Station="grill",CookSeconds=0,HoldFamily="grilled_main",HoldMinutes=SimConfig.HoldLimitGrilledMin,AssemblySeconds=30,ExpoSeconds=20,Price=6.35};
-  items["side"]=new ItemSpec{Id="side",Family="fries",Station="fryer",CookSeconds=15,HoldFamily="fries",HoldMinutes=SimConfig.HoldLimitFriesMin,AssemblySeconds=0,ExpoSeconds=5,Price=2.75};
+  items["side"]=new ItemSpec{Id="side",Family="fries",Station="fryer",CookSeconds=0,HoldFamily="fries",HoldMinutes=SimConfig.HoldLimitFriesMin,AssemblySeconds=15,ExpoSeconds=5,Price=2.75};  // bag at assembly: scoops must not queue behind 180s vat cycles
   items["beverage"]=new ItemSpec{Id="beverage",Family="beverage",Station="beverage",CookSeconds=22,HoldMinutes=0,AssemblySeconds=0,ExpoSeconds=5,Price=2.35};
   pans["fried_main"]=new HoldPan{Family="fried_main",Station="fryer",Cooked="cooked_fried_main",Raw=new[]{("main_protein",1.0)},CycleSeconds=330,BatchQty=8,Capacity=16,LimitMin=SimConfig.HoldLimitFriedMin};
   pans["grilled_main"]=new HoldPan{Family="grilled_main",Station="grill",Cooked="cooked_grilled_main",Raw=new[]{("main_protein",1.0)},CycleSeconds=150,BatchQty=6,Capacity=12,LimitMin=SimConfig.HoldLimitGrilledMin};
@@ -741,7 +779,9 @@ public class SimRunState{
   foreach(var pan in pans.Values){
    inventory[pan.Cooked]=pan.BatchQty;            // opening hold = one fresh batch
    pan.Batches.Add((pan.BatchQty,360));
-  }}
+  }
+  prepBatches.Add((260,360));                      // opening prep batch == opening inventory
+ }
  void AddEquipment(string id,string station,string family,double cap){equipment.Add(new EquipmentUnit{Id=id,Station=station,Family=family,BaseCapacity=cap});}
 
  double RatePerSimMinute(){if(Minute<360)return 0;var daily=Scenario=="slow_day"?620:Scenario=="rush_day"?1180:Scenario=="weather_disruption"?760:Scenario=="local_event_surge"?1050:Scenario=="school_event_surge"?980:Scenario=="holiday_pattern"?840:Scenario=="multi_rush_condition"?1240:920;return daily*DaypartShare()/DaypartMinutes()*Curve()*ScenarioMultiplier();}
