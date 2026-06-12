@@ -1,0 +1,99 @@
+{
+  "receipt_id": "rcpt_RS-GC-001_tracking_hygiene_plan",
+  "task_id": "RS-GC-001",
+  "workflow_id": "wf_RS-GC-001_tracking_hygiene_plan",
+  "runtime_class": "T3",
+  "lane": "repository_hygiene",
+  "branch": "main",
+  "status": "ready_for_review",
+  "started_at": "2026-06-12T10:30:00-04:00",
+  "completed_at": "2026-06-12T10:40:00-04:00",
+  "source_packets_used": [
+    "build-workflows/episodes/RS-AU-001/receipt.json",
+    ".gitignore"
+  ],
+  "repository_paths_inspected": [
+    ".gitignore",
+    "build-workflows/task-briefs/current-task.md",
+    "build-workflows/state/state.json",
+    "baseline_compare: dd6918b560df68086d5272c808d48022e873695c..main"
+  ],
+  "allowed_paths": [
+    "build-workflows/state/state.json",
+    "build-workflows/task-briefs/current-task.md",
+    "build-workflows/task-briefs/RS-GC-001.md",
+    "build-workflows/audits/RS-GC-001-audit.md",
+    "build-workflows/handoffs/RS-GC-001-handoff.md",
+    "build-workflows/episodes/RS-GC-001/**"
+  ],
+  "prohibited_paths": [
+    "restaurant_simulator/**",
+    "game/**",
+    "tools/**",
+    "docs/**",
+    "outputs/**",
+    "control-pack/active/**",
+    "README.md",
+    "pyproject.toml",
+    "AI Shift Commander repository or files"
+  ],
+  "files_created": [
+    "build-workflows/task-briefs/RS-GC-001.md",
+    "build-workflows/audits/RS-GC-001-audit.md",
+    "build-workflows/handoffs/RS-GC-001-handoff.md",
+    "build-workflows/episodes/RS-GC-001/task.md",
+    "build-workflows/episodes/RS-GC-001/trace.jsonl",
+    "build-workflows/episodes/RS-GC-001/checks.jsonl",
+    "build-workflows/episodes/RS-GC-001/audit.md",
+    "build-workflows/episodes/RS-GC-001/handoff.md",
+    "build-workflows/episodes/RS-GC-001/receipt.json"
+  ],
+  "files_modified": [
+    "build-workflows/task-briefs/current-task.md",
+    "build-workflows/state/state.json"
+  ],
+  "files_deleted": [],
+  "tests_run": [
+    "Repository compare inspection",
+    "Workflow-state update review",
+    "Tracking plan review"
+  ],
+  "test_results": [
+    {"name": "source_scope", "status": "passed", "notes": "No source or runtime files were modified."},
+    {"name": "local_preservation", "status": "passed", "notes": "No working-tree artifact paths were changed."},
+    {"name": "local_action", "status": "pending", "notes": "Tracking-status adjustment must be run from the local clone."}
+  ],
+  "validation_results": {
+    "status": "review_required",
+    "schema_valid": true,
+    "security_valid": true,
+    "deterministic_replay_valid": true,
+    "ledgers_reconcile": true,
+    "realism_status": "pending_local_godot_review",
+    "asc_compatibility_status": "pending_contract",
+    "errors": []
+  },
+  "path_scope_result": {
+    "status": "passed",
+    "prohibited_paths_changed": [],
+    "notes": "No runtime, game, docs, tools, control-pack, README, pyproject, output, or ASC files were modified."
+  },
+  "approvals": [
+    "User said continue after ignore-rule expansion."
+  ],
+  "source_conflicts": [],
+  "assumptions": [
+    "The tracking-status step must be performed locally to preserve local files.",
+    "The GitHub connector should not be used for remote file-level cleanup of generated artifacts."
+  ],
+  "blockers": [
+    "Local tracking-status adjustment pending.",
+    "Python tests, C# self-test, and Godot smoke test should run after local action."
+  ],
+  "security_impact": "Neutral. Workflow records only; no runtime behavior or external integration changed.",
+  "rollback": {
+    "safe": true,
+    "method": "Revert RS-GC-001 workflow artifacts and state pointer if rejected."
+  },
+  "next_required_action": "Run the local tracking-status commands, then run tests and report pass/fail."
+}
