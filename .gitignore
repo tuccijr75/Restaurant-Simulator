@@ -11,6 +11,9 @@ venv/
 # Simulator outputs
 outputs/
 *.jsonl.tmp
+*.tmp
+*.temp
+*.log
 
 # Godot generated/editor-local files
 # Keep these ignored before any later tracked-cache cleanup.
@@ -18,21 +21,51 @@ outputs/
 # so local files remain on disk.
 .godot/
 .import/
+.imports/
 export_presets.cfg
 *.translation
 
-# Godot / .NET build outputs
+# Godot project-local generated files
 game/.godot/
+game/.import/
+game/.imports/
+game/export_presets.cfg
+game/*.translation
+restaurant-simulator-(4.3)/.godot/
+restaurant-simulator-(4.3)/.import/
+restaurant-simulator-(4.3)/.imports/
+restaurant-simulator-(4.3)/export_presets.cfg
+restaurant-simulator-(4.3)/*.translation
+
+# Godot / .NET build outputs
 game/bin/
 game/obj/
 game/.mono/
-restaurant-simulator-(4.3)/.godot/
+game/.vs/
+game/**/bin/
+game/**/obj/
 restaurant-simulator-(4.3)/bin/
 restaurant-simulator-(4.3)/obj/
 restaurant-simulator-(4.3)/.mono/
+restaurant-simulator-(4.3)/.vs/
+tools/**/bin/
+tools/**/obj/
+
+# Compiled and cache artifacts
+*.dll
+*.pdb
+*.cache
+
+# Editor local state
+.vscode/
+.idea/
+.vs/
+*.user
+*.suo
+*.userprefs
+*.csproj.user
 
 # OS/editor
 .DS_Store
 Thumbs.db
-.vscode/
-.idea/
+desktop.ini
