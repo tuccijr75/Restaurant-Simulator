@@ -1,0 +1,121 @@
+{
+  "profile_id": "rs_plausibility_profile_v1",
+  "task_id": "RS-PL-001",
+  "profile_name": "Restaurant Simulator Plausibility and Realism Validation Profile",
+  "runtime_class": "T3",
+  "scope": "synthetic simulator validation only",
+  "truth_boundary": "Passing this profile means the output is coherent enough for simulator validation. It is not real operational evidence and is not a production or customer-visible claim.",
+  "required_scenarios": [
+    "normal_day",
+    "slow_day",
+    "rush_day",
+    "weather_disruption",
+    "staffing_call_off",
+    "equipment_failure",
+    "local_event_surge",
+    "school_event_surge",
+    "holiday_pattern",
+    "multi_rush_condition"
+  ],
+  "required_dayparts": [
+    "breakfast",
+    "mid_morning",
+    "lunch",
+    "afternoon",
+    "dinner",
+    "late_night"
+  ],
+  "required_channels": [
+    "drive_thru",
+    "lobby",
+    "mobile",
+    "delivery"
+  ],
+  "required_event_types": [
+    "order.created",
+    "item.taken",
+    "item.completed",
+    "ticket.updated",
+    "staff.assignment.updated",
+    "prep.confirmed",
+    "waste.recorded",
+    "station.overloaded",
+    "station.recovered",
+    "shift.started",
+    "shift.ended"
+  ],
+  "deprecated_event_types": [
+    "item.sold"
+  ],
+  "required_realism_categories": [
+    "daypart_demand_shape",
+    "customer_arrivals",
+    "channel_mix",
+    "menu_mix",
+    "station_capacity",
+    "staffing_coverage",
+    "prep_inventory",
+    "waste",
+    "equipment_constraints",
+    "weather_effects",
+    "traffic_effects",
+    "local_events",
+    "school_events",
+    "holiday_pattern",
+    "item_lifecycle",
+    "overload_and_recovery",
+    "multi_rush_stacking",
+    "recommendation_dataset",
+    "alert_dataset",
+    "synthetic_security"
+  ],
+  "thresholds": {
+    "minimum_completion_ratio": 0.9,
+    "maximum_abandonment_ratio": 0.08,
+    "minimum_distinct_daypart_rates": 4,
+    "minimum_channel_coverage": 4,
+    "minimum_inventory_components": 4,
+    "minimum_staffing_entries": 3,
+    "minimum_recommendation_rows": 1,
+    "minimum_alert_rows": 1,
+    "maximum_allowed_labor_percent": 35.0,
+    "minimum_average_check_usd": 9.0,
+    "maximum_average_check_usd": 13.0
+  },
+  "directional_expectations": {
+    "slow_day_orders_less_than_normal_day": true,
+    "rush_day_orders_greater_than_normal_day": true,
+    "multi_rush_orders_greater_than_rush_day": true,
+    "weather_disruption_channel_shift_present": true,
+    "staffing_call_off_event_present": true,
+    "equipment_failure_constraint_present": true,
+    "local_event_surge_profile_present": true,
+    "school_event_surge_profile_present": true,
+    "holiday_pattern_profile_present": true,
+    "multi_rush_overload_and_recovery_present": true
+  },
+  "security_rules": {
+    "synthetic_data_required": true,
+    "forbidden_markers": [
+      "employee_score",
+      "disciplinary",
+      "ranking",
+      "real_customer",
+      "payment_card",
+      "phone_number",
+      "home_address",
+      "ssn",
+      "credential",
+      "secret"
+    ],
+    "employee_scoring_allowed": false,
+    "real_personal_data_allowed": false,
+    "production_claims_allowed": false
+  },
+  "review_outputs": [
+    "pass",
+    "pass_with_watch_items",
+    "review_required",
+    "fail"
+  ]
+}
