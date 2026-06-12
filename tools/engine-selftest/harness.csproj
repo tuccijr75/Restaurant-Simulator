@@ -7,6 +7,7 @@
   </PropertyGroup>
   <ItemGroup>
     <!-- Compile the actual engine sources (no Godot dependency in these files) -->
+    <Compile Include="../../game/scripts/sim/SimConfig.cs" />
     <Compile Include="../../game/scripts/sim/SimRunState.cs" />
     <Compile Include="../../game/scripts/sim/SimEvent.cs" />
     <Compile Include="../../game/scripts/sim/Exports.cs" />
