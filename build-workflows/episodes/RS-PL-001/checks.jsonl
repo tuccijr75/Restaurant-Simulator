@@ -1,0 +1,4 @@
+{"check_id":"check_RS-PL-001_001","task_id":"RS-PL-001","check_type":"scope","target":"runtime_files","status":"passed","evidence":"No simulator runtime files were changed by this task."}
+{"check_id":"check_RS-PL-001_002","task_id":"RS-PL-001","check_type":"profile","target":"profiles/plausibility.json","status":"passed","evidence":"Profile file was added."}
+{"check_id":"check_RS-PL-001_003","task_id":"RS-PL-001","check_type":"tests","target":"tests/test_plausibility.py","status":"ready_for_review","evidence":"Plausibility test file was added; local test run required."}
+{"check_id":"check_RS-PL-001_004","task_id":"RS-PL-001","check_type":"fresh_bundle","target":"Godot output bundle","status":"passed","evidence":"User confirmed fresh event_stream hash matches hashes.json."}
