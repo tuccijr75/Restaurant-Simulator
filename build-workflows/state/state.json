@@ -24,10 +24,10 @@
     },
     "validation": {
       "active_task_id": "RS-GC-001",
-      "status": "ready_for_review",
+      "status": "completed",
       "branch": "main"
     }
   },
-  "last_updated": "2026-06-12T10:30:00-04:00",
-  "next_action": "Run the local tracking-status adjustment plan, then run tests and smoke checks."
+  "last_updated": "2026-06-12T12:00:00-04:00",
+  "next_action": "Run or confirm the Godot editor smoke test for game/; then review RS-3D-001 and RS-ST-001."
 }
