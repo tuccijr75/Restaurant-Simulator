@@ -1,6 +1,6 @@
 {
   "project": "Restaurant Daily Flow Simulator",
-  "active_task_id": "RS-GC-001",
+  "active_task_id": "RS-PL-001",
   "lanes": {
     "source": {
       "active_task_id": "RS-SP-001",
@@ -23,11 +23,11 @@
       "branch": "main"
     },
     "validation": {
-      "active_task_id": "RS-GC-001",
-      "status": "completed",
+      "active_task_id": "RS-PL-001",
+      "status": "ready_for_review",
       "branch": "main"
     }
   },
-  "last_updated": "2026-06-12T15:18:00-04:00",
-  "next_action": "Resume RS-PL-001 plausibility validation profile or start RS-CX-001 ASC compatibility profile."
+  "last_updated": "2026-06-12T15:30:00-04:00",
+  "next_action": "Run python -m unittest discover -s tests and report pass/fail for RS-PL-001."
 }
