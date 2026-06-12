@@ -1,0 +1,105 @@
+{
+  "receipt_id": "rcpt_RS-PL-001_plausibility_profile",
+  "task_id": "RS-PL-001",
+  "workflow_id": "wf_RS-PL-001_plausibility_profile",
+  "runtime_class": "T3",
+  "lane": "validation_profile",
+  "branch": "main",
+  "status": "ready_for_review",
+  "started_at": "2026-06-12T15:30:00-04:00",
+  "completed_at": "2026-06-12T15:45:00-04:00",
+  "source_packets_used": [
+    "build-workflows/task-briefs/RS-PL-001.md",
+    "build-workflows/episodes/RS-3D-001/receipt.json",
+    "build-workflows/episodes/RS-ST-001/receipt.json",
+    "fresh Godot output bundle confirmed by user"
+  ],
+  "repository_paths_inspected": [
+    "build-workflows/task-briefs/RS-PL-001.md",
+    "build-workflows/state/state.json",
+    "build-workflows/task-briefs/current-task.md",
+    "restaurant_simulator/core.py",
+    "restaurant_simulator/engine.py",
+    "tests/test_validation_gate.py"
+  ],
+  "allowed_paths": [
+    "build-workflows/state/state.json",
+    "build-workflows/task-briefs/current-task.md",
+    "build-workflows/task-briefs/RS-PL-001.md",
+    "profiles/plausibility.json",
+    "tests/test_plausibility.py",
+    "build-workflows/audits/RS-PL-001-audit.md",
+    "build-workflows/handoffs/RS-PL-001-handoff.md",
+    "build-workflows/episodes/RS-PL-001/**"
+  ],
+  "prohibited_paths": [
+    "restaurant_simulator/engine.py",
+    "restaurant_simulator/core.py",
+    "game/**",
+    "outputs/**",
+    "README.md",
+    "pyproject.toml",
+    ".github/**",
+    "control-pack/active/**",
+    "AI Shift Commander repository or files"
+  ],
+  "files_created": [
+    "profiles/plausibility.json",
+    "tests/test_plausibility.py",
+    "build-workflows/audits/RS-PL-001-audit.md",
+    "build-workflows/handoffs/RS-PL-001-handoff.md",
+    "build-workflows/episodes/RS-PL-001/task.md",
+    "build-workflows/episodes/RS-PL-001/trace.jsonl",
+    "build-workflows/episodes/RS-PL-001/checks.jsonl",
+    "build-workflows/episodes/RS-PL-001/audit.md",
+    "build-workflows/episodes/RS-PL-001/handoff.md",
+    "build-workflows/episodes/RS-PL-001/receipt.json"
+  ],
+  "files_modified": [
+    "build-workflows/state/state.json",
+    "build-workflows/task-briefs/current-task.md"
+  ],
+  "files_deleted": [],
+  "tests_run": [
+    "Static profile review",
+    "Static test-suite review",
+    "Fresh Godot output bundle hash evidence review"
+  ],
+  "test_results": [
+    {"name": "profile_added", "status": "passed", "notes": "profiles/plausibility.json added."},
+    {"name": "test_suite_added", "status": "passed", "notes": "tests/test_plausibility.py added."},
+    {"name": "fresh_bundle_hash", "status": "passed", "notes": "User confirmed fresh Godot event_stream.jsonl hash matches hashes.json."},
+    {"name": "local_unittest_run", "status": "pending", "notes": "Run python -m unittest discover -s tests locally."}
+  ],
+  "validation_results": {
+    "status": "ready_for_review",
+    "profile_valid": true,
+    "security_valid": true,
+    "runtime_unchanged": true,
+    "local_tests_required": true,
+    "errors": []
+  },
+  "path_scope_result": {
+    "status": "passed",
+    "prohibited_paths_changed": [],
+    "notes": "No runtime, Godot, output, README, pyproject, GitHub workflow, control-pack, or ASC paths were modified."
+  },
+  "approvals": [
+    "User requested RS-PL-001."
+  ],
+  "source_conflicts": [],
+  "watch_items": [
+    "Godot sample service times are very fast and should remain operator-calibration candidates.",
+    "Godot sample equipment condition degradation should be reviewed in a future equipment realism pass.",
+    "Open RS-3D decisions F-14, F-15, and F-16 remain outside this task."
+  ],
+  "blockers": [
+    "Local Python unittest run pending."
+  ],
+  "security_impact": "Positive. Added validation checks for synthetic-only, non-punitive outputs without changing simulator behavior.",
+  "rollback": {
+    "safe": true,
+    "method": "Revert RS-PL-001 profile/test/workflow artifacts if rejected."
+  },
+  "next_required_action": "Run python -m unittest discover -s tests and report pass/fail."
+}
