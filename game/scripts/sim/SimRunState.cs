@@ -111,6 +111,12 @@ public class SimRunState{
  int lastScheduleMinute=-1,schedSeq,breakReturnMinute=-1,callOffDeficitUntil=-1;
  bool callOffFired,replacementCalled;
  public bool ExternallyDriven; // set by 3D Main so dashboard panels don't double-step
+ // RS-RM-001: store reputation carryover from career mode. Set once before the run
+ // from CareerState.DemandMultiplier (bounded 0.85-1.05); 1.0 = neutral single-day
+ // behavior, so every existing (scenario, seed) replay is byte-identical. The value
+ // is a deterministic input like config: same (career state, scenario, seed) =>
+ // same event stream. Store-level only — never an individual signal.
+ public double ReputationDemandMultiplier=1.0;
  public void Step(double d){
   EnsureEquipment();
   if(!Running)return;
@@ -784,7 +790,7 @@ public class SimRunState{
  }
  void AddEquipment(string id,string station,string family,double cap){equipment.Add(new EquipmentUnit{Id=id,Station=station,Family=family,BaseCapacity=cap});}
 
- double RatePerSimMinute(){if(Minute<360)return 0;var daily=Scenario=="slow_day"?620:Scenario=="rush_day"?1180:Scenario=="weather_disruption"?760:Scenario=="local_event_surge"?1050:Scenario=="school_event_surge"?980:Scenario=="holiday_pattern"?840:Scenario=="multi_rush_condition"?1240:920;return daily*DaypartShare()/DaypartMinutes()*Curve()*ScenarioMultiplier();}
+ double RatePerSimMinute(){if(Minute<360)return 0;var daily=Scenario=="slow_day"?620:Scenario=="rush_day"?1180:Scenario=="weather_disruption"?760:Scenario=="local_event_surge"?1050:Scenario=="school_event_surge"?980:Scenario=="holiday_pattern"?840:Scenario=="multi_rush_condition"?1240:920;return daily*DaypartShare()/DaypartMinutes()*Curve()*ScenarioMultiplier()*ReputationDemandMultiplier;}
  double ScenarioMultiplier()=>Scenario=="rush_day"?1.10:Scenario=="weather_disruption"?.86:Scenario=="equipment_failure"?.95:Scenario=="staffing_call_off"?.97:Scenario=="multi_rush_condition"?1.18:1.0;
  double DaypartShare()=>Daypart=="breakfast"?.18:Daypart=="mid_morning"?.07:Daypart=="lunch"?.30:Daypart=="afternoon"?.10:Daypart=="dinner"?.30:.05;
  double DaypartMinutes()=>Daypart=="breakfast"?240:Daypart=="mid_morning"?90:Daypart=="lunch"?150:Daypart=="afternoon"?150:Daypart=="dinner"?240:210;

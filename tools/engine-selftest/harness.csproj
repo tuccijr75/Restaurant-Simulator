@@ -1,15 +1,26 @@
 <Project Sdk="Microsoft.NET.Sdk">
+
   <PropertyGroup>
     <OutputType>Exe</OutputType>
     <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>disable</ImplicitUsings>
     <Nullable>enable</Nullable>
-    <ImplicitUsings>enable</ImplicitUsings>
+    <AssemblyName>engine-selftest</AssemblyName>
+    <RootNamespace>RestaurantSimulator</RootNamespace>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
   </PropertyGroup>
+
   <ItemGroup>
-    <!-- Compile the actual engine sources (no Godot dependency in these files) -->
-    <Compile Include="../../game/scripts/sim/SimRunState.cs" />
+    <!-- Pure-C# engine sources (Godot-free). SimConfig must be included explicitly
+         per the RS-GC-001 fix; CareerState/CareerTest are the RS-RM-001 additions. -->
+    <Compile Include="../../game/scripts/sim/SimConfig.cs" />
     <Compile Include="../../game/scripts/sim/SimEvent.cs" />
+    <Compile Include="../../game/scripts/sim/SimRunState.cs" />
     <Compile Include="../../game/scripts/sim/Exports.cs" />
     <Compile Include="../../game/scripts/sim/SelfTest.cs" />
+    <Compile Include="../../game/scripts/sim/CareerState.cs" />
+    <Compile Include="../../game/scripts/sim/CareerTest.cs" />
+    <Compile Include="Program.cs" />
   </ItemGroup>
+
 </Project>

@@ -1,0 +1,22 @@
+{
+  "receipt_id": "receipt_rs_rm_001",
+  "task_id": "RS-RM-001",
+  "workflow_id": "build-workflows-v1",
+  "runtime_class": "T4",
+  "created_at": "2026-06-13T08:40:00-04:00",
+  "verdict": "PASS",
+  "self_test": {"checks_passed": 120, "checks_failed": 0, "scenarios": 10, "seed": 12345},
+  "career_test": {"checks_passed": 11, "checks_failed": 0, "week_seed": 777001},
+  "outputs": [
+    "game/scripts/sim/CareerState.cs",
+    "game/scripts/sim/CareerTest.cs",
+    "game/scripts/sim/CareerHook.cs",
+    "game/scripts/sim/SimRunState.cs",
+    "tools/engine-selftest/Program.cs",
+    "tools/engine-selftest/harness.csproj",
+    "tools/engine-selftest/nuget.config",
+    "docs/08_CAREER_MODE.md"
+  ],
+  "blockers": ["in-editor Godot 4.6 smoke test of CareerHook autoload + Main.cs call sites"],
+  "next_required_action": "Register CareerHook autoload, add ConfigureSim/AdvanceDay call sites in Main.cs, smoke-test F6 across a week in Godot 4.6."
+}

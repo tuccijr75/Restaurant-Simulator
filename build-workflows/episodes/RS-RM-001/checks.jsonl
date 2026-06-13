@@ -1,0 +1,11 @@
+{"check":"selftest_120_120","seed":12345,"scenarios":10,"passed":120,"failed":0,"result":"PASS"}
+{"check":"career_week_determinism","week_seed":777001,"passed":11,"failed":0,"result":"PASS"}
+{"check":"replay_neutrality_multiplier_default_1.0","result":"PASS","note":"byte-identical event-stream + inventory-ledger hashes across runs for all 10 scenarios"}
+{"check":"reputation_bounded_[40,100]","result":"PASS"}
+{"check":"demand_multiplier_bounded_[0.85,1.05]","result":"PASS"}
+{"check":"reputation_delta_bounded_[-6,6]","result":"PASS"}
+{"check":"reputation_responds_to_outcomes","result":"PASS","note":"equipment_failure days -2.7..-3.9; clean days +0.9..+1.5"}
+{"check":"career_json_round_trip","result":"PASS"}
+{"check":"no_item_sold","result":"PASS"}
+{"check":"no_employee_scoring","result":"PASS","note":"reputation derived from store-level csat/inspection/abandonment only"}
+{"check":"godot_in_editor_smoke","result":"DEFERRED","note":"register CareerHook autoload + two Main.cs call sites; no Godot in build env"}

@@ -1,10 +1,17 @@
-# Current task
+# Current Task
 
-RS-CX-001 — COMPLETE (ready for review): ASC compatibility profile + tests,
-14/14 across 4 real bundles; defect D1 fixed under RS-EV-001; C# gate 120/120.
+Task ID: RS-RM-001
+Task Brief: `build-workflows/task-briefs/RS-RM-001.md`
+Branch: `main`
+Lane: Engine / Godot
+Status: ready_for_review
+Previous Task: RS-CX-001 — ASC compatibility profile + tests (ready_for_review)
+Verification: self-test 120/120 PASS (10 scenarios, seed 12345); career week 11/11 PASS (WeekSeed 777001)
 
-BLOCKING NOTE FOR NEXT SESSION: repo game/ predates RS-FIELD-001 — sync from
-the delivered restaurant-simulator zip before any field run or export.
+## Pending (in-editor)
+- Register `game/scripts/sim/CareerHook.cs` as autoload "CareerHook".
+- Add the two documented call sites to Main.cs (ConfigureSim in _Ready, AdvanceDay on F6).
+- Open game/ in Godot 4.6 and smoke-test F6 across a week.
 
-Next recommended: RS-RM-001 — multi-day career mode (reputation carryover,
-persistent seeded weeks) for ASC longitudinal validation.
+## Next Task
+RS-RM-002 — surface reputation/day in the dashboard HUD; multi-week season rollup for ASC trend analysis.

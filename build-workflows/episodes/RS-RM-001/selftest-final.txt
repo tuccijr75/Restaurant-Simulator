@@ -1,0 +1,197 @@
+SELF-TEST scenario=normal_day seed=12345
+[PASS] deterministic_replay (event stream hash)
+[PASS] deterministic_replay (inventory ledger hash)
+[PASS] no deprecated item.sold
+[PASS] inventory ledger reconciles
+[PASS] validation status OK
+[PASS] item.taken -> item.completed ordering
+[PASS] ticket completed only after all items
+[PASS] sequence strictly increasing
+[PASS] envelope has business_day
+[PASS] abandonment within band (<=8%)
+[PASS] satisfaction computed
+[PASS] tickets reconcile incl. abandoned
+orders=942 completed=920 events=9188
+avg_check=$10.48 dt_sos=128s labor=23.0% csat=90.5 abandoned=21 balked=0 inspection=90
+
+
+SELF-TEST scenario=slow_day seed=12345
+[PASS] deterministic_replay (event stream hash)
+[PASS] deterministic_replay (inventory ledger hash)
+[PASS] no deprecated item.sold
+[PASS] inventory ledger reconciles
+[PASS] validation status OK
+[PASS] item.taken -> item.completed ordering
+[PASS] ticket completed only after all items
+[PASS] sequence strictly increasing
+[PASS] envelope has business_day
+[PASS] abandonment within band (<=8%)
+[PASS] satisfaction computed
+[PASS] tickets reconcile incl. abandoned
+orders=635 completed=623 events=6546
+avg_check=$10.58 dt_sos=134s labor=33.8% csat=90.5 abandoned=11 balked=0 inspection=100
+
+
+SELF-TEST scenario=rush_day seed=12345
+[PASS] deterministic_replay (event stream hash)
+[PASS] deterministic_replay (inventory ledger hash)
+[PASS] no deprecated item.sold
+[PASS] inventory ledger reconciles
+[PASS] validation status OK
+[PASS] item.taken -> item.completed ordering
+[PASS] ticket completed only after all items
+[PASS] sequence strictly increasing
+[PASS] envelope has business_day
+[PASS] abandonment within band (<=8%)
+[PASS] satisfaction computed
+[PASS] tickets reconcile incl. abandoned
+orders=1329 completed=1292 events=12468
+avg_check=$10.43 dt_sos=144s labor=16.4% csat=91.1 abandoned=36 balked=0 inspection=90
+
+
+SELF-TEST scenario=weather_disruption seed=12345
+[PASS] deterministic_replay (event stream hash)
+[PASS] deterministic_replay (inventory ledger hash)
+[PASS] no deprecated item.sold
+[PASS] inventory ledger reconciles
+[PASS] validation status OK
+[PASS] item.taken -> item.completed ordering
+[PASS] ticket completed only after all items
+[PASS] sequence strictly increasing
+[PASS] envelope has business_day
+[PASS] abandonment within band (<=8%)
+[PASS] satisfaction computed
+[PASS] tickets reconcile incl. abandoned
+orders=669 completed=657 events=6833
+avg_check=$10.54 dt_sos=132s labor=32.2% csat=90.4 abandoned=11 balked=0 inspection=90
+
+
+SELF-TEST scenario=staffing_call_off seed=12345
+[PASS] deterministic_replay (event stream hash)
+[PASS] deterministic_replay (inventory ledger hash)
+[PASS] no deprecated item.sold
+[PASS] inventory ledger reconciles
+[PASS] validation status OK
+[PASS] item.taken -> item.completed ordering
+[PASS] ticket completed only after all items
+[PASS] sequence strictly increasing
+[PASS] envelope has business_day
+[PASS] abandonment within band (<=8%)
+[PASS] satisfaction computed
+[PASS] tickets reconcile incl. abandoned
+orders=914 completed=902 events=8981
+avg_check=$10.64 dt_sos=132s labor=22.9% csat=90.7 abandoned=11 balked=0 inspection=90
+
+
+SELF-TEST scenario=equipment_failure seed=12345
+[PASS] deterministic_replay (event stream hash)
+[PASS] deterministic_replay (inventory ledger hash)
+[PASS] no deprecated item.sold
+[PASS] inventory ledger reconciles
+[PASS] validation status OK
+[PASS] item.taken -> item.completed ordering
+[PASS] ticket completed only after all items
+[PASS] sequence strictly increasing
+[PASS] envelope has business_day
+[PASS] abandonment within band (<=8%)
+[PASS] satisfaction computed
+[PASS] tickets reconcile incl. abandoned
+orders=888 completed=823 events=8613
+avg_check=$9.89 dt_sos=166s labor=25.9% csat=89.7 abandoned=65 balked=7 inspection=65
+
+
+SELF-TEST scenario=local_event_surge seed=12345
+[PASS] deterministic_replay (event stream hash)
+[PASS] deterministic_replay (inventory ledger hash)
+[PASS] no deprecated item.sold
+[PASS] inventory ledger reconciles
+[PASS] validation status OK
+[PASS] item.taken -> item.completed ordering
+[PASS] ticket completed only after all items
+[PASS] sequence strictly increasing
+[PASS] envelope has business_day
+[PASS] abandonment within band (<=8%)
+[PASS] satisfaction computed
+[PASS] tickets reconcile incl. abandoned
+orders=1075 completed=1060 events=10319
+avg_check=$10.54 dt_sos=128s labor=20.1% csat=90.7 abandoned=15 balked=0 inspection=90
+
+
+SELF-TEST scenario=school_event_surge seed=12345
+[PASS] deterministic_replay (event stream hash)
+[PASS] deterministic_replay (inventory ledger hash)
+[PASS] no deprecated item.sold
+[PASS] inventory ledger reconciles
+[PASS] validation status OK
+[PASS] item.taken -> item.completed ordering
+[PASS] ticket completed only after all items
+[PASS] sequence strictly increasing
+[PASS] envelope has business_day
+[PASS] abandonment within band (<=8%)
+[PASS] satisfaction computed
+[PASS] tickets reconcile incl. abandoned
+orders=1003 completed=986 events=9743
+avg_check=$10.51 dt_sos=126s labor=21.6% csat=90.6 abandoned=16 balked=0 inspection=90
+
+
+SELF-TEST scenario=holiday_pattern seed=12345
+[PASS] deterministic_replay (event stream hash)
+[PASS] deterministic_replay (inventory ledger hash)
+[PASS] no deprecated item.sold
+[PASS] inventory ledger reconciles
+[PASS] validation status OK
+[PASS] item.taken -> item.completed ordering
+[PASS] ticket completed only after all items
+[PASS] sequence strictly increasing
+[PASS] envelope has business_day
+[PASS] abandonment within band (<=8%)
+[PASS] satisfaction computed
+[PASS] tickets reconcile incl. abandoned
+orders=860 completed=837 events=8495
+avg_check=$10.49 dt_sos=155s labor=25.2% csat=90.6 abandoned=21 balked=0 inspection=100
+
+
+SELF-TEST scenario=multi_rush_condition seed=12345
+[PASS] deterministic_replay (event stream hash)
+[PASS] deterministic_replay (inventory ledger hash)
+[PASS] no deprecated item.sold
+[PASS] inventory ledger reconciles
+[PASS] validation status OK
+[PASS] item.taken -> item.completed ordering
+[PASS] ticket completed only after all items
+[PASS] sequence strictly increasing
+[PASS] envelope has business_day
+[PASS] abandonment within band (<=8%)
+[PASS] satisfaction computed
+[PASS] tickets reconcile incl. abandoned
+orders=1401 completed=1319 events=12867
+avg_check=$10.10 dt_sos=231s labor=16.1% csat=90.7 abandoned=81 balked=97 inspection=100
+
+
+=================== CAREER MODE (RS-RM-001) ===================
+CAREER-TEST week_seed=777001 days=7
+[PASS] deterministic week schedule (scenario+seed per day)
+[PASS] deterministic replay across week (7/7 day event-stream hashes)
+[PASS] deterministic final career state JSON
+[PASS] week complete (7 day records)
+[PASS] day 0 anchored to normal_day
+[PASS] reputation clamped to [40,100]
+[PASS] demand multiplier clamped to [0.85,1.05]
+[PASS] per-day reputation delta clamped to [-6,+6]
+[PASS] reputation responds to outcomes (non-constant)
+[PASS] career carryover changes day inputs (multiplier varies after day 0)
+[PASS] career JSON round-trips (parse(serialize(x)) == x)
+  day 0: normal_day             seed=132195522 mult=0.900 csat=90.4 insp=90 orders=848 aband=10 rep 70.0 -> 70.9 (+0.93)
+  day 1: school_event_surge     seed=412640120 mult=0.905 csat=90.4 insp=90 orders=908 aband=18 rep 70.9 -> 71.9 (+0.94)
+  day 2: multi_rush_condition   seed=385567227 mult=0.909 csat=89.4 insp=95 orders=1279 aband=66 rep 71.9 -> 72.8 (+0.94)
+  day 3: weather_disruption     seed=266496750 mult=0.914 csat=90.2 insp=100 orders=611 aband=11 rep 72.8 -> 74.2 (+1.42)
+  day 4: normal_day             seed=160196321 mult=0.921 csat=90.6 insp=100 orders=867 aband=14 rep 74.2 -> 75.7 (+1.45)
+  day 5: slow_day               seed=401604255 mult=0.928 csat=90.3 insp=90 orders=589 aband=9 rep 75.7 -> 76.6 (+0.93)
+  day 6: staffing_call_off      seed=850145933 mult=0.933 csat=90.3 insp=100 orders=852 aband=22 rep 76.6 -> 78.0 (+1.43)
+final reputation=78.02 next_multiplier=0.940
+
+wrote career_week_summary.json
+
+SELF-TEST TOTAL: 120/120 checks passed across 10 scenarios (seed 12345)
+CAREER-TEST TOTAL: 11/11 checks passed (week_seed 777001)
+RESULT: PASS
