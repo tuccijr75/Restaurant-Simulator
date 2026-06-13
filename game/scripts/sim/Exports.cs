@@ -56,7 +56,11 @@ public static class Exports
             $"\"sales_this_30\":{Num(s.SalesThis30)},\"tickets_this_30\":{s.TicketsThis30}," +
             $"\"sos_avg_seconds\":{{\"drive_thru\":{Num(dt)},\"lobby\":{Num(fc)},\"delivery\":{Num(del)}}}," +
             $"\"labor_cost_usd\":{Num(s.LaborCost)},\"labor_percent\":{Num(s.LaborPercent)}," +
-            $"\"waste_units\":{s.Waste},\"waste_cost_usd\":{Num(s.WasteCost)},\"waste_events_total\":{s.WasteSeq}," +
+            (s.RealIngredientsActive
+                ? $"\"waste_units\":{Num(s.IngredientWasteUnits)},\"waste_cost_usd\":{Num(s.IngredientWasteCostUsd)},\"waste_events_total\":{s.WasteSeq}," +
+                  $"\"waste_by_item\":{s.IngredientWasteByItemJson}," +
+                  $"\"legacy_bucket_waste_units\":{s.Waste},\"legacy_bucket_waste_cost_usd\":{Num(s.WasteCost)},"
+                : $"\"waste_units\":{s.Waste},\"waste_cost_usd\":{Num(s.WasteCost)},\"waste_events_total\":{s.WasteSeq},") +
             $"\"overload_events_total\":{s.OverloadSeq},\"call_offs\":{s.CallOffs},\"breaks_taken\":{s.BreaksTaken}," +
             $"\"sanitation_tasks\":{s.SanitationTasks}," +
             $"\"customer_satisfaction_avg\":{Num(s.Csat)},\"abandoned_tickets\":{s.AbandonedTickets},\"balked_cars\":{s.BalkedCars},\"lost_sales_usd\":{Num(s.LostSales)}," +
@@ -109,6 +113,9 @@ public static class Exports
             ("end_of_shift_summary.json", EndOfShiftSummary(s)),
             ("run_receipt.json", RunReceipt(s, createdAtIso)),
         };
+        if (s.RealIngredientsActive)
+            files.Insert(3, ("ingredient_ledger.json",
+                $"{{\"provenance\":{Provenance(s)},\"ledger\":{s.IngredientLedgerJson}}}"));
         var sb = new StringBuilder("{");
         for (int i = 0; i < files.Count; i++)
         {

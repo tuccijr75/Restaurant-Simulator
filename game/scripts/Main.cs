@@ -45,21 +45,26 @@ public partial class Main : Node3D
         AddChild(_vitals);
         _vitals.Init(_sim, _world);
 
-        // Once any Button is clicked it grabs keyboard focus, and Godot's GUI
-        // focus navigation then consumes TAB (and SPACE re-presses the button)
-        // before game input ever sees it. Two-layer kill: nothing in the panel
-        // UI is focusable, and the focus-traversal actions are unbound.
-        KillFocus(_dashLayer);
-        KillFocus(_gameplay);
-        if (InputMap.HasAction("ui_focus_next")) InputMap.ActionEraseEvents("ui_focus_next");
-        if (InputMap.HasAction("ui_focus_prev")) InputMap.ActionEraseEvents("ui_focus_prev");
-
         // Existing 2D dashboard, shared sim, hidden until TAB.
+        // MUST be created BEFORE KillFocus(_dashLayer): _dashLayer was previously
+        // assigned after the KillFocus calls, so KillFocus(null) threw in _Ready,
+        // aborted construction, and left _dashLayer null for the whole session —
+        // which then NRE'd on every _dashLayer.Visible access (TAB, clicks, F5 path).
         _dashLayer = new CanvasLayer { Visible = false, Layer = 5, Name = "Dashboard" };
         AddChild(_dashLayer);
         var dash = new MainDashboard { Shared = _sim };
         dash.SetAnchorsPreset(Control.LayoutPreset.FullRect);
         _dashLayer.AddChild(dash);
+
+        // Once any Button is clicked it grabs keyboard focus, and Godot's GUI
+        // focus navigation then consumes TAB (and SPACE re-presses the button)
+        // before game input ever sees it. Two-layer kill: nothing in the panel
+        // UI is focusable, and the focus-traversal actions are unbound. Runs after
+        // the dashboard exists so its buttons are actually covered.
+        KillFocus(_dashLayer);
+        KillFocus(_gameplay);
+        if (InputMap.HasAction("ui_focus_next")) InputMap.ActionEraseEvents("ui_focus_next");
+        if (InputMap.HasAction("ui_focus_prev")) InputMap.ActionEraseEvents("ui_focus_prev");
     }
 
     public override void _Process(double delta)
@@ -109,6 +114,7 @@ public partial class Main : Node3D
 
     static void KillFocus(Node n)
     {
+        if (n == null) return;   // defensive: never dereference a node that isn't built yet
         if (n is Control c) c.FocusMode = Control.FocusModeEnum.None;
         foreach (Node ch in n.GetChildren()) KillFocus(ch);
     }
@@ -194,13 +200,14 @@ public partial class Main : Node3D
         var dir = $"user://outputs/sim_{_sim.Scenario}_{_sim.Seed}";
         DirAccess.MakeDirRecursiveAbsolute(ProjectSettings.GlobalizePath(dir));
         var stamp = System.DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ssZ", CultureInfo.InvariantCulture);
-        foreach (var (name, content) in Exports.BuildAll(_sim, stamp))
+        var files = Exports.BuildAll(_sim, stamp);
+        foreach (var (name, content) in files)
         {
             var f = FileAccess.Open($"{dir}/{name}", FileAccess.ModeFlags.Write);
             if (f == null) { _hud.ShowReport($"Export failed: {dir}/{name}"); return; }
             f.StoreString(content);
             f.Close();
         }
-        _hud.ShowReport($"Exported 8-file output contract to {ProjectSettings.GlobalizePath(dir)}");
+        _hud.ShowReport($"Exported {files.Count}-file output contract to {ProjectSettings.GlobalizePath(dir)}");
     }
 }

@@ -77,25 +77,44 @@ default is 1.0, every pre-career `(scenario, seed)` replay is byte-identical —
 proven by the 120/120 self-test below. It is a store-level input like config; it
 is never an individual signal.
 
-## Godot integration (in-editor step)
+## Godot integration (one autoload, no Main.cs edits)
 
-`game/scripts/sim/CareerHook.cs` is a decoupled autoload singleton that owns
-career persistence and the F6 "advance day" action. To wire it in-editor:
+`game/scripts/sim/CareerHook.cs` is a **self-sufficient autoload**. It needs no
+changes to `Main.cs`. Register it once:
 
-1. Register `CareerHook.cs` as an autoload named `CareerHook`
-   (Project ▸ Project Settings ▸ Autoload).
-2. In `Main._Ready()`, after the `SimRunState` is constructed and before the run
-   starts, call: `GetNode<CareerHook>("/root/CareerHook").ConfigureSim(sim);`
-3. In `Main`'s input handling, bind **F6** to:
-   `GetNode<CareerHook>("/root/CareerHook").AdvanceDay(sim);`
+> **Project ▸ Project Settings ▸ Autoload tab** → set Path to
+> `res://game/scripts/sim/CareerHook.cs` → set Node Name to `CareerHook` →
+> **Add** → make sure its **Enable** checkbox is ticked.
 
-`ConfigureSim` sets the day's scenario, seed, and reputation multiplier from
-career state. `AdvanceDay` folds the finished day's store-level outcomes into
-reputation, saves, and reloads the scene for the next day. The week resets via
-`CareerHook.ResetWeek(weekSeed)`.
+That's the entire setup. On launch you should see in the Output panel:
 
-This autoload + two call sites is the only part of RS-RM-001 not exercised by the
-headless gate; it is the standing in-editor smoke-test item.
+    [CareerHook] ready — week_seed=777001 day=0/7 reputation=70.0 ...
+
+How it works without touching `Main`:
+
+- It finds the running `SimRunState` in the scene by reflection (any node, any
+  field or property — it does not depend on `Main`'s internal names).
+- In `_Process` it configures the day's scenario, seed, and reputation
+  multiplier **before** the shift starts, guarded on `EventSeq == 0` so it never
+  mutates a run already in progress. Because autoloads run their `_Process` ahead
+  of the main scene each frame, configuration always lands before `Main`'s first
+  step.
+- It handles **F6** in `_Input`. Autoloads receive `_Input` ahead of the main
+  scene, so F6 is seen *before* `Main`'s focus-interceptor can swallow it — this
+  is exactly why the earlier "F6 does nothing" symptom occurred (the hook simply
+  wasn't loaded). **F7** resets the week.
+
+`ConfigureSim` / `AdvanceDay` / `ResetWeek` remain public, so manual wiring is
+still possible, but is no longer required.
+
+### Verifying it took
+After registering the autoload, run and press **F5** to export. The bundle's
+`simulation_id` should read `sim_normal_day_132195522` (week 777001, day 0) —
+**not** `sim_normal_day_12345`. The changed seed is the proof the career day was
+configured. Press **F6** to fold the day into reputation and reload for day 1.
+
+This autoload is the only part of RS-RM-001 not exercised by the headless gate;
+it is the standing in-editor smoke-test item.
 
 ## Verification
 

@@ -30,6 +30,50 @@ foreach (var scenario in scenarios)
     Console.WriteLine();
 }
 
+int ingredientPass = 0, ingredientFail = 0;
+Console.WriteLine("=================== INGREDIENT MODEL (RS-IM-001) ===================");
+{
+    string catJson = null;
+    foreach (var p in new[] { "../../game/config/ingredients.json", "game/config/ingredients.json" })
+        if (System.IO.File.Exists(p)) { catJson = System.IO.File.ReadAllText(p); break; }
+    var cat = new IngredientCatalog();
+    cat.Load(catJson ?? IngredientCatalog.Embedded);
+
+    SimRunState RunIng(string scn, int seed)
+    {
+        var s = new SimRunState { Scenario = scn, Seed = seed, TimeScale = 1.0, Running = true,
+            EnableRealIngredients = true, Catalog = cat };
+        for (int i = 0; i < 1500 && !s.ShiftEnded; i++) s.Step(60);
+        return s;
+    }
+    SimRunState RunPlain(string scn, int seed)
+    {
+        var s = new SimRunState { Scenario = scn, Seed = seed, TimeScale = 1.0, Running = true };
+        for (int i = 0; i < 1500 && !s.ShiftEnded; i++) s.Step(60);
+        return s;
+    }
+
+    var ia = RunIng("normal_day", 12345);
+    var ib = RunIng("normal_day", 12345);
+    void IC(string name, bool ok) { Console.WriteLine((ok ? "[PASS] " : "[FAIL] ") + name); if (ok) ingredientPass++; else ingredientFail++; }
+
+    IC("catalog loaded (34 ingredients)", cat.Loaded && cat.Items.Count == 34);
+    IC("real ingredient ledger active", ia.RealIngredientsActive);
+    IC("deterministic ingredient ledger (hash match)",
+        Exports.Sha256Hex(ia.IngredientLedgerJson) == Exports.Sha256Hex(ib.IngredientLedgerJson));
+    IC("every ingredient reconciles", !ia.IngredientLedgerJson.Contains("\"reconciles\":false"));
+    IC("per-item waste cost realistic (< legacy bucket waste cost)",
+        ia.IngredientWasteCostUsd < ia.WasteCost && ia.IngredientWasteCostUsd >= 0);
+    IC("waste spans multiple ingredients on their own clocks",
+        System.Text.RegularExpressions.Regex.Matches(ia.IngredientWasteByItemJson, "cost_usd").Count >= 2);
+    IC("enabling ingredients leaves event stream byte-identical (replay neutral)",
+        Exports.Sha256Hex(ia.AllJsonl) == Exports.Sha256Hex(RunPlain("normal_day", 12345).AllJsonl));
+
+    Console.WriteLine($"ingredient_waste=${ia.IngredientWasteCostUsd:0.00} ({ia.IngredientWasteUnits:0} units) vs legacy_bucket_waste=${ia.WasteCost:0.00}");
+    Console.WriteLine($"INGREDIENT-MODEL TOTAL: {ingredientPass}/{ingredientPass + ingredientFail} checks passed");
+    Console.WriteLine();
+}
+
 Console.WriteLine("=================== CAREER MODE (RS-RM-001) ===================");
 string careerReport = CareerTest.Run(weekSeed: 777001, out string weekSummaryJson);
 Console.WriteLine(careerReport);
@@ -49,6 +93,7 @@ catch (Exception e) { Console.WriteLine("could not write career_week_summary.jso
 
 Console.WriteLine();
 Console.WriteLine($"SELF-TEST TOTAL: {pass}/{pass + fail} checks passed across {scenarios.Length} scenarios (seed {GateSeed})");
+Console.WriteLine($"INGREDIENT-MODEL TOTAL: {ingredientPass}/{ingredientPass + ingredientFail} checks passed");
 Console.WriteLine($"CAREER-TEST TOTAL: {careerPass}/{careerPass + careerFail} checks passed (week_seed 777001)");
-Console.WriteLine((fail == 0 && careerFail == 0) ? "RESULT: PASS" : "RESULT: FAIL");
-Environment.Exit(fail == 0 && careerFail == 0 ? 0 : 1);
+Console.WriteLine((fail == 0 && careerFail == 0 && ingredientFail == 0) ? "RESULT: PASS" : "RESULT: FAIL");
+Environment.Exit(fail == 0 && careerFail == 0 && ingredientFail == 0 ? 0 : 1);

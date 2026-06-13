@@ -82,6 +82,7 @@ public static class CareerTest
             {
                 Scenario = scenario, Seed = seed, TimeScale = 1.0, Running = true,
                 ReputationDemandMultiplier = mult,
+                EnableRealIngredients = true, Catalog = IngredientCatalog.Default(),
             };
             for (int i = 0; i < 1500 && !s.ShiftEnded; i++) s.Step(60);
 

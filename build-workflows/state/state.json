@@ -1,14 +1,34 @@
 {
   "project": "Restaurant Daily Flow Simulator",
-  "active_task_id": "RS-RM-001",
+  "active_task_id": "RS-IM-001",
   "lanes": {
-    "source": {"active_task_id": "RS-SP-001", "status": "ready_for_review", "branch": "main"},
-    "schema": {"active_task_id": "RS-SC-001", "status": "ready_for_review", "branch": "main"},
-    "engine": {"active_task_id": "RS-RM-001", "status": "ready_for_review", "branch": "main"},
-    "godot": {"active_task_id": "RS-RM-001", "status": "ready_for_review", "branch": "main"},
-    "validation": {"active_task_id": "RS-CX-001", "status": "ready_for_review", "branch": "main"}
+    "source": {
+      "active_task_id": "RS-SP-001",
+      "status": "ready_for_review",
+      "branch": "main"
+    },
+    "schema": {
+      "active_task_id": "RS-SC-001",
+      "status": "ready_for_review",
+      "branch": "main"
+    },
+    "engine": {
+      "active_task_id": "RS-IM-001",
+      "status": "ready_for_review",
+      "branch": "main"
+    },
+    "godot": {
+      "active_task_id": "RS-IM-001",
+      "status": "ready_for_review",
+      "branch": "main"
+    },
+    "validation": {
+      "active_task_id": "RS-CX-001",
+      "status": "ready_for_review",
+      "branch": "main"
+    }
   },
-  "engine_verification": "self-test 120/120 PASS (10 scenarios, seed 12345); career week 11/11 PASS (WeekSeed 777001)",
-  "last_updated": "2026-06-13T08:40:00-04:00",
-  "next_action": "Review RS-RM-001: register CareerHook autoload + add ConfigureSim/AdvanceDay call sites in Main.cs, then smoke-test F6 across a career week in Godot 4.6. Then consider RS-RM-002 (reputation HUD + multi-week season rollup)."
+  "engine_verification": "120/120 self-test + 7/7 ingredient + 11/11 career = PASS",
+  "last_updated": "2026-06-13T15:30:00-04:00",
+  "next_action": "Register CareerHook autoload, run in Godot 4.6, press F8 to export (incl ingredient_ledger.json). If F5 still crashes, capture the console trace. Next: RS-IM-002 (ASC schema validation for the per-ingredient ledger; retire legacy bucket ledger)."
 }

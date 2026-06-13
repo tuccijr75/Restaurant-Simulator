@@ -19,6 +19,10 @@ run/main_scene="res://scenes/Main.tscn"
 config/features=PackedStringArray("4.6", "C#")
 config/icon="res://icon.svg"
 
+[autoload]
+
+CareerHook="*uid://dqngeno47uor5"
+
 [display]
 
 window/size/viewport_width=1600

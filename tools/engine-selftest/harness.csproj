@@ -18,6 +18,8 @@
     <Compile Include="../../game/scripts/sim/SimRunState.cs" />
     <Compile Include="../../game/scripts/sim/Exports.cs" />
     <Compile Include="../../game/scripts/sim/SelfTest.cs" />
+    <Compile Include="../../game/scripts/sim/IngredientCatalog.cs" />
+    <Compile Include="../../game/scripts/sim/IngredientLedger.cs" />
     <Compile Include="../../game/scripts/sim/CareerState.cs" />
     <Compile Include="../../game/scripts/sim/CareerTest.cs" />
     <Compile Include="Program.cs" />

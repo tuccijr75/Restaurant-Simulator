@@ -34,3 +34,20 @@ Merge this drop-in over the same synced tree; do not apply over a 0.2.0 game/.
 In-editor smoke test of CareerHook (above), then RS-RM-002 candidates: surface
 reputation/day in the dashboard HUD, and a multi-week season rollup for ASC
 trend analysis.
+
+---
+
+## UPDATE (F6 fix — self-sufficient autoload)
+Symptom reported: F6 did not advance the day. Diagnosis from the uploaded run:
+- Godot logs had zero `[CareerHook]` lines  -> the autoload was never registered/loaded.
+- F5 export was `sim_normal_day_12345` (default seed) -> ConfigureSim never ran.
+Root cause: the prior CareerHook required hand-editing Main.cs AND registering an
+autoload; neither was done.
+
+Fix: CareerHook.cs rewritten to be self-sufficient — NO Main.cs edits.
+- Finds SimRunState by reflection (any node/field/property).
+- Configures day scenario/seed/multiplier in _Process before start (EventSeq==0 guard).
+- Handles F6/F7 in _Input (autoload _Input runs ahead of Main's focus-interceptor).
+Setup is now a single autoload registration (see QUICKSTART_CAREER_F6.md).
+Confirmation after registering: F5 export reads sim_normal_day_132195522 for day 0.
+Engine gate re-run after the change: 120/120 + 11/11 PASS (CareerHook is Godot-only).

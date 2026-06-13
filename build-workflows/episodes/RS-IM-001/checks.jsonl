@@ -1,0 +1,9 @@
+{"check":"selftest_120_120_unchanged","result":"PASS","note":"event stream byte-identical with ingredient model on vs off"}
+{"check":"ingredient_model_7_7","result":"PASS"}
+{"check":"catalog_34_ingredients","result":"PASS"}
+{"check":"per_ingredient_reconciles","result":"PASS","note":"all 34 ingredients opening+received-consumed-waste=closing"}
+{"check":"raw_to_cooked_chain","result":"PASS","note":"frozen_beef_patty 1200->684 as 516 patties cooked"}
+{"check":"realistic_waste","result":"PASS","note":"normal_day $46.54: fries+proteins; zero on dry/cold/frozen; vs ~$472 legacy phantom"}
+{"check":"replay_neutral","result":"PASS"}
+{"check":"godot_in_editor_smoke","result":"DEFERRED"}
+{"check":"f5_crash_root_cause","result":"OPEN","note":"needs Godot console trace; F8 hardened export shipped as workaround"}
