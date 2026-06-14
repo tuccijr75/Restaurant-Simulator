@@ -12,6 +12,13 @@ public partial class CharacterRig : Node3D
     public bool Moving, Working;
     public float WalkSpeed = 1.5f;
 
+    // RS-VS-002: optional imported GLB body (staff). When present, the procedural
+    // limbs are not built and code-driven limb animation is skipped — the model
+    // animates as a whole (a gentle walk bob) and can carry its own AnimationPlayer later.
+    Node3D _modelInstance = null!;
+    bool _usesModel;
+    float _modelBaseY;
+
     public void BuildHuman(Color shirt, Color pants, Color skin, Color? hat = null, float heightScale = 1f)
     {
         Scale = new Vector3(Mathf.Clamp(heightScale, 0.9f, 1.1f), Mathf.Clamp(heightScale, 0.9f, 1.1f), Mathf.Clamp(heightScale, 0.9f, 1.1f));
@@ -59,9 +66,36 @@ public partial class CharacterRig : Node3D
 
     static StandardMaterial3D Mat(Color c) => new() { AlbedoColor = c, Roughness = 0.9f };
 
+    /// RS-VS-002: swap the procedural body for an imported model (res://...glb).
+    /// Returns false if the resource is missing or isn't a Node3D, so the caller
+    /// can fall back to BuildHuman and never end up with an invisible agent.
+    public bool BuildModel(string resPath, float scale = 1f, float yawDegrees = 0f, float yOffset = 0f)
+    {
+        var packed = ResourceLoader.Load<PackedScene>(resPath);
+        if (packed == null) return false;
+        var node = packed.Instantiate();
+        if (node is not Node3D inst) { node.QueueFree(); return false; }
+        _modelBaseY = yOffset;
+        inst.Scale = new Vector3(scale, scale, scale);
+        inst.RotationDegrees = new Vector3(0, yawDegrees, 0);
+        inst.Position = new Vector3(0, yOffset, 0);
+        AddChild(inst);
+        _modelInstance = inst;
+        _usesModel = true;
+        return true;
+    }
+
     public override void _Process(double delta)
     {
         _t += (float)delta;
+        if (_usesModel)
+        {
+            // Imported body: limbs are baked into the mesh, so only bob the whole
+            // model while walking. (Skeletal clips can be driven here later.)
+            if (_modelInstance != null)
+                _modelInstance.Position = new Vector3(0, _modelBaseY + (Moving ? Mathf.Abs(Mathf.Sin(_t * 7.5f)) * 0.04f : 0f), 0);
+            return;
+        }
         if (Moving)
         {
             float swing = Mathf.Sin(_t * 7.5f) * 0.55f;

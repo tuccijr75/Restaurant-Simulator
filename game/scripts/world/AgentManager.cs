@@ -21,6 +21,13 @@ public partial class AgentManager : Node3D
     const int MaxWalkins = 16, MaxCars = 8;
     const int BoardIdx = 2, WindowIdx = 4;
 
+    // RS-VS-002: imported staff models live here. The three knobs align the GLBs
+    // to the procedural world — tune in-editor, then rebuild.
+    const string StaffModelDir = "res://models/staff/";
+    public static float StaffModelScale = 1f;
+    public static float StaffModelYaw = 180f;    // most exports face -Z; flip to face into the room
+    public static float StaffModelYOffset = 0f;  // raise/lower if feet don't meet the floor
+
     static readonly Color[] CarPaints =
     {
         new(0.75f,0.1f,0.1f), new(0.12f,0.25f,0.55f), new(0.85f,0.85f,0.88f),
@@ -142,20 +149,36 @@ public partial class AgentManager : Node3D
     void SyncStaff(float d)
     {
         var spec = BuildStaffSpec();
-        string sig = string.Join("|", spec);
+        var sb = new System.Text.StringBuilder();
+        foreach (var (st, role) in spec) sb.Append(st).Append(':').Append(role).Append('|');
+        string sig = sb.ToString();
         if (sig != _staffSignature)
         {
             _staffSignature = sig;
             foreach (var e in _staff) e.QueueFree();
             _staff.Clear();
             int i = 0;
-            foreach (var key in spec)
+            foreach (var (key, role) in spec)
             {
                 var e = new EmployeeAgent { StationKey = key };
-                bool mgr = key == "work_office";
-                bool lead = key == "work_expo" && i == 0;
-                var shirt = mgr ? new Color(0.92f, 0.92f, 0.92f) : lead ? new Color(0.1f, 0.1f, 0.12f) : new Color(0.75f, 0.16f, 0.12f);
-                e.BuildHuman(shirt, new Color(0.12f, 0.12f, 0.15f), Skins[i % Skins.Length], new Color(0.75f, 0.16f, 0.12f));
+                // RS-VS-002 role -> model. crew + team leaders share employee_m/f
+                // (stable pick per slot); managers each get their own model.
+                string file = role switch
+                {
+                    "shift_manager"      => "shift_manager.glb",
+                    "assistant_manager"  => "store_manager.glb",          // shares the GM model (no asst-mgr asset)
+                    "restaurant_manager" => "store_manager.glb",          // GM
+                    _                    => (((i * 2654435761u) >> 16) & 1) == 0 ? "employee_m.glb" : "employee_f.glb",
+                };
+                if (!e.BuildModel(StaffModelDir + file, StaffModelScale, StaffModelYaw, StaffModelYOffset))
+                {
+                    // procedural fallback keeps the agent visible if a GLB is missing
+                    var shirt = role == "crew" ? new Color(0.75f, 0.16f, 0.12f)
+                              : role == "shift_manager" ? new Color(0.92f, 0.92f, 0.92f)
+                              : role == "assistant_manager" ? new Color(0.80f, 0.80f, 0.85f)
+                              : new Color(0.10f, 0.10f, 0.12f);   // restaurant_manager / GM
+                    e.BuildHuman(shirt, new Color(0.12f, 0.12f, 0.15f), Skins[i % Skins.Length], new Color(0.75f, 0.16f, 0.12f));
+                }
                 e.HomeSpot = _world.Anchor[key] + new Vector3((i % 3) * 0.55f - 0.55f, 0, 0);
                 e.CoolerSpot = _world.Anchor["cooler"] + new Vector3(1.3f, 0, 0.4f);
                 e.BreakSpot = _world.Anchor["break_room"] + new Vector3((i % 3) * 0.6f - 0.6f, 0, 0);
@@ -176,18 +199,20 @@ public partial class AgentManager : Node3D
         }
     }
 
-    List<string> BuildStaffSpec()
+    List<(string Station, string Role)> BuildStaffSpec()
     {
-        var spec = new List<string>();
+        var spec = new List<(string, string)>();
         string[] kitchenCycle = { "work_grill", "work_assembly", "work_expo" };
-        for (int i = 0; i < _sim.KitchenCoverage; i++) spec.Add(kitchenCycle[i % kitchenCycle.Length]);
-        for (int i = 0; i < _sim.FryerCoverage; i++) spec.Add("work_fryer");
+        for (int i = 0; i < _sim.KitchenCoverage; i++) spec.Add((kitchenCycle[i % kitchenCycle.Length], "crew"));
+        for (int i = 0; i < _sim.FryerCoverage; i++) spec.Add(("work_fryer", "crew"));
         string[] driveCycle = { "work_dt", "work_beverage" };
-        for (int i = 0; i < _sim.DriveCoverage; i++) spec.Add(driveCycle[i % driveCycle.Length]);
-        for (int i = 0; i < _sim.CounterCoverage; i++) spec.Add("work_counter");
-        for (int i = 0; i < _sim.PrepCoverage; i++) spec.Add("work_prep");
-        int managers = _sim.ShiftMgr + _sim.AsstMgr + _sim.RestMgr;
-        for (int i = 0; i < managers; i++) spec.Add("work_office");
+        for (int i = 0; i < _sim.DriveCoverage; i++) spec.Add((driveCycle[i % driveCycle.Length], "crew"));
+        for (int i = 0; i < _sim.CounterCoverage; i++) spec.Add(("work_counter", "crew"));
+        for (int i = 0; i < _sim.PrepCoverage; i++) spec.Add(("work_prep", "crew"));
+        // Managers each get their own model by role.
+        for (int i = 0; i < _sim.ShiftMgr; i++) spec.Add(("work_office", "shift_manager"));
+        for (int i = 0; i < _sim.AsstMgr; i++) spec.Add(("work_office", "assistant_manager"));
+        for (int i = 0; i < _sim.RestMgr; i++) spec.Add(("work_office", "restaurant_manager"));
         return spec;
     }
 
