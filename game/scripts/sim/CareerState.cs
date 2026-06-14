@@ -109,7 +109,11 @@ public sealed class CareerState
     {
         double before = Reputation;
         double delta = ReputationDelta(csat, inspectionScore, orders, abandoned);
-        Reputation = Math.Clamp(Reputation + delta, ReputationMin, ReputationMax);
+        // Store reputation at a fixed 2-dp precision. The demand multiplier is a
+        // computed property of reputation, so an unrounded value can sit on a
+        // serialization rounding boundary and flip on JSON round-trip; rounding
+        // here keeps compute-from-reputation identical before and after a save.
+        Reputation = Math.Round(Math.Clamp(Reputation + delta, ReputationMin, ReputationMax), 2, MidpointRounding.AwayFromZero);
         var rec = new DayRecord
         {
             Day = DayIndex, Scenario = scenario, Seed = seed,

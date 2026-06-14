@@ -18,9 +18,9 @@ public static class SimConfig
 
     // ---- front-end service labor (RS-FE-001) — derived from Intouch drive-thru
     // decomposition; operator_calibration_required
-    public static int DtIntakeSec = 40, DtHandoffSec = 35;
-    public static int FcIntakeSec = 35, FcHandoffSec = 12;
-    public static int MobHandoffSec = 10, DelHandoffSec = 20;
+    public static int DtIntakeSec = 70, DtHandoffSec = 80;
+    public static int FcIntakeSec = 58, FcHandoffSec = 42;
+    public static int MobHandoffSec = 35, DelHandoffSec = 55;
 
     // ---- hold pans (RS-HQ-001) — fries hold from docs/06; others operator_calibration_required
     public static int HoldLimitFriedMin = 20, HoldLimitGrilledMin = 15, HoldLimitFriesMin = 7;

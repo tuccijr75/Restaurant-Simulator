@@ -69,6 +69,14 @@ Console.WriteLine("=================== INGREDIENT MODEL (RS-IM-001) ============
     IC("enabling ingredients leaves event stream byte-identical (replay neutral)",
         Exports.Sha256Hex(ia.AllJsonl) == Exports.Sha256Hex(RunPlain("normal_day", 12345).AllJsonl));
 
+    var bundle = Exports.BuildAll(ia, "2026-01-15T12:00:00Z");
+    bool hasInvLedger = bundle.Exists(f => f.Name == "inventory_ledger.json" && f.Content.Contains("per_ingredient_hold_and_waste"));
+    bool noSeparateIngFile = !bundle.Exists(f => f.Name == "ingredient_ledger.json");
+    IC("legacy bucket ledger retired: inventory_ledger.json carries the per-ingredient ledger", hasInvLedger);
+    IC("no separate ingredient_ledger.json file (folded into inventory_ledger)", noSeparateIngFile);
+    var plainBundle = Exports.BuildAll(RunPlain("normal_day", 12345), "2026-01-15T12:00:00Z");
+    IC("legacy mode still emits bucket inventory_ledger", plainBundle.Exists(f => f.Name == "inventory_ledger.json" && f.Content.Contains("inventory_item_id")));
+
     Console.WriteLine($"ingredient_waste=${ia.IngredientWasteCostUsd:0.00} ({ia.IngredientWasteUnits:0} units) vs legacy_bucket_waste=${ia.WasteCost:0.00}");
     Console.WriteLine($"INGREDIENT-MODEL TOTAL: {ingredientPass}/{ingredientPass + ingredientFail} checks passed");
     Console.WriteLine();

@@ -31,7 +31,7 @@ public partial class CareerHook : Node
     {
         ProcessMode = ProcessModeEnum.Always; // keep working while the sim is paused
         Load();
-        GD.Print($"[CareerHook] ready — week_seed={State.WeekSeed} day={State.DayIndex}/{CareerState.DaysPerWeek} reputation={State.Reputation:0.0} (press F6 to advance the day, F7 to reset the week)");
+        GD.Print($"[CareerHook] ready — week_seed={State.WeekSeed} day={State.DayIndex}/{CareerState.DaysPerWeek} reputation={State.Reputation:0.0} (F5 export, F6 advance day, F7 reset week)");
     }
 
     public override void _Process(double delta)
@@ -73,13 +73,6 @@ public partial class CareerHook : Node
         {
             ResetWeek(State.WeekSeed);
             GD.Print($"[CareerHook] F7: week reset (week_seed={State.WeekSeed}); reload or restart to begin day 0");
-            GetViewport().SetInputAsHandled();
-        }
-        else if (key.Keycode == Key.F8)
-        {
-            if (_sim == null) _sim = FindSim(GetTree()?.CurrentScene);
-            if (_sim == null) { GD.Print("[CareerHook] F8: no SimRunState found in the scene"); return; }
-            ExportContract(_sim);
             GetViewport().SetInputAsHandled();
         }
     }
@@ -150,32 +143,6 @@ public partial class CareerHook : Node
         }
         catch (Exception e) { GD.PrintErr("[CareerHook] catalog load failed, using embedded: " + e.Message); }
         return IngredientCatalog.Default();
-    }
-
-    /// Hardened full-contract export (F8). Creates the output directory and writes
-    /// every file defensively, so a missing user://outputs path can't crash the
-    /// export the way an unguarded FileAccess.Open(null) would. Includes the new
-    /// ingredient_ledger.json whenever the run had the real ingredient model active.
-    void ExportContract(SimRunState sim)
-    {
-        try
-        {
-            string stamp = DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ssZ");
-            var files = Exports.BuildAll(sim, stamp);
-            string dir = $"user://outputs/sim_{sim.Scenario}_{sim.Seed}";
-            string abs = ProjectSettings.GlobalizePath(dir);
-            DirAccess.MakeDirRecursiveAbsolute(abs);
-            int written = 0;
-            foreach (var (name, content) in files)
-            {
-                using var f = FileAccess.Open($"{dir}/{name}", FileAccess.ModeFlags.Write);
-                if (f == null) { GD.PrintErr($"[CareerHook] F8: could not open {dir}/{name} (err {FileAccess.GetOpenError()})"); continue; }
-                f.StoreString(content);
-                written++;
-            }
-            GD.Print($"[CareerHook] F8: exported {written}/{files.Count} files to {dir} (ingredients {(sim.RealIngredientsActive ? "on" : "off")})");
-        }
-        catch (Exception e) { GD.PrintErr("[CareerHook] F8 export failed: " + e.Message); }
     }
 
     // ---- locate the SimRunState living inside the scene (any node, any field/prop) ----
