@@ -72,8 +72,10 @@ public static class WorldBuilder
         Sign(roof, new Vector3(0, 5.0f, 7.45f), "QSR  No. 1024");
 
         // ---------- counter / front of house ----------
-        Box(w, new Vector3(14, 1.1f, 0.9f), new Vector3(-0.5f, 0.55f, -0.2f), Accent, "counter");
-        Box(w, new Vector3(14, 0.06f, 1.1f), new Vector3(-0.5f, 1.13f, -0.2f), Steel, "counter_top");
+        var counterMi = Box(w, new Vector3(14, 1.1f, 0.9f), new Vector3(-0.5f, 0.55f, -0.2f), Accent, "counter");
+        var counterTopMi = Box(w, new Vector3(14, 0.06f, 1.1f), new Vector3(-0.5f, 1.13f, -0.2f), Steel, "counter_top");
+        if (LoadEquip(w, new[] { "counter" }, new Vector3(-0.5f, 0, -0.2f), "equip_counter") != null)
+        { counterMi.Visible = false; counterTopMi.Visible = false; }
         Station(w, L, "pos_register_1", new Vector3(-2.5f, 1.2f, -0.2f), new Vector3(0.4f, 0.35f, 0.3f), DarkSteel, "POS 1");
         Station(w, L, "pos_register_2", new Vector3(1.5f, 1.2f, -0.2f), new Vector3(0.4f, 0.35f, 0.3f), DarkSteel, "POS 2");
         Station(w, L, "mobile_shelf", new Vector3(5.5f, 1.0f, -0.1f), new Vector3(1.6f, 0.9f, 0.5f), Steel, "MOBILE PICKUP");
@@ -281,6 +283,59 @@ public static class WorldBuilder
         };
         w.AddChild(tag);
         L.Anchor[id] = pos;
+        if (LoadEquip(w, new[] { "st_" + id, id }, pos, "equip_" + id) != null) mi.Visible = false;
+    }
+
+    static readonly string EquipDir = "res://models/kitchen/";
+    const float FloorTop = 0.1f;
+
+    // Try each candidate filename in res://models/kitchen/; on the first hit, instance
+    // it, sit its base on the floor (any origin), name it equip_* (navmesh ignores it),
+    // and return it so the caller can hide the placeholder box(es).
+    static Node3D? LoadEquip(Node3D w, string[] candidates, Vector3 pos, string nodeName)
+    {
+        foreach (var cand in candidates)
+        {
+            string path = EquipDir + cand + ".glb";
+            if (!ResourceLoader.Exists(path)) continue;
+            var packed = GD.Load<PackedScene>(path);
+            if (packed == null) continue;
+            var inst = packed.Instantiate<Node3D>();
+            inst.Name = nodeName;
+            w.AddChild(inst);
+            inst.Position = new Vector3(pos.X, 0, pos.Z);
+            inst.Position += new Vector3(0, FloorTop - WorldMinY(inst), 0);  // base -> floor
+            GD.Print($"[Equip] {nodeName}: loaded {cand}.glb");
+            return inst;
+        }
+        return null;
+    }
+
+    static float WorldMinY(Node3D root)
+    {
+        float min = float.PositiveInfinity;
+        var stack = new System.Collections.Generic.Stack<Node>();
+        stack.Push(root);
+        while (stack.Count > 0)
+        {
+            var n = stack.Pop();
+            if (n is MeshInstance3D mi && mi.Mesh != null)
+            {
+                var aabb = mi.GetAabb();
+                var gt = mi.GlobalTransform;
+                for (int c = 0; c < 8; c++)
+                {
+                    var corner = aabb.Position + new Vector3(
+                        (c & 1) != 0 ? aabb.Size.X : 0,
+                        (c & 2) != 0 ? aabb.Size.Y : 0,
+                        (c & 4) != 0 ? aabb.Size.Z : 0);
+                    float y = (gt * corner).Y;
+                    if (y < min) min = y;
+                }
+            }
+            foreach (var ch in n.GetChildren()) stack.Push(ch);
+        }
+        return float.IsInfinity(min) ? 0f : min;
     }
 
     static void Pole(Node3D w, Vector3 at, string name, bool topSign = false)
