@@ -11,6 +11,8 @@ public partial class EmployeeAgent : CharacterRig
     public string Role = "";
     public Vector3 FaceTarget;
     public bool HasFace;
+    public bool IsCashier;
+    public Vector3 ServeSpot;
     public Vector3 HomeSpot, CoolerSpot;
     public bool OnBreak;
     public Vector3 BreakSpot;
@@ -52,6 +54,7 @@ public partial class EmployeeAgent : CharacterRig
             "work_beverage" => "bev",
             "work_prep"     => "prep",
             "work_counter"  => "counter",
+            "work_counter2" => "counter",
             "work_dt"       => "window",
             "work_office"   => "office",
             _               => "",
@@ -89,9 +92,12 @@ public partial class EmployeeAgent : CharacterRig
             }
             return;
         }
-        if (!StepToward(HomeSpot, delta)) return;
+        // Cashiers step up to the register when a customer is ordering, otherwise stand back.
+        Vector3 home = (IsCashier && stationBusy) ? ServeSpot : HomeSpot;
+        if (!StepToward(home, delta)) return;
         Working = stationBusy;
-        if (HasFace) FaceToward(FaceTarget, delta);   // turn to face the equipment while on station
+        if (HasFace) FaceToward(FaceTarget, delta);   // turn to face the equipment / customer while on station
+        if (IsCashier) return;                        // cashiers stay at the counter (no cooler/sweep beat)
         _supplyTimer -= delta;
         if (_supplyTimer <= 0 && !stationBusy)
         {

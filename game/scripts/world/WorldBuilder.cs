@@ -85,11 +85,17 @@ public static class WorldBuilder
         // ---------- kitchen stations ----------
         Station(w, L, "grill", new Vector3(-7.2f, 0.5f, -5.2f), new Vector3(2.6f, 1.0f, 1.4f), DarkSteel, "GRILL", glow: new Color(1f, 0.35f, 0.1f));
         Station(w, L, "fryer", new Vector3(-4.2f, 0.5f, -5.2f), new Vector3(2.4f, 1.0f, 1.4f), Steel, "FRYER BANK", glow: new Color(1f, 0.75f, 0.2f));
+        // fry holding unit — by the fryers; fryer fills it, expo pulls from it. Unmanned prop.
+        Prop(w, "french_fries", new Vector3(-2.3f, 0.6f, -5.2f), new Vector3(1.0f, 1.2f, 0.7f), new Color(0.85f, 0.7f, 0.25f));
         Station(w, L, "prep", new Vector3(0.8f, 0.5f, -5.2f), new Vector3(2.8f, 0.95f, 1.4f), Steel, "PREP");
-        Station(w, L, "cooler", new Vector3(-11.0f, 1.2f, -5.0f), new Vector3(1.6f, 2.4f, 2.6f), new Color(0.8f, 0.84f, 0.88f), "WALK-IN");
+        Station(w, L, "cooler", new Vector3(-11.0f, 1.3f, -8.8f), new Vector3(3.0f, 2.6f, 3.2f), new Color(0.8f, 0.84f, 0.88f), "WALK-IN");
+        // freezer door on the inside face of the back wall (crew access the outside unit through here)
+        Box(w, new Vector3(1.6f, 2.2f, 0.16f), new Vector3(-11.0f, 1.2f, -6.78f), DarkSteel, "freezer_door");
         Station(w, L, "assembly", new Vector3(-3.0f, 0.5f, -2.2f), new Vector3(4.4f, 0.95f, 1.1f), Steel, "ASSEMBLY");
         Station(w, L, "beverage", new Vector3(3.6f, 0.7f, -2.2f), new Vector3(2.2f, 1.5f, 1.0f), DarkSteel, "BEVERAGE");
         Station(w, L, "expo", new Vector3(0.5f, 0.8f, -1.1f), new Vector3(2.4f, 0.5f, 0.8f), Steel, "EXPO", glow: new Color(1f, 0.55f, 0.15f));
+        // hot-holding unit for cooked food (sandwiches, nuggets) — between assembly and expo. Unmanned prop.
+        Prop(w, "holding_unit", new Vector3(2.4f, 0.7f, -2.8f), new Vector3(1.4f, 1.5f, 0.7f), new Color(0.86f, 0.7f, 0.4f));
         Station(w, L, "office", new Vector3(10.4f, 0.5f, -6.0f), new Vector3(2.4f, 1.0f, 1.6f), new Color(0.55f, 0.45f, 0.35f), "OFFICE");
         // break room (separate from the office): table + bench where crew sit on break
         Box(w, new Vector3(2.0f, 0.75f, 1.3f), new Vector3(7.2f, 0.40f, -6.1f), new Color(0.72f, 0.55f, 0.38f), "break_table");
@@ -138,6 +144,8 @@ public static class WorldBuilder
         L.Anchor["door"] = new Vector3(0, 0, 7.0f);
         L.Anchor["door_out"] = new Vector3(0, 0, 9.5f);
         L.Anchor["pickup"] = new Vector3(4.8f, 0, 0.9f);        // collect on the lobby side, away from the order registers
+        L.Anchor["freezer_door"] = new Vector3(-10.3f, 0, -6.2f);  // inside, in front of the walk-in door
+        L.Anchor["work_counter2"] = new Vector3(1.5f, 0, -1.0f);   // cashier behind POS 2
         L.Anchor["mobile_wait"] = new Vector3(6.2f, 0, 1.5f);   // in front of the mobile rack, lobby side
         L.Anchor["break_room"] = new Vector3(7.2f, 0, -4.5f);   // crew sit in front of the break bench
         L.QueueSpots.Add(new Vector3(-2.5f, 0, 1.1f));
@@ -165,6 +173,7 @@ public static class WorldBuilder
             w.AddChild(li);
             L.InteriorLights.Add(li);
         }
+        BuildExtras(w, L);
         BuildNavigation(w, L);
         return L;
     }
@@ -285,8 +294,95 @@ public static class WorldBuilder
         w.AddChild(tag);
         L.Anchor[id] = pos;
         if (hide) mi.Visible = false;   // e.g. POS: the counter's monitor mesh is the visual; box stays for click/anchor
-        if (LoadEquip(w, new[] { "st_" + id, id }, pos, "equip_" + id) != null) mi.Visible = false;
+        var cands = EquipAlias.TryGetValue(id, out var alias)
+            ? new[] { "st_" + id, id, alias }
+            : new[] { "st_" + id, id };
+        if (LoadEquip(w, cands, pos, "equip_" + id) != null) mi.Visible = false;
     }
+
+    // An unmanned equipment piece: a navmesh obstacle that loads st_<id>.glb if present.
+    // No work anchor, click target, or label (it's a prop in the workflow, not a station).
+    static void Prop(Node3D w, string id, Vector3 pos, Vector3 size, Color color, string? model = null)
+    {
+        var mi = Box(w, size, pos, color, "st_" + id);
+        var cands = model != null ? new[] { model } : new[] { "st_" + id, id };
+        if (LoadEquip(w, cands, pos, "equip_" + id) != null) mi.Visible = false;
+    }
+
+    // Beverage machines, self-serve fountains, kiosks, and the enclosed office + restroom rooms.
+    // NOTE: positions here are rough placeholders pending the full floor-plan remodel.
+    static void BuildExtras(Node3D w, WorldLayout L)
+    {
+        var steel = new Color(0.82f, 0.84f, 0.88f);
+        // crew beverage by the drive-thru: soda + shake (shake on the open/aisle side, reachable by all)
+        Prop(w, "soda_dt", new Vector3(8.9f, 0.7f, -1.0f), new Vector3(1.0f, 1.5f, 0.7f), steel, model: "soda_machine");
+        Prop(w, "shake_dt", new Vector3(7.7f, 0.7f, -1.0f), new Vector3(0.9f, 1.5f, 0.7f), steel, model: "shake_machine");
+        // self-serve soda fountains in the lobby
+        Prop(w, "soda_lobby_1", new Vector3(-6.0f, 0.7f, 6.1f), new Vector3(1.0f, 1.5f, 0.7f), steel, model: "soda_machine");
+        Prop(w, "soda_lobby_2", new Vector3(-3.0f, 0.7f, 6.1f), new Vector3(1.0f, 1.5f, 0.7f), steel, model: "soda_machine");
+        // two self-order kiosks, center lobby
+        Prop(w, "kiosk_1", new Vector3(3.2f, 0.6f, 3.4f), new Vector3(0.7f, 1.4f, 0.5f), new Color(0.2f, 0.22f, 0.26f), model: "kiosk");
+        Prop(w, "kiosk_2", new Vector3(5.0f, 0.6f, 3.4f), new Vector3(0.7f, 1.4f, 0.5f), new Color(0.2f, 0.22f, 0.26f), model: "kiosk");
+
+        // --- Office room (back-right corner; back wall z=-7 and east wall x=12 already exist) ---
+        // West wall (faces kitchen): a window in back, a door to the kitchen in front.
+        WallAlongZ(w, 8.0f, -7.0f, -5.0f, "wall_office_w1", openAt: -6.0f, openW: 1.2f, window: true);
+        WallAlongZ(w, 8.0f, -5.0f, -3.6f, "wall_office_w2", openAt: -4.3f, openW: 1.0f);
+        // South wall (faces lobby): a large window so the manager can see the floor.
+        WallAlongX(w, -3.6f, 8.0f, 12.0f, "wall_office_s", openAt: 10.0f, openW: 2.2f, window: true);
+
+        // --- Restroom room (front-left corner; west wall x=-12 and front wall z=7 already exist) ---
+        WallAlongZ(w, -8.5f, 4.0f, 7.0f, "wall_bath_e", openAt: 5.6f, openW: 1.0f);   // door to lobby
+        WallAlongX(w, 4.0f, -12.0f, -8.5f, "wall_bath_s", openAt: 0f, openW: 0f);
+        Label(w, "RESTROOMS", new Vector3(-10.2f, 2.6f, 4.1f));
+    }
+
+    static void Label(Node3D w, string text, Vector3 pos)
+    {
+        w.AddChild(new Label3D
+        {
+            Text = text, FontSize = 56, Position = pos,
+            Billboard = BaseMaterial3D.BillboardModeEnum.Enabled,
+            Modulate = new Color(1, 1, 1), OutlineSize = 10, Name = "lbl_room"
+        });
+    }
+
+    const float WallH = 4f;
+    // Wall running along X at fixed z; optional centered opening (door = full-height gap, window = sill+header).
+    static void WallAlongX(Node3D w, float z, float x0, float x1, string name, float openAt = 0, float openW = 0, bool window = false, float thick = 0.2f)
+    {
+        if (openW <= 0f) { Box(w, new Vector3(x1 - x0, WallH, thick), new Vector3((x0 + x1) / 2, WallH / 2, z), WallCol, name); return; }
+        float a = openAt - openW / 2, b = openAt + openW / 2;
+        if (a > x0) Box(w, new Vector3(a - x0, WallH, thick), new Vector3((x0 + a) / 2, WallH / 2, z), WallCol, name + "_a");
+        if (x1 > b) Box(w, new Vector3(x1 - b, WallH, thick), new Vector3((b + x1) / 2, WallH / 2, z), WallCol, name + "_b");
+        if (window)
+        {
+            Box(w, new Vector3(openW, 0.9f, thick), new Vector3(openAt, 0.45f, z), WallCol, name + "_sill");
+            Box(w, new Vector3(openW, 0.7f, thick), new Vector3(openAt, 3.65f, z), WallCol, name + "_hdr");
+        }
+    }
+    // Wall running along Z at fixed x; optional centered opening.
+    static void WallAlongZ(Node3D w, float x, float z0, float z1, string name, float openAt = 0, float openW = 0, bool window = false, float thick = 0.2f)
+    {
+        if (openW <= 0f) { Box(w, new Vector3(thick, WallH, z1 - z0), new Vector3(x, WallH / 2, (z0 + z1) / 2), WallCol, name); return; }
+        float a = openAt - openW / 2, b = openAt + openW / 2;
+        if (a > z0) Box(w, new Vector3(thick, WallH, a - z0), new Vector3(x, WallH / 2, (z0 + a) / 2), WallCol, name + "_a");
+        if (z1 > b) Box(w, new Vector3(thick, WallH, z1 - b), new Vector3(x, WallH / 2, (b + z1) / 2), WallCol, name + "_b");
+        if (window)
+        {
+            Box(w, new Vector3(thick, 0.9f, openW), new Vector3(x, 0.45f, openAt), WallCol, name + "_sill");
+            Box(w, new Vector3(thick, 0.7f, openW), new Vector3(x, 3.65f, openAt), WallCol, name + "_hdr");
+        }
+    }
+
+    // Equipment files whose name doesn't match the station id.
+    static readonly System.Collections.Generic.Dictionary<string, string> EquipAlias = new()
+    {
+        ["dt_window"] = "drive_thru",
+        ["cooler"] = "walk_in",
+        ["office"] = "desk",
+        ["mobile_shelf"] = "mobile_order",
+    };
 
     static readonly string EquipDir = "res://models/kitchen/";
     const float FloorTop = 0.1f;

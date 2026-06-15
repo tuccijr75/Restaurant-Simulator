@@ -207,7 +207,12 @@ public partial class AgentManager : Node3D
                     e.Patrols = true;                       // GM walks the floor checking workflow
                     e.PatrolRoute = PatrolWaypoints();
                 }
-                e.CoolerSpot = _world.Anchor["cooler"] + new Vector3(1.3f + (i % 3) * 0.7f, 0, 0.4f + (i % 2) * 0.6f);  // staggered so they do not pile up
+                if (key == "work_counter" || key == "work_counter2")
+                {
+                    e.IsCashier = true;                     // step up to the POS and serve when a customer is ordering
+                    e.ServeSpot = e.HomeSpot + new Vector3(0, 0, 0.55f);
+                }
+                e.CoolerSpot = _world.Anchor["freezer_door"] + new Vector3((i % 3) * 0.6f - 0.6f, 0, 0.3f + (i % 2) * 0.4f);  // inside the freezer door, staggered
                 e.BreakSpot = _world.Anchor["break_room"] + new Vector3((i % 3) * 0.6f - 0.6f, 0, 0);
                 e.Position = e.HomeSpot;
                 e.Init(i);
@@ -237,7 +242,7 @@ public partial class AgentManager : Node3D
             "work_dt" => "dt_window", "work_office" => "office", _ => null
         };
         if (id != null && _world.Anchor.TryGetValue(id, out var p)) return p;
-        if (workKey == "work_counter") return new Vector3(home.X, 0, -0.2f);   // face the counter / lobby
+        if (workKey == "work_counter" || workKey == "work_counter2") return new Vector3(home.X, 0, 0.6f);   // face the customer in the lobby
         return home + new Vector3(0, 0, -1f);
     }
 
@@ -249,8 +254,13 @@ public partial class AgentManager : Node3D
         for (int i = 0; i < _sim.FryerCoverage; i++) spec.Add(("work_fryer", "crew"));
         string[] driveCycle = { "work_dt", "work_beverage" };
         for (int i = 0; i < _sim.DriveCoverage; i++) spec.Add((driveCycle[i % driveCycle.Length], "crew"));
-        for (int i = 0; i < _sim.CounterCoverage; i++) spec.Add(("work_counter", "crew"));
+        string[] counterCycle = { "work_counter", "work_counter2" };
+        for (int i = 0; i < _sim.CounterCoverage; i++) spec.Add((counterCycle[i % counterCycle.Length], "crew"));
         for (int i = 0; i < _sim.PrepCoverage; i++) spec.Add(("work_prep", "crew"));
+        // The drive-thru is always open, so make sure someone mans it even at thin coverage.
+        bool hasDt = false;
+        foreach (var s in spec) if (s.Item1 == "work_dt") { hasDt = true; break; }
+        if (!hasDt) spec.Add(("work_dt", "crew"));
         // Managers each get their own model by role.
         for (int i = 0; i < _sim.ShiftMgr; i++) spec.Add(("work_expo", "shift_manager"));  // shift mgr expedites
         for (int i = 0; i < _sim.AsstMgr; i++) spec.Add(("work_office", "assistant_manager"));
@@ -267,7 +277,7 @@ public partial class AgentManager : Node3D
         "work_assembly" => _sim.AssemblyLoad > 0,
         "work_beverage" or "work_expo" => _sim.ExpoLoad > 0,
         "work_prep" => _sim.Prep < 100,
-        "work_counter" or "work_dt" => _sim.Tickets > 0,
+        "work_counter" or "work_counter2" or "work_dt" => _sim.Tickets > 0,
         _ => false
     };
 }
