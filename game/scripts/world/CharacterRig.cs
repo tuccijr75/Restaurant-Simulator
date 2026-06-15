@@ -1,4 +1,5 @@
 using Godot;
+using System.Collections.Generic;
 
 namespace RestaurantSimulator;
 
@@ -12,12 +13,27 @@ public partial class CharacterRig : Node3D
     public bool Moving, Working;
     public float WalkSpeed = 1.5f;
 
-    // RS-VS-002: optional imported GLB body (staff). When present, the procedural
-    // limbs are not built and code-driven limb animation is skipped — the model
-    // animates as a whole (a gentle walk bob) and can carry its own AnimationPlayer later.
+    // RS-VS-002: optional imported GLB body (staff). When present the procedural
+    // limbs aren't built; the model's own AnimationPlayer drives walk/idle/work.
     Node3D _modelInstance = null!;
     bool _usesModel;
     float _modelBaseY;
+    AnimationPlayer? _anim;
+    readonly List<string> _clips = new();
+    string _curClip = "";
+    /// Station-specific work-animation keyword, set by EmployeeAgent (e.g. "grill").
+    public string WorkAnimKey = "";
+    /// Persistent state action set by the agent (e.g. "sitting", "sweeping"); wins
+    /// over work/idle while standing. Empty = normal walk/work/idle selection.
+    public string ActionAnim = "";
+    string _oneShotAnim = "";
+    float _oneShotTimer;
+
+    // Procedural fallback: if the model is rigged but ships no clips, drive its
+    // skeleton bones directly (snippet-2 approach) so it still walks/works.
+    Skeleton3D? _skel;
+    int _bSpine = -1, _bArmL = -1, _bArmR = -1, _bLegL = -1, _bLegR = -1;
+    bool _boneDriven;
 
     public void BuildHuman(Color shirt, Color pants, Color skin, Color? hat = null, float heightScale = 1f)
     {
@@ -82,18 +98,228 @@ public partial class CharacterRig : Node3D
         AddChild(inst);
         _modelInstance = inst;
         _usesModel = true;
+
+        // Discover the model's animation clips and make them loop so a held state
+        // (walking, working, idle) plays continuously rather than freezing.
+        _anim = FindAnim(inst);
+        if (_anim != null)
+        {
+            foreach (var n in _anim.GetAnimationList())
+            {
+                _clips.Add(n);
+                var clip = _anim.GetAnimation(n);
+                if (clip != null)
+                {
+                    var lc = n.ToLowerInvariant();
+                    // sweep = single stroke -> ping-pong; sit/stand = one-shot transitions
+                    // that hold their last pose; everything else loops.
+                    clip.LoopMode = lc.Contains("sweep") ? Animation.LoopModeEnum.Pingpong
+                                  : (lc == "sit" || lc == "stand") ? Animation.LoopModeEnum.None
+                                  : Animation.LoopModeEnum.Linear;
+                }
+            }
+        }
+        GD.Print($"[Agent] {System.IO.Path.GetFileName(resPath)} anims: " +
+                 (_clips.Count > 0 ? string.Join(", ", _clips) : "<none — model has no AnimationPlayer/clips>"));
+
+        // No baked clips? Fall back to driving the rig's bones directly.
+        if (_clips.Count == 0)
+        {
+            _skel = FindSkel(inst);
+            if (_skel != null)
+            {
+                string[] L = { "left", ".l", "_l", "lft", "lupper", "l_" };
+                string[] R = { "right", ".r", "_r", "rgt", "rupper", "r_" };
+                _bSpine = FindBone(new[] { "spine", "chest", "torso" }, null, null);
+                _bArmL = FindBone(new[] { "arm", "shoulder", "upperarm" }, L, new[] { "fore", "hand", "lower" });
+                _bArmR = FindBone(new[] { "arm", "shoulder", "upperarm" }, R, new[] { "fore", "hand", "lower" });
+                _bLegL = FindBone(new[] { "upleg", "thigh", "upperleg", "upper_leg", "hip", "leg" }, L, new[] { "lower", "fore", "foot", "toe" });
+                _bLegR = FindBone(new[] { "upleg", "thigh", "upperleg", "upper_leg", "hip", "leg" }, R, new[] { "lower", "fore", "foot", "toe" });
+                _boneDriven = _bArmL >= 0 || _bArmR >= 0 || _bLegL >= 0 || _bLegR >= 0;
+                GD.Print($"[Agent] {System.IO.Path.GetFileName(resPath)} skeleton bones={_skel.GetBoneCount()} " +
+                         $"armL={Name(_bArmL)} armR={Name(_bArmR)} legL={Name(_bLegL)} legR={Name(_bLegR)} spine={Name(_bSpine)} " +
+                         $"=> {(_boneDriven ? "procedural bone-drive ON" : "no recognizable limb bones")}");
+            }
+        }
         return true;
+    }
+
+    string Name(int idx) => _skel != null && idx >= 0 ? _skel.GetBoneName(idx) : "-";
+
+    static Skeleton3D? FindSkel(Node n)
+    {
+        if (n is Skeleton3D sk) return sk;
+        foreach (var c in n.GetChildren())
+        {
+            var r = FindSkel(c);
+            if (r != null) return r;
+        }
+        return null;
+    }
+
+    // First bone whose lowercased name contains any 'parts' keyword and (if given)
+    // a 'side' marker, while containing none of the 'exclude' keywords.
+    int FindBone(string[] parts, string[]? side, string[]? exclude)
+    {
+        if (_skel == null) return -1;
+        for (int i = 0; i < _skel.GetBoneCount(); i++)
+        {
+            var lc = _skel.GetBoneName(i).ToLowerInvariant();
+            bool hasPart = false; foreach (var p in parts) if (lc.Contains(p)) { hasPart = true; break; }
+            if (!hasPart) continue;
+            if (exclude != null) { bool ex = false; foreach (var e in exclude) if (lc.Contains(e)) { ex = true; break; } if (ex) continue; }
+            if (side != null) { bool sd = false; foreach (var s in side) if (lc.Contains(s)) { sd = true; break; } if (!sd) continue; }
+            return i;
+        }
+        return -1;
+    }
+
+    void Swing(int idx, Vector3 axis, float angle)
+    {
+        if (idx < 0 || _skel == null) return;
+        var rest = _skel.GetBoneRest(idx).Basis.GetRotationQuaternion();
+        _skel.SetBonePoseRotation(idx, rest * new Quaternion(axis.Normalized(), angle));
+    }
+
+    void DriveBones()
+    {
+        // Code-authored gait/work cycles applied on top of each bone's rest pose.
+        if (Moving)
+        {
+            float s = Mathf.Sin(_t * 7.5f) * 0.5f;
+            Swing(_bArmL, Vector3.Right, s);
+            Swing(_bArmR, Vector3.Right, -s);
+            Swing(_bLegL, Vector3.Right, -s * 0.9f);
+            Swing(_bLegR, Vector3.Right, s * 0.9f);
+            Swing(_bSpine, Vector3.Up, Mathf.Sin(_t * 7.5f) * 0.04f);
+        }
+        else if (Working)
+        {
+            float chop = Mathf.Sin(_t * 9f) * 0.45f;
+            Swing(_bArmL, Vector3.Right, -0.9f + chop * 0.4f);
+            Swing(_bArmR, Vector3.Right, -0.9f - chop * 0.4f);
+            Swing(_bLegL, Vector3.Right, 0f);
+            Swing(_bLegR, Vector3.Right, 0f);
+        }
+        else
+        {
+            float br = Mathf.Sin(_t * 1.6f) * 0.05f;
+            Swing(_bArmL, Vector3.Forward, 0.06f + br * 0.2f);
+            Swing(_bArmR, Vector3.Forward, -0.06f - br * 0.2f);
+            Swing(_bSpine, Vector3.Up, br);
+        }
+    }
+
+    static AnimationPlayer? FindAnim(Node n)
+    {
+        if (n is AnimationPlayer ap) return ap;
+        foreach (var c in n.GetChildren())
+        {
+            var r = FindAnim(c);
+            if (r != null) return r;
+        }
+        return null;
+    }
+
+    // Pick a clip whose name contains any of the given keywords (case-insensitive).
+    string? Match(params string[] keys)
+    {
+        foreach (var c in _clips)
+        {
+            var lc = c.ToLowerInvariant();
+            foreach (var k in keys)
+                if (k.Length > 0 && lc.Contains(k)) return c;
+        }
+        return null;
+    }
+
+    string PickIdle() => Match("idle", "breath", "rest", "wait") ?? (_clips.Count > 0 ? _clips[0] : "");
+    string PickWalk() => Match("walk", "run", "jog", "move", "step") ?? PickIdle();
+    string PickWork() => (WorkAnimKey.Length > 0 ? Match(WorkAnimKey) : null)
+                         ?? Match("work", "action", "cook", "serve", "prep", "use", "type") ?? PickIdle();
+
+    // Exact (case-insensitive) clip name — needed to tell "sit" from "sitting".
+    string? MatchExact(string name)
+    {
+        foreach (var c in _clips) if (c.Equals(name, System.StringComparison.OrdinalIgnoreCase)) return c;
+        return null;
+    }
+
+    // Resolve a state/greeting action to a clip, with synonyms; idle if absent.
+    string PickAction(string key) => key switch
+    {
+        "sit"      => MatchExact("sit")     ?? Match("sit_down", "sitdown")        ?? PickIdle(),
+        "sitting"  => MatchExact("sitting") ?? Match("seated", "seat", "chair")    ?? PickIdle(),
+        "stand"    => MatchExact("stand")   ?? Match("stand_up", "standup", "rise")?? PickIdle(),
+        "sweeping" => Match("sweep", "mop", "broom") ?? PickIdle(),
+        "waving"   => Match("wav", "greet", "hello") ?? PickIdle(),
+        _          => Match(key) ?? PickIdle(),
+    };
+
+    // ---- seated state: sit-down -> hold loop -> stand-up, timed by real clip length ----
+    enum SeatState { None, Down, Sat, Up }
+    SeatState _seat = SeatState.None;
+    float _seatTimer;
+    /// True while sitting or mid-transition; the agent must not walk during this.
+    public bool Seated => _seat != SeatState.None;
+    /// Ask to sit (true) or stand (false); transitions play their own clips.
+    public void RequestSeated(bool wantSeated)
+    {
+        if (wantSeated && _seat == SeatState.None) { _seat = SeatState.Down; _seatTimer = ClipLen("sit", 1.2f); }
+        else if (!wantSeated && (_seat == SeatState.Sat || _seat == SeatState.Down)) { _seat = SeatState.Up; _seatTimer = ClipLen("stand", 1.0f); }
+    }
+    float ClipLen(string exact, float fallback)
+    {
+        var c = MatchExact(exact);
+        if (c != null && _anim != null) { var a = _anim.GetAnimation(c); if (a != null) return (float)a.Length; }
+        return fallback;
+    }
+
+    /// Play a brief, non-looping action (e.g. a greeting wave) that overrides the
+    /// normal state for `seconds`. Ignored if one is already playing (no spam).
+    public void TriggerOneShot(string anim, float seconds)
+    {
+        if (_oneShotTimer > 0f) return;
+        _oneShotAnim = anim;
+        _oneShotTimer = seconds;
     }
 
     public override void _Process(double delta)
     {
         _t += (float)delta;
+        // advance seat transitions regardless of render path so it can't get stuck
+        if (_seat == SeatState.Down) { _seatTimer -= (float)delta; if (_seatTimer <= 0) _seat = SeatState.Sat; }
+        else if (_seat == SeatState.Up) { _seatTimer -= (float)delta; if (_seatTimer <= 0) _seat = SeatState.None; }
         if (_usesModel)
         {
-            // Imported body: limbs are baked into the mesh, so only bob the whole
-            // model while walking. (Skeletal clips can be driven here later.)
-            if (_modelInstance != null)
+            if (_anim != null && _clips.Count > 0)
+            {
+                // Drive the model's own animation from agent state.
+                if (_oneShotTimer > 0f) _oneShotTimer -= (float)delta;
+                // Priority: walking > seated/transition > one-shot (wave) > action (sweep) > work > idle.
+                string want = Moving ? PickWalk()
+                            : _seat == SeatState.Down ? PickAction("sit")
+                            : _seat == SeatState.Sat  ? PickAction("sitting")
+                            : _seat == SeatState.Up   ? PickAction("stand")
+                            : _oneShotTimer > 0f ? PickAction(_oneShotAnim)
+                            : ActionAnim.Length > 0 ? PickAction(ActionAnim)
+                            : Working ? PickWork()
+                            : PickIdle();
+                if (want.Length > 0 && want != _curClip)
+                {
+                    _curClip = want;
+                    _anim.Play(want, 0.15);   // short crossfade between states
+                }
+            }
+            else if (_boneDriven)
+            {
+                DriveBones();   // rigged but clip-less: swing bones directly
+            }
+            else if (_modelInstance != null)
+            {
+                // No clips, no usable rig: bob the whole body so walking isn't static.
                 _modelInstance.Position = new Vector3(0, _modelBaseY + (Moving ? Mathf.Abs(Mathf.Sin(_t * 7.5f)) * 0.04f : 0f), 0);
+            }
             return;
         }
         if (Moving)
@@ -126,17 +352,53 @@ public partial class CharacterRig : Node3D
     }
 
     /// Move toward a flat target; returns true on arrival. Handles facing.
+    const float TurnRate = 12f;                 // higher = snappier turn (smoothed, not snapped)
+    readonly System.Collections.Generic.List<Vector3> _path = new();
+    int _pathIdx;
+    Vector3 _navTarget = new(99999f, 0, 99999f);
+
+    /// Move toward a flat target, routing around obstacles via the navigation mesh
+    /// when one is baked; falls back to a straight line if no path is available.
+    /// Returns true on arrival. Facing is smoothed rather than snapped.
     public bool StepToward(Vector3 target, float delta)
+    {
+        target.Y = 0;
+        var here = new Vector3(Position.X, 0, Position.Z);
+        if ((here - target).LengthSquared() < 0.0144f) { Moving = false; _path.Clear(); return true; }  // ~0.12m
+
+        var world = GetWorld3D();
+        if (world != null)
+        {
+            if (_path.Count < 2 || _pathIdx >= _path.Count || (_navTarget - target).LengthSquared() > 0.25f)
+            {
+                var pts = NavigationServer3D.MapGetPath(world.NavigationMap, here, target, true);
+                _path.Clear();
+                if (pts != null) _path.AddRange(pts);
+                _pathIdx = 0;
+                _navTarget = target;
+            }
+            if (_path.Count >= 2)
+            {
+                bool atWp = MoveToward(_path[Mathf.Min(_pathIdx, _path.Count - 1)], delta);
+                if (atWp && _pathIdx < _path.Count - 1) _pathIdx++;
+                return false;   // final arrival is caught by the short-circuit above next frame
+            }
+        }
+        return MoveToward(target, delta);   // no navmesh yet -> straight line
+    }
+
+    bool MoveToward(Vector3 target, float delta)
     {
         var pos = Position; pos.Y = 0; target.Y = 0;
         var d = target - pos;
         float dist = d.Length();
-        if (dist < 0.08f) { Moving = false; return true; }
+        if (dist < 0.12f) { Moving = false; return true; }
         Moving = true;
         var step = d.Normalized() * Mathf.Min(WalkSpeed * delta, dist);
         Position += step;
-        float yaw = Mathf.Atan2(step.X, step.Z);
-        Rotation = new Vector3(0, yaw, 0);
+        float targetYaw = Mathf.Atan2(step.X, step.Z);
+        // frame-rate-independent smooth turn toward heading
+        Rotation = new Vector3(0, Mathf.LerpAngle(Rotation.Y, targetYaw, 1f - Mathf.Exp(-TurnRate * delta)), 0);
         return false;
     }
 }

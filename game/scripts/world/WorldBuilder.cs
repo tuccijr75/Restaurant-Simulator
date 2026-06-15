@@ -17,6 +17,7 @@ public sealed class WorldLayout
     public readonly List<Vector3> DtLane = new();        // drive-thru waypoints
     public readonly List<Vector3> QueueSpots = new();    // lobby register queue
     public readonly List<Vector3> Tables = new();        // dining seats
+    public NavigationRegion3D NavRegion = null!;         // baked walkable area
     public Vector3 Door => Anchor["door"];
 }
 
@@ -87,7 +88,10 @@ public static class WorldBuilder
         Station(w, L, "assembly", new Vector3(-3.0f, 0.5f, -2.2f), new Vector3(4.4f, 0.95f, 1.1f), Steel, "ASSEMBLY");
         Station(w, L, "beverage", new Vector3(3.6f, 0.7f, -2.2f), new Vector3(2.2f, 1.5f, 1.0f), DarkSteel, "BEVERAGE");
         Station(w, L, "expo", new Vector3(0.5f, 0.8f, -1.1f), new Vector3(2.4f, 0.5f, 0.8f), Steel, "EXPO", glow: new Color(1f, 0.55f, 0.15f));
-        Station(w, L, "office", new Vector3(9.8f, 0.5f, -5.2f), new Vector3(3.4f, 1.0f, 2.2f), new Color(0.55f, 0.45f, 0.35f), "OFFICE / BREAK");
+        Station(w, L, "office", new Vector3(10.4f, 0.5f, -6.0f), new Vector3(2.4f, 1.0f, 1.6f), new Color(0.55f, 0.45f, 0.35f), "OFFICE");
+        // break room (separate from the office): table + bench where crew sit on break
+        Box(w, new Vector3(2.0f, 0.75f, 1.3f), new Vector3(7.2f, 0.40f, -6.1f), new Color(0.72f, 0.55f, 0.38f), "break_table");
+        Box(w, new Vector3(2.4f, 0.45f, 0.4f), new Vector3(7.2f, 0.23f, -5.1f), Accent, "break_bench");
         Station(w, L, "dt_window", new Vector3(11.4f, 0.6f, 0.6f), new Vector3(0.8f, 1.1f, 1.4f), Steel, "DT WINDOW");
 
         // ---------- dining ----------
@@ -133,7 +137,7 @@ public static class WorldBuilder
         L.Anchor["door_out"] = new Vector3(0, 0, 9.5f);
         L.Anchor["pickup"] = new Vector3(1.5f, 0, 0.9f);
         L.Anchor["mobile_wait"] = new Vector3(5.5f, 0, 1.2f);
-        L.Anchor["break_room"] = new Vector3(9.8f, 0, -3.6f);
+        L.Anchor["break_room"] = new Vector3(7.2f, 0, -4.5f);   // crew sit in front of the break bench
         L.QueueSpots.Add(new Vector3(-2.5f, 0, 1.1f));
         L.QueueSpots.Add(new Vector3(-2.5f, 0, 2.2f));
         L.QueueSpots.Add(new Vector3(-2.5f, 0, 3.3f));
@@ -148,7 +152,7 @@ public static class WorldBuilder
         L.Anchor["work_expo"] = new Vector3(0.5f, 0, -2.2f);
         L.Anchor["work_counter"] = new Vector3(-2.5f, 0, -1.0f);
         L.Anchor["work_dt"] = new Vector3(10.6f, 0, 0.6f);
-        L.Anchor["work_office"] = new Vector3(9.8f, 0, -4.2f);
+        L.Anchor["work_office"] = new Vector3(10.4f, 0, -4.8f);  // manager stands in front of the desk
         L.Sun = _lastSun; L.SkyMat = _lastSky;
         L.LotLights.AddRange(_lotLights); _lotLights.Clear();
         // RS-VS-001: interior ceiling lights — dim by day, carry the room at night.
@@ -158,7 +162,44 @@ public static class WorldBuilder
             w.AddChild(li);
             L.InteriorLights.Add(li);
         }
+        BuildNavigation(w, L);
         return L;
+    }
+
+    // Tunables — raise AgentRadius to keep agents further off equipment; lower CellSize for finer paths.
+    public static float NavAgentRadius = 0.35f;
+    public static float NavCellSize = 0.12f;
+
+    // Bake a walkable navigation mesh from the floor, carving around equipment, counters and walls,
+    // so agents path *around* fixtures instead of straight through them.
+    static void BuildNavigation(Node3D w, WorldLayout L)
+    {
+        var src = new NavigationMeshSourceGeometryData3D();
+        int walk = 0, obs = 0;
+        foreach (var ch in w.GetChildren())
+        {
+            if (ch is not MeshInstance3D mi || mi.Mesh == null) continue;
+            string n = mi.Name;
+            bool walkable = n == "floor" || n == "kitchen_floor" || n == "sidewalk";
+            bool obstacle = n.StartsWith("st_") || n.StartsWith("counter") || n.StartsWith("wall_")
+                            || n == "trash" || n == "break_table";
+            if (walkable) { src.AddMesh(mi.Mesh, mi.Transform); walk++; }
+            else if (obstacle) { src.AddMesh(mi.Mesh, mi.Transform); obs++; }
+        }
+        var nm = new NavigationMesh
+        {
+            CellSize = NavCellSize,
+            CellHeight = 0.1f,
+            AgentRadius = NavAgentRadius,
+            AgentHeight = 1.6f,
+            AgentMaxClimb = 0.3f,
+            AgentMaxSlope = 45f,
+        };
+        NavigationServer3D.BakeFromSourceGeometryData(nm, src);
+        var region = new NavigationRegion3D { Name = "NavRegion", NavigationMesh = nm };
+        w.AddChild(region);
+        L.NavRegion = region;
+        GD.Print($"[Nav] baked navmesh: walkable={walk} obstacles={obs} polys={nm.GetPolygonCount()}");
     }
 
     // ---------- helpers ----------

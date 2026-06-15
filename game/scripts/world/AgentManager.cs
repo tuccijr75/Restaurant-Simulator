@@ -25,8 +25,8 @@ public partial class AgentManager : Node3D
     // to the procedural world — tune in-editor, then rebuild.
     const string StaffModelDir = "res://models/staff/";
     public static float StaffModelScale = 1f;
-    public static float StaffModelYaw = 180f;    // most exports face -Z; flip to face into the room
-    public static float StaffModelYOffset = 0f;  // raise/lower if feet don't meet the floor
+    public static float StaffModelYaw = 0f;      // facing offset; flip to 180 if they face away
+    public static float StaffModelYOffset = 0.1f;  // floor top sits at ~0.08–0.11; lifts feet onto it
 
     static readonly Color[] CarPaints =
     {
@@ -59,10 +59,18 @@ public partial class AgentManager : Node3D
         switch (channel)
         {
             case "drive_thru": SpawnCar(orderId); break;
-            case "lobby": SpawnWalkin(orderId, channel, fromDoor: true); break;
-            case "mobile": SpawnWalkin(orderId, channel, fromDoor: true); break;
+            case "lobby": SpawnWalkin(orderId, channel, fromDoor: true); GreetManagers(); break;
+            case "mobile": SpawnWalkin(orderId, channel, fromDoor: true); GreetManagers(); break;
             case "delivery": SpawnWalkin(orderId, channel, fromDoor: true, courier: true); break;
         }
+    }
+
+    // Store manager (asst mgr / GM model) waves when a guest comes through the door.
+    void GreetManagers()
+    {
+        foreach (var e in _staff)
+            if (e.Role == "assistant_manager" || e.Role == "restaurant_manager")
+                e.TriggerOneShot("waving", 2.5f);
     }
 
     void SpawnCar(string orderId)
@@ -160,7 +168,7 @@ public partial class AgentManager : Node3D
             int i = 0;
             foreach (var (key, role) in spec)
             {
-                var e = new EmployeeAgent { StationKey = key };
+                var e = new EmployeeAgent { StationKey = key, Role = role };
                 // RS-VS-002 role -> model. crew + team leaders share employee_m/f
                 // (stable pick per slot); managers each get their own model.
                 string file = role switch
@@ -213,6 +221,8 @@ public partial class AgentManager : Node3D
         for (int i = 0; i < _sim.ShiftMgr; i++) spec.Add(("work_office", "shift_manager"));
         for (int i = 0; i < _sim.AsstMgr; i++) spec.Add(("work_office", "assistant_manager"));
         for (int i = 0; i < _sim.RestMgr; i++) spec.Add(("work_office", "restaurant_manager"));
+        // A store manager (asst mgr or GM) always runs the shift; stand one in if the roster has neither.
+        if (_sim.AsstMgr == 0 && _sim.RestMgr == 0) spec.Add(("work_office", "assistant_manager"));
         return spec;
     }
 
