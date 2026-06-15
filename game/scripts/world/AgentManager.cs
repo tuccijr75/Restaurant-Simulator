@@ -68,9 +68,21 @@ public partial class AgentManager : Node3D
     // Store manager (asst mgr / GM model) waves when a guest comes through the door.
     void GreetManagers()
     {
+        var entry = _world.Anchor["door"];   // where customers come in
         foreach (var e in _staff)
             if (e.Role == "assistant_manager" || e.Role == "restaurant_manager")
-                e.TriggerOneShot("waving", 2.5f);
+                e.GoGreet(entry);
+    }
+
+    // Patrol stops for the GM — work spots around the store, in a sensible loop.
+    System.Collections.Generic.List<Vector3> PatrolWaypoints()
+    {
+        var keys = new[] { "work_grill", "work_assembly", "work_expo", "work_counter",
+                           "work_dt", "work_office", "work_fryer", "work_prep" };
+        var list = new System.Collections.Generic.List<Vector3>();
+        foreach (var k in keys)
+            if (_world.Anchor.TryGetValue(k, out var p)) list.Add(p);
+        return list;
     }
 
     void SpawnCar(string orderId)
@@ -93,15 +105,15 @@ public partial class AgentManager : Node3D
         a.BuildHuman(shirt, new Color(0.2f, 0.2f, 0.25f), Skins[_vis.Next(Skins.Length)],
             courier ? new Color(0.9f, 0.45f, 0.1f) : null,
             0.92f + (float)_vis.NextDouble() * 0.16f);   // RS-VS-001 height variance
-        a.Position = _world.Anchor["door_out"] + new Vector3((float)(_vis.NextDouble() * 2 - 1), 0, 0.5f);
+        a.Position = _world.Anchor["door_out"] + new Vector3((float)(_vis.NextDouble() * 2 - 1), 0, -0.6f);  // on the sidewalk (navmesh), not out in the lot
         int q = System.Math.Min(CountQueued(), _world.QueueSpots.Count - 1);
         a.QueueSpot = channel == "lobby"
             ? _world.QueueSpots[q]
             : _world.Anchor["mobile_wait"] + new Vector3((float)(_vis.NextDouble() * 1.6f - 0.8f), 0, 0.3f);
         a.PickupSpot = channel == "lobby" ? _world.Anchor["pickup"] : _world.Anchor["mobile_shelf"] + new Vector3(0, 0, 1.0f);
-        bool dines = channel == "lobby" && !courier && _vis.NextDouble() < 0.35 && _world.Tables.Count > 0;
+        bool dines = channel == "lobby" && !courier && _vis.NextDouble() < 0.45 && _world.Tables.Count > 0;
         a.TableSpot = dines ? _world.Tables[_vis.Next(_world.Tables.Count)] : Vector3.Zero;
-        a.ExitSpot = _world.Anchor["door_out"] + new Vector3(0, 0, 2.5f);
+        a.ExitSpot = _world.Anchor["door_out"] + new Vector3((float)(_vis.NextDouble() * 2 - 1), 0, -0.8f);  // reachable point on the sidewalk so they actually despawn
         a.Configure(orderPause: channel == "lobby" ? 6f : 0f, dineSeconds: dines ? 25f + _vis.Next(40) : 0f);
         AddChild(a);
         _walkins.Add(a);
@@ -188,7 +200,14 @@ public partial class AgentManager : Node3D
                     e.BuildHuman(shirt, new Color(0.12f, 0.12f, 0.15f), Skins[i % Skins.Length], new Color(0.75f, 0.16f, 0.12f));
                 }
                 e.HomeSpot = _world.Anchor[key] + new Vector3((i % 3) * 0.55f - 0.55f, 0, 0);
-                e.CoolerSpot = _world.Anchor["cooler"] + new Vector3(1.3f, 0, 0.4f);
+                e.FaceTarget = FaceFor(key, e.HomeSpot);
+                e.HasFace = true;
+                if (role == "assistant_manager" || role == "restaurant_manager")
+                {
+                    e.Patrols = true;                       // GM walks the floor checking workflow
+                    e.PatrolRoute = PatrolWaypoints();
+                }
+                e.CoolerSpot = _world.Anchor["cooler"] + new Vector3(1.3f + (i % 3) * 0.7f, 0, 0.4f + (i % 2) * 0.6f);  // staggered so they do not pile up
                 e.BreakSpot = _world.Anchor["break_room"] + new Vector3((i % 3) * 0.6f - 0.6f, 0, 0);
                 e.Position = e.HomeSpot;
                 e.Init(i);
@@ -202,9 +221,24 @@ public partial class AgentManager : Node3D
         for (int k = 0; k < _staff.Count; k++)
         {
             var e = _staff[k];
-            e.OnBreak = k < onBreak && e.StationKey != "work_office";
+            e.OnBreak = k < onBreak && e.Role == "crew";   // managers don't take breaks
             e.Drive(d, StationBusy(e.StationKey));
         }
+    }
+
+    // Where a staffer at `workKey` should look while standing at their station —
+    // toward the equipment they operate (or the counter/lobby for front of house).
+    Vector3 FaceFor(string workKey, Vector3 home)
+    {
+        string? id = workKey switch
+        {
+            "work_grill" => "grill", "work_fryer" => "fryer", "work_prep" => "prep",
+            "work_assembly" => "assembly", "work_beverage" => "beverage", "work_expo" => "expo",
+            "work_dt" => "dt_window", "work_office" => "office", _ => null
+        };
+        if (id != null && _world.Anchor.TryGetValue(id, out var p)) return p;
+        if (workKey == "work_counter") return new Vector3(home.X, 0, -0.2f);   // face the counter / lobby
+        return home + new Vector3(0, 0, -1f);
     }
 
     List<(string Station, string Role)> BuildStaffSpec()
@@ -218,7 +252,7 @@ public partial class AgentManager : Node3D
         for (int i = 0; i < _sim.CounterCoverage; i++) spec.Add(("work_counter", "crew"));
         for (int i = 0; i < _sim.PrepCoverage; i++) spec.Add(("work_prep", "crew"));
         // Managers each get their own model by role.
-        for (int i = 0; i < _sim.ShiftMgr; i++) spec.Add(("work_office", "shift_manager"));
+        for (int i = 0; i < _sim.ShiftMgr; i++) spec.Add(("work_expo", "shift_manager"));  // shift mgr expedites
         for (int i = 0; i < _sim.AsstMgr; i++) spec.Add(("work_office", "assistant_manager"));
         for (int i = 0; i < _sim.RestMgr; i++) spec.Add(("work_office", "restaurant_manager"));
         // A store manager (asst mgr or GM) always runs the shift; stand one in if the roster has neither.

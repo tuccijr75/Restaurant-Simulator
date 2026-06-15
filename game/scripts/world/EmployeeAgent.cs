@@ -9,6 +9,8 @@ public partial class EmployeeAgent : CharacterRig
 {
     public string StationKey = "work_grill";
     public string Role = "";
+    public Vector3 FaceTarget;
+    public bool HasFace;
     public Vector3 HomeSpot, CoolerSpot;
     public bool OnBreak;
     public Vector3 BreakSpot;
@@ -17,7 +19,22 @@ public partial class EmployeeAgent : CharacterRig
     bool _sweeping;
     float _sweepTimer;
     bool _beatToggle;
+    public bool Patrols;
+    public System.Collections.Generic.List<Vector3> PatrolRoute = new();
+    int _patrolIdx;
+    float _patrolPause;
+    Vector3 _greetPos;
+    bool _greeting, _waved;
+    float _greetTimer, _greetCooldown;
+    const float GreetRange = 5f;
     System.Random _vis = new(7);
+
+    /// Manager interrupts patrol to greet a newly arrived customer (approach if far, then face + wave).
+    public void GoGreet(Vector3 customerPos)
+    {
+        if (!Patrols || _greetCooldown > 0f) return;
+        _greetPos = customerPos; _greeting = true; _waved = false; _greetCooldown = 8f;
+    }
 
     public void Init(int salt)
     {
@@ -43,6 +60,9 @@ public partial class EmployeeAgent : CharacterRig
 
     public void Drive(float delta, bool stationBusy)
     {
+        if (_greetCooldown > 0f) _greetCooldown -= delta;
+        if (Patrols) { DrivePatrol(delta); return; }
+
         if (OnBreak)
         {
             if (Seated) return;                                   // sitting / mid-transition: hold
@@ -71,6 +91,7 @@ public partial class EmployeeAgent : CharacterRig
         }
         if (!StepToward(HomeSpot, delta)) return;
         Working = stationBusy;
+        if (HasFace) FaceToward(FaceTarget, delta);   // turn to face the equipment while on station
         _supplyTimer -= delta;
         if (_supplyTimer <= 0 && !stationBusy)
         {
@@ -82,4 +103,31 @@ public partial class EmployeeAgent : CharacterRig
             _beatToggle = !_beatToggle;
         }
     }
+
+    void DrivePatrol(float delta)
+    {
+        if (_greeting)
+        {
+            if (FlatDist(Position, _greetPos) > GreetRange) { StepToward(_greetPos, delta); return; }  // get within range
+            Moving = false;
+            FaceToward(_greetPos, delta);                                 // turn toward the customer
+            if (!_waved) { TriggerOneShot("waving", 2.5f); _waved = true; _greetTimer = 2.5f; }
+            _greetTimer -= delta;
+            if (_greetTimer <= 0) _greeting = false;                      // done -> resume patrol
+            return;
+        }
+        if (PatrolRoute.Count == 0) { Moving = false; return; }
+        if (StepToward(PatrolRoute[_patrolIdx % PatrolRoute.Count], delta))  // arrived at a stop
+        {
+            Moving = false;
+            _patrolPause -= delta;
+            if (_patrolPause <= 0)
+            {
+                _patrolIdx = (_patrolIdx + 1) % PatrolRoute.Count;
+                _patrolPause = 2.5f + _vis.Next(3);                       // pause and look over the station
+            }
+        }
+    }
+
+    static float FlatDist(Vector3 a, Vector3 b) { a.Y = 0; b.Y = 0; return (a - b).Length(); }
 }

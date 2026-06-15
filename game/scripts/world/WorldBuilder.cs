@@ -74,16 +74,16 @@ public static class WorldBuilder
         // ---------- counter / front of house ----------
         var counterMi = Box(w, new Vector3(14, 1.1f, 0.9f), new Vector3(-0.5f, 0.55f, -0.2f), Accent, "counter");
         var counterTopMi = Box(w, new Vector3(14, 0.06f, 1.1f), new Vector3(-0.5f, 1.13f, -0.2f), Steel, "counter_top");
-        if (LoadEquip(w, new[] { "counter" }, new Vector3(-0.5f, 0, -0.2f), "equip_counter") != null)
-        { counterMi.Visible = false; counterTopMi.Visible = false; }
-        Station(w, L, "pos_register_1", new Vector3(-2.5f, 1.2f, -0.2f), new Vector3(0.4f, 0.35f, 0.3f), DarkSteel, "POS 1");
-        Station(w, L, "pos_register_2", new Vector3(1.5f, 1.2f, -0.2f), new Vector3(0.4f, 0.35f, 0.3f), DarkSteel, "POS 2");
-        Station(w, L, "mobile_shelf", new Vector3(5.5f, 1.0f, -0.1f), new Vector3(1.6f, 0.9f, 0.5f), Steel, "MOBILE PICKUP");
+        if (LoadEquip(w, new[] { "counter" }, new Vector3(-0.5f, 0, -0.2f), "equip_counter", 180f) != null)
+        { counterMi.Visible = false; counterTopMi.Visible = false; }   // 180° faces the service side into the kitchen; change to 0f if reversed
+        Station(w, L, "pos_register_1", new Vector3(-2.5f, 1.2f, -0.2f), new Vector3(0.4f, 0.35f, 0.3f), DarkSteel, "POS 1", hide: true);
+        Station(w, L, "pos_register_2", new Vector3(1.5f, 1.2f, -0.2f), new Vector3(0.4f, 0.35f, 0.3f), DarkSteel, "POS 2", hide: true);
+        Station(w, L, "mobile_shelf", new Vector3(6.2f, 1.0f, 0.5f), new Vector3(1.0f, 1.4f, 0.45f), Steel, "MOBILE PICKUP");
         // Menu boards above counter
         Box(w, new Vector3(7, 1.0f, 0.1f), new Vector3(-0.5f, 3.35f, -1.7f), new Color(0.12f, 0.12f, 0.14f), "menu_board");
 
         // ---------- kitchen stations ----------
-        Station(w, L, "grill", new Vector3(-8.5f, 0.5f, -5.2f), new Vector3(2.6f, 1.0f, 1.4f), DarkSteel, "GRILL", glow: new Color(1f, 0.35f, 0.1f));
+        Station(w, L, "grill", new Vector3(-7.2f, 0.5f, -5.2f), new Vector3(2.6f, 1.0f, 1.4f), DarkSteel, "GRILL", glow: new Color(1f, 0.35f, 0.1f));
         Station(w, L, "fryer", new Vector3(-4.2f, 0.5f, -5.2f), new Vector3(2.4f, 1.0f, 1.4f), Steel, "FRYER BANK", glow: new Color(1f, 0.75f, 0.2f));
         Station(w, L, "prep", new Vector3(0.8f, 0.5f, -5.2f), new Vector3(2.8f, 0.95f, 1.4f), Steel, "PREP");
         Station(w, L, "cooler", new Vector3(-11.0f, 1.2f, -5.0f), new Vector3(1.6f, 2.4f, 2.6f), new Color(0.8f, 0.84f, 0.88f), "WALK-IN");
@@ -137,8 +137,8 @@ public static class WorldBuilder
         // ---------- shared anchors ----------
         L.Anchor["door"] = new Vector3(0, 0, 7.0f);
         L.Anchor["door_out"] = new Vector3(0, 0, 9.5f);
-        L.Anchor["pickup"] = new Vector3(1.5f, 0, 0.9f);
-        L.Anchor["mobile_wait"] = new Vector3(5.5f, 0, 1.2f);
+        L.Anchor["pickup"] = new Vector3(4.8f, 0, 0.9f);        // collect on the lobby side, away from the order registers
+        L.Anchor["mobile_wait"] = new Vector3(6.2f, 0, 1.5f);   // in front of the mobile rack, lobby side
         L.Anchor["break_room"] = new Vector3(7.2f, 0, -4.5f);   // crew sit in front of the break bench
         L.QueueSpots.Add(new Vector3(-2.5f, 0, 1.1f));
         L.QueueSpots.Add(new Vector3(-2.5f, 0, 2.2f));
@@ -146,19 +146,20 @@ public static class WorldBuilder
         L.QueueSpots.Add(new Vector3(-2.5f, 0, 4.4f));
         L.QueueSpots.Add(new Vector3(-2.0f, 0, 5.5f));
         // Employee work spots (sim station id -> world position, crew side of fixtures)
-        L.Anchor["work_grill"] = new Vector3(-8.5f, 0, -4.0f);
+        L.Anchor["work_grill"] = new Vector3(-7.2f, 0, -4.0f);
         L.Anchor["work_fryer"] = new Vector3(-4.2f, 0, -4.0f);
         L.Anchor["work_prep"] = new Vector3(0.8f, 0, -4.0f);
         L.Anchor["work_assembly"] = new Vector3(-3.0f, 0, -3.4f);
         L.Anchor["work_beverage"] = new Vector3(3.6f, 0, -3.4f);
         L.Anchor["work_expo"] = new Vector3(0.5f, 0, -2.2f);
         L.Anchor["work_counter"] = new Vector3(-2.5f, 0, -1.0f);
-        L.Anchor["work_dt"] = new Vector3(10.6f, 0, 0.6f);
+        L.Anchor["work_dt"] = new Vector3(10.2f, 0, 0.6f);   // pulled in so the worker is not in the window opening
         L.Anchor["work_office"] = new Vector3(10.4f, 0, -4.8f);  // manager stands in front of the desk
         L.Sun = _lastSun; L.SkyMat = _lastSky;
         L.LotLights.AddRange(_lotLights); _lotLights.Clear();
         // RS-VS-001: interior ceiling lights — dim by day, carry the room at night.
-        foreach (var at in new[]{ new Vector3(-4f,3.9f,-3f), new Vector3(2f,3.9f,-3f), new Vector3(-2f,3.9f,3.5f), new Vector3(6f,3.9f,3.5f) })
+        foreach (var at in new[]{ new Vector3(-4f,3.9f,-3f), new Vector3(2f,3.9f,-3f), new Vector3(-2f,3.9f,3.5f), new Vector3(6f,3.9f,3.5f),
+                                  new Vector3(10.4f,3.6f,-5.4f), new Vector3(7.2f,3.6f,-5.4f) })   // office + break room
         {
             var li = new OmniLight3D { Position = at, OmniRange = 9, LightEnergy = 0.25f, LightColor = new Color(1f,0.96f,0.9f) };
             w.AddChild(li);
@@ -255,7 +256,7 @@ public static class WorldBuilder
         ((StandardMaterial3D)mi.MaterialOverride).Transparency = BaseMaterial3D.TransparencyEnum.Alpha;
     }
 
-    static void Station(Node3D w, WorldLayout L, string id, Vector3 pos, Vector3 size, Color color, string label, Color? glow = null)
+    static void Station(Node3D w, WorldLayout L, string id, Vector3 pos, Vector3 size, Color color, string label, Color? glow = null, bool hide = false)
     {
         var mi = Box(w, size, pos, color, "st_" + id);
         // RS-GP-001: clickable — a static body with the station id in metadata.
@@ -283,6 +284,7 @@ public static class WorldBuilder
         };
         w.AddChild(tag);
         L.Anchor[id] = pos;
+        if (hide) mi.Visible = false;   // e.g. POS: the counter's monitor mesh is the visual; box stays for click/anchor
         if (LoadEquip(w, new[] { "st_" + id, id }, pos, "equip_" + id) != null) mi.Visible = false;
     }
 
@@ -292,7 +294,7 @@ public static class WorldBuilder
     // Try each candidate filename in res://models/kitchen/; on the first hit, instance
     // it, sit its base on the floor (any origin), name it equip_* (navmesh ignores it),
     // and return it so the caller can hide the placeholder box(es).
-    static Node3D? LoadEquip(Node3D w, string[] candidates, Vector3 pos, string nodeName)
+    static Node3D? LoadEquip(Node3D w, string[] candidates, Vector3 pos, string nodeName, float yawDeg = 0f)
     {
         foreach (var cand in candidates)
         {
@@ -302,6 +304,7 @@ public static class WorldBuilder
             if (packed == null) continue;
             var inst = packed.Instantiate<Node3D>();
             inst.Name = nodeName;
+            if (yawDeg != 0f) inst.RotationDegrees = new Vector3(0, yawDeg, 0);
             w.AddChild(inst);
             inst.Position = new Vector3(pos.X, 0, pos.Z);
             inst.Position += new Vector3(0, FloorTop - WorldMinY(inst), 0);  // base -> floor

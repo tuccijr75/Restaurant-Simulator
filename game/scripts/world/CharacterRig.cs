@@ -401,4 +401,13 @@ public partial class CharacterRig : Node3D
         Rotation = new Vector3(0, Mathf.LerpAngle(Rotation.Y, targetYaw, 1f - Mathf.Exp(-TurnRate * delta)), 0);
         return false;
     }
+
+    /// Smoothly turn to face a point without moving (used while standing at a station).
+    public void FaceToward(Vector3 point, float delta)
+    {
+        var d = point - Position; d.Y = 0;
+        if (d.LengthSquared() < 1e-4f) return;
+        float yaw = Mathf.Atan2(d.X, d.Z);
+        Rotation = new Vector3(0, Mathf.LerpAngle(Rotation.Y, yaw, 1f - Mathf.Exp(-TurnRate * delta)), 0);
+    }
 }
