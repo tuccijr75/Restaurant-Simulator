@@ -28,6 +28,10 @@ public partial class CharacterRig : Node3D
     public string ActionAnim = "";
     string _oneShotAnim = "";
     float _oneShotTimer;
+    // (13) sweep stroke: scrub only part of the sweep clip, back and forth, so the broom
+    // never swings all the way past the body (no "golf swing"). Tune in-editor.
+    public static float SweepRate = 4.5f;     // strokes per second (speed of the back-and-forth)
+    public static float SweepStroke = 0.42f;  // fraction of the sweep clip used (0..1); lower = shorter stroke
 
     // Procedural fallback: if the model is rigged but ships no clips, drive its
     // skeleton bones directly (snippet-2 approach) so it still walks/works.
@@ -305,7 +309,20 @@ public partial class CharacterRig : Node3D
                             : ActionAnim.Length > 0 ? PickAction(ActionAnim)
                             : Working ? PickWork()
                             : PickIdle();
-                if (want.Length > 0 && want != _curClip)
+                bool sweepScrub = ActionAnim == "sweeping" && !Moving && _seat == SeatState.None
+                                  && _oneShotTimer <= 0f && Match("sweep", "mop", "broom") != null;
+                if (sweepScrub)
+                {
+                    // (13) hold the sweep clip and scrub its first part back and forth by hand,
+                    // so it reads as a short sweeping motion rather than a full swing.
+                    if (want != _curClip) { _curClip = want; _anim.Play(want); }
+                    _anim.Pause();
+                    var sa = _anim.GetAnimation(want);
+                    float len = sa != null ? (float)sa.Length : 1f;
+                    float phase = (Mathf.Sin(_t * SweepRate) * 0.5f + 0.5f) * Mathf.Clamp(SweepStroke, 0.05f, 1f) * len;
+                    _anim.Seek(phase, true);
+                }
+                else if (want.Length > 0 && want != _curClip)
                 {
                     _curClip = want;
                     _anim.Play(want, 0.15);   // short crossfade between states

@@ -18,6 +18,7 @@ public class SimRunState{
   public int IntakeTaskId;             // RS-FE-001: kitchen waits for order intake
   public List<EquipTask> Tasks=new();
   public List<PendingItem> Pending=new(); // items waiting on hold stock (item.taken deferred)
+  public int TakenCount; public bool Packaged;   // RS-IM-003 order-level paper goods
  }
  class PendingItem{ public ItemSpec Spec=null!; public Dictionary<string,double> Draw=new(); }
  // RS-HQ-001: cook-to-hold buffer. Crew cooks full batch cycles into the pan;
@@ -227,9 +228,13 @@ public class SimRunState{
    itemSb.Append($"{ItemSeq} {TimeText} taken order {t.OrderId} item {spec.Id} hold {spec.HoldFamily??"none"} quality {Num(t.MinQuality)} assembly {Num(spec.AssemblySeconds)}s expo {Num(spec.ExpoSeconds)}s price ${spec.Price:0.00}\n");
    Emit("item.taken",$"{{\"order_id\":\"{t.OrderId}\",\"item_id\":\"{spec.Id}\",\"quantity\":1,\"station_ids\":[\"{spec.Station}\"],\"inventory_draw\":{DrawJson(pi.Draw)},\"status\":\"taken\"}}");
    if(ingredients!=null&&abstractToMenu.TryGetValue(spec.Id,out var mi))ingredients.ConsumeMenuItem(mi,Minute);
+   t.TakenCount++;
    t.Pending.RemoveAt(i);
   }
-  if(t.Pending.Count==0)QueueReadyTasks(t);
+  if(t.Pending.Count==0){
+   if(ingredients!=null&&!t.Packaged){ingredients.ConsumeOrderPackaging(t.TakenCount,Minute);t.Packaged=true;}  // RS-IM-003
+   QueueReadyTasks(t);
+  }
  }
  static readonly Dictionary<string,string> coockedToPan=new(){{"cooked_fried_main","fried_main"},{"cooked_grilled_main","grilled_main"},{"cooked_fries","fries"}};
  double DrawCooked(HoldPan pan,double qty){
@@ -317,6 +322,7 @@ public class SimRunState{
    if(Roll(31+task.Id%97)<10){
     t.Remade=true;
     RecordWaste("production_error",1,"assembly");
+    ingredients?.WastePackaging("sandwich_wrap",1,Minute);   // RS-IM-003 remade item spoils its wrap
     var rd=CreateTask(t,task.ItemId,"assembly_redo","assembly","assembly",20,0).Id;
     CreateTask(t,task.ItemId,"expo_redo","expo","expo",10,rd);
    }

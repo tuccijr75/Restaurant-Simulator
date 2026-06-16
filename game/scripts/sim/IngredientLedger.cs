@@ -69,6 +69,25 @@ public sealed class IngredientLedger
         foreach(var (ingId, qty) in _cat.BomFor(menuItem)) Draw(ingId, qty, minute);
     }
 
+    /// RS-IM-003 — order-level paper goods: one carry-out bag per order plus napkins
+    /// scaled to order size. Tracked in inventory like any other consumable.
+    public void ConsumeOrderPackaging(int itemCount, double minute)
+    {
+        if(!Active) return;
+        Draw("carry_bag", 1, minute);
+        Draw("napkin", Math.Max(2, itemCount * 2), minute);
+    }
+
+    /// Waste a non-perishable packaging item (e.g. a wrap or bag spoiled on a remake).
+    public void WastePackaging(string id, double qty, double minute)
+    {
+        if(!Active) return;
+        var ing = _cat.Get(id); if(ing==null || ing.Perishable) return;
+        var st = S(id);
+        if(st.Balance < qty - 1e-9){ var r = Math.Max(qty, 500); st.Balance += r; st.Received += r; }
+        st.Balance -= qty; st.Waste += qty; WasteUnits += qty; WasteCostUsd += qty * ing.UnitCostUsd;
+    }
+
     void Draw(string id, double qty, double minute)
     {
         var ing = _cat.Get(id); if(ing==null) return;
