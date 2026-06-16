@@ -9,6 +9,11 @@ public partial class EmployeeAgent : CharacterRig
 {
     public string StationKey = "work_grill";
     public string Role = "";
+    // RS-ST-002: identity + assignment carried from the roster (drives #12 click-inspect).
+    public int EmpId = -1;
+    public string EmpName = "";
+    public string Assigned = "";
+    public string Task = "On station";
     public Vector3 FaceTarget;
     public bool HasFace;
     public bool IsCashier;

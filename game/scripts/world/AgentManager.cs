@@ -18,6 +18,15 @@ public partial class AgentManager : Node3D
     readonly List<EmployeeAgent> _staff = new();
     string _staffSignature = "";
 
+    // RS-ST-002/003: the roster is the single source of truth for who is on the
+    // floor, where they stand, and their evolving stats. Built once from the career
+    // week seed; RosterDay selects which day's schedule (set from CareerState.DayIndex
+    // when plumbed — defaults to 0, still a full valid schedule).
+    Roster _roster = null!;
+    public static int RosterWeekSeed = 777001;
+    public int RosterDay = 0;
+    int _lastStatMinute = -1;
+
     const int MaxWalkins = 16, MaxCars = 8;
     const int BoardIdx = 2, WindowIdx = 4;
 
@@ -53,6 +62,7 @@ public partial class AgentManager : Node3D
         _sim.OrderCreatedEvt += OnOrder;
         _sim.TicketCompletedEvt += OnTicketDone;
         _sim.TicketAbandonedEvt += OnTicketDone;   // RS-HQ-001: guest gives up and leaves (same release path)
+        _roster = new Roster(RosterWeekSeed);
     }
 
     // ---------------- spawning ----------------
@@ -212,9 +222,13 @@ public partial class AgentManager : Node3D
 
     void SyncStaff(float d)
     {
-        var spec = BuildStaffSpec();
+        int minute = (int)_sim.Minute;
+        var spec = BuildStaffSpec(minute);
+
+        // Membership signature: who is on shift and where. Stable across a shift, so
+        // agents are rebuilt only at shift boundaries (breaks don't churn the roster).
         var sb = new System.Text.StringBuilder();
-        foreach (var (st, role) in spec) sb.Append(st).Append(':').Append(role).Append('|');
+        foreach (var s in spec) sb.Append(s.EmpId).Append(':').Append(s.Station).Append('|');
         string sig = sb.ToString();
         if (sig != _staffSignature)
         {
@@ -222,9 +236,13 @@ public partial class AgentManager : Node3D
             foreach (var e in _staff) e.QueueFree();
             _staff.Clear();
             int i = 0;
-            foreach (var (key, role) in spec)
+            foreach (var (key, role, empId, name) in spec)
             {
-                var e = new EmployeeAgent { StationKey = key, Role = role };
+                var e = new EmployeeAgent
+                {
+                    StationKey = key, Role = role,
+                    EmpId = empId, EmpName = name, Assigned = StationLabel(key),
+                };
                 // RS-VS-002 role -> model. crew + team leaders share employee_m/f
                 // (stable pick per slot); managers each get their own model.
                 string file = role switch
@@ -232,11 +250,10 @@ public partial class AgentManager : Node3D
                     "shift_manager"      => "shift_manager.glb",
                     "assistant_manager"  => "store_manager.glb",          // shares the GM model (no asst-mgr asset)
                     "restaurant_manager" => "store_manager.glb",          // GM
-                    _                    => (((i * 2654435761u) >> 16) & 1) == 0 ? "employee_m.glb" : "employee_f.glb",
+                    _                    => (((empId * 2654435761u) >> 16) & 1) == 0 ? "employee_m.glb" : "employee_f.glb",
                 };
                 if (!e.BuildModel(StaffModelDir + file, StaffModelScale, StaffModelYaw, StaffModelYOffset))
                 {
-                    // procedural fallback keeps the agent visible if a GLB is missing
                     var shirt = role == "crew" ? new Color(0.75f, 0.16f, 0.12f)
                               : role == "shift_manager" ? new Color(0.92f, 0.92f, 0.92f)
                               : role == "assistant_manager" ? new Color(0.80f, 0.80f, 0.85f)
@@ -248,7 +265,7 @@ public partial class AgentManager : Node3D
                 e.HasFace = true;
                 if ((role == "assistant_manager" || role == "restaurant_manager") && key == "work_office")
                 {
-                    e.Patrols = true;                       // GM walks the floor only when not filling a critical spot
+                    e.Patrols = true;                       // floor managers walk the floor between critical fills
                     e.PatrolRoute = PatrolWaypoints();
                 }
                 if (key == "work_counter" || key == "work_counter2")
@@ -256,7 +273,7 @@ public partial class AgentManager : Node3D
                     e.IsCashier = true;                     // step up to the POS and serve when a customer is ordering
                     e.ServeSpot = e.HomeSpot + new Vector3(0, 0, 0.55f);
                 }
-                e.CoolerSpot = _world.Anchor["freezer_door"] + new Vector3((i % 3) * 0.6f - 0.6f, 0, 0.3f + (i % 2) * 0.4f);  // inside the freezer door, staggered
+                e.CoolerSpot = _world.Anchor["freezer_door"] + new Vector3((i % 3) * 0.6f - 0.6f, 0, 0.3f + (i % 2) * 0.4f);
                 e.BreakSpot = _world.Anchor["break_room"] + new Vector3((i % 3) * 0.6f - 0.6f, 0, 0);
                 e.Position = e.HomeSpot;
                 e.Init(i);
@@ -266,14 +283,57 @@ public partial class AgentManager : Node3D
             }
         }
 
-        int onBreak = _sim.CrewOnBreak;
-        for (int k = 0; k < _staff.Count; k++)
+        // Per-frame: break state straight from the roster (drives walk-to-break-room),
+        // then advance each agent.
+        foreach (var e in _staff) e.OnBreak = false;
+        foreach (var (sh, onBreak) in _roster.PresentAt(RosterDay, minute))
         {
-            var e = _staff[k];
-            e.OnBreak = k < onBreak && e.Role == "crew";   // managers don't take breaks
-            e.Drive(d, StationBusy(e.StationKey));
+            if (!onBreak) continue;
+            for (int k = 0; k < _staff.Count; k++)
+                if (_staff[k].EmpId == sh.EmployeeId) { _staff[k].OnBreak = true; break; }
+        }
+        foreach (var e in _staff) e.Drive(d, StationBusy(e.StationKey));
+
+        // Advance employee stats once per sim-minute (catch up small deltas; ignore
+        // the backward jump at day rollover).
+        if (_lastStatMinute < 0 || minute < _lastStatMinute) { _lastStatMinute = minute; return; }
+        int dt = minute - _lastStatMinute;
+        if (dt > 0)
+        {
+            _roster.TickStats(RosterDay, minute, System.Math.Min(dt, 10), StorePerf(), StationLoad01);
+            _lastStatMinute = minute;
         }
     }
+
+    // How the store is running, normalized so 1.0 = a normal day. Above 1 lifts
+    // manager attitude (which lifts crew); below 1 drags it. Feeds Roster.TickStats.
+    float StorePerf()
+    {
+        double v = 0.55 * (_sim.SalesPacePercent / 100.0)
+                 + 0.45 * (_sim.Csat / 90.0)
+                 - (_sim.StationOverloaded ? 0.15 : 0.0);
+        return (float)System.Math.Clamp(v, 0.4, 1.6);
+    }
+
+    // Station busyness in [0,1] — the stress driver at each post. Caps are rough and
+    // tunable; loads are the same public counters StationBusy reads.
+    static float C01(float v) => v < 0 ? 0 : v > 1 ? 1 : v;
+    float StationLoad01(string key) => key switch
+    {
+        "work_grill"    => C01(_sim.GrillLoad / 6f),
+        "work_fryer"    => C01(_sim.FryerLoad / 6f),
+        "work_assembly" => C01(_sim.AssemblyLoad / 6f),
+        "work_expo" or "work_beverage" => C01(_sim.ExpoLoad / 8f),
+        "work_dt" or "work_counter" or "work_counter2" => C01(_sim.Tickets / 8f),
+        _ => 0.3f,
+    };
+
+    static string StationLabel(string key) => key switch
+    {
+        "work_dt" => "Drive-Thru", "work_counter" => "Front Counter", "work_counter2" => "Front Counter 2",
+        "work_grill" => "Grill", "work_fryer" => "Fryer", "work_assembly" => "Assembly", "work_expo" => "Expo",
+        "work_beverage" => "Beverage", "work_prep" => "Prep", "work_office" => "Manager on Duty", _ => key
+    };
 
     // Where a staffer at `workKey` should look while standing at their station —
     // toward the equipment they operate (or the counter/lobby for front of house).
@@ -290,48 +350,22 @@ public partial class AgentManager : Node3D
         return home + new Vector3(0, 0, -1f);
     }
 
-    static bool Has(List<(string Station, string Role)> spec, params string[] stations)
+    // Who is on the floor right now, from the roster: (station, role-string, id, name).
+    // Membership only — break state is applied per-frame in SyncStaff.
+    List<(string Station, string Role, int EmpId, string Name)> BuildStaffSpec(int minute)
     {
-        foreach (var s in spec)
-            foreach (var st in stations)
-                if (s.Station == st) return true;
-        return false;
-    }
-
-    List<(string Station, string Role)> BuildStaffSpec()
-    {
-        var spec = new List<(string, string)>();
-        string[] kitchenCycle = { "work_grill", "work_assembly", "work_expo" };
-        for (int i = 0; i < _sim.KitchenCoverage; i++) spec.Add((kitchenCycle[i % kitchenCycle.Length], "crew"));
-        for (int i = 0; i < _sim.FryerCoverage; i++) spec.Add(("work_fryer", "crew"));
-        string[] driveCycle = { "work_dt", "work_beverage" };
-        for (int i = 0; i < _sim.DriveCoverage; i++) spec.Add((driveCycle[i % driveCycle.Length], "crew"));
-        string[] counterCycle = { "work_counter", "work_counter2" };
-        for (int i = 0; i < _sim.CounterCoverage; i++) spec.Add((counterCycle[i % counterCycle.Length], "crew"));
-        for (int i = 0; i < _sim.PrepCoverage; i++) spec.Add(("work_prep", "crew"));
-        // --- Critical-flow staffing -----------------------------------------------
-        // Drive-thru, front counter, and a kitchen spot must never be empty, and there
-        // is always at least one manager. When crew is thin a manager fills the empty
-        // critical spot — floor managers (asst/GM) step in first so the shift manager
-        // can keep expediting; a crew member is the last resort so a spot is never empty.
-        var mgrs = new List<string>();
-        for (int i = 0; i < _sim.AsstMgr; i++) mgrs.Add("assistant_manager");
-        for (int i = 0; i < _sim.RestMgr; i++) mgrs.Add("restaurant_manager");
-        for (int i = 0; i < _sim.ShiftMgr; i++) mgrs.Add("shift_manager");
-        if (mgrs.Count == 0) mgrs.Add("assistant_manager");
-
-        var gaps = new List<string>();
-        if (!Has(spec, "work_dt")) gaps.Add("work_dt");
-        if (!Has(spec, "work_counter", "work_counter2")) gaps.Add("work_counter");
-        if (!Has(spec, "work_grill", "work_assembly", "work_expo", "work_fryer", "work_prep")) gaps.Add("work_grill");
-
-        int m = 0;
-        foreach (var g in gaps)
-            spec.Add((g, m < mgrs.Count ? mgrs[m++] : "crew"));   // manager fills the gap; crew only if no manager spare
-
-        for (; m < mgrs.Count; m++)                               // leftover managers do their normal jobs
-            spec.Add((mgrs[m] == "shift_manager" ? "work_expo" : "work_office", mgrs[m]));
-
+        var spec = new List<(string, string, int, string)>();
+        foreach (var (sh, _) in _roster.PresentAt(RosterDay, minute))
+        {
+            string role = sh.Role switch
+            {
+                CrewRole.ShiftManager      => "shift_manager",
+                CrewRole.AssistantManager  => "assistant_manager",
+                CrewRole.RestaurantManager => "restaurant_manager",
+                _                          => "crew",   // Crew + Lead render and behave as crew
+            };
+            spec.Add((sh.Station, role, sh.EmployeeId, sh.Name));
+        }
         return spec;
     }
 

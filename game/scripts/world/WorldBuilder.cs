@@ -127,8 +127,8 @@ public static class WorldBuilder
         // booths along the front wall (non-obstacle name so guests can path to a seat); avoid the center door (x -1..1)
         foreach (var (x, z) in new[] { (-8f,6.2f), (-5f,6.2f), (-2.5f,6.2f), (2.5f,6.2f), (5f,6.2f), (8f,6.2f) })
         {
-            Box(w, new Vector3(1.6f, 0.45f, 0.7f), new Vector3(x, 0.23f, z), Accent, "booth");
-            Box(w, new Vector3(1.6f, 0.55f, 0.12f), new Vector3(x, 0.55f, z + 0.3f), new Color(0.72f,0.55f,0.38f), "booth_back");
+            Box(w, new Vector3(1.3f, 0.45f, 1.0f), new Vector3(x, 0.225f, z), Accent, "booth");
+            Box(w, new Vector3(1.3f, 0.7f, 0.12f), new Vector3(x, 0.80f, z + 0.44f), new Color(0.72f,0.55f,0.38f), "booth_back");
             L.Tables.Add(new Vector3(x, 0, z - 0.8f));
         }
         // free-standing tables + chairs, spaced with room to walk between
