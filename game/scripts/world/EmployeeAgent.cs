@@ -25,17 +25,17 @@ public partial class EmployeeAgent : CharacterRig
     public System.Collections.Generic.List<Vector3> PatrolRoute = new();
     int _patrolIdx;
     float _patrolPause;
-    Vector3 _greetPos;
+    Node3D? _greetTarget;
     bool _greeting, _waved;
     float _greetTimer, _greetCooldown;
     const float GreetRange = 5f;
     System.Random _vis = new(7);
 
     /// Manager interrupts patrol to greet a newly arrived customer (approach if far, then face + wave).
-    public void GoGreet(Vector3 customerPos)
+    public void GoGreet(Node3D customer)
     {
         if (!Patrols || _greetCooldown > 0f) return;
-        _greetPos = customerPos; _greeting = true; _waved = false; _greetCooldown = 8f;
+        _greetTarget = customer; _greeting = true; _waved = false; _greetCooldown = 8f;
     }
 
     public void Init(int salt)
@@ -114,9 +114,11 @@ public partial class EmployeeAgent : CharacterRig
     {
         if (_greeting)
         {
-            if (FlatDist(Position, _greetPos) > GreetRange) { StepToward(_greetPos, delta); return; }  // get within range
+            if (_greetTarget == null || !IsInstanceValid(_greetTarget)) { _greeting = false; return; }  // guest already left
+            Vector3 cpos = _greetTarget.Position; cpos.Y = 0;
+            if (FlatDist(Position, cpos) > GreetRange) { StepToward(cpos, delta); return; }  // close the gap to the guest
             Moving = false;
-            FaceToward(_greetPos, delta);                                 // turn toward the customer
+            FaceToward(cpos, delta);                                      // turn toward the customer
             if (!_waved) { TriggerOneShot("waving", 2.5f); _waved = true; _greetTimer = 2.5f; }
             _greetTimer -= delta;
             if (_greetTimer <= 0) _greeting = false;                      // done -> resume patrol

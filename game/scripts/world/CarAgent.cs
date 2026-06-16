@@ -66,6 +66,46 @@ public partial class CarAgent : Node3D
         return mi;
     }
 
+    // Forward axis of the supplied car/truck GLBs is unknown until seen in-engine.
+    // If cars drive backwards, flip this to 180. The brake-light code is skipped
+    // for GLB cars (no procedural _brakeMat), so queued cars just hold position.
+    const float CarModelYawDeg = 0f;
+
+    /// Load a real vehicle GLB (res://models/vehicles/car.glb|truck.glb). Returns
+    /// false if missing so the caller can fall back to the procedural box car.
+    public bool BuildCarModel(string resPath)
+    {
+        if (!ResourceLoader.Exists(resPath)) return false;
+        var packed = ResourceLoader.Load<PackedScene>(resPath);
+        if (packed == null) return false;
+        var inst = packed.InstantiateOrNull<Node3D>();
+        if (inst == null) return false;
+        inst.RotationDegrees = new Vector3(0, CarModelYawDeg, 0);
+        AddChild(inst);
+        // sit the body base on the ground (model origin may be centered)
+        var aabb = ModelAabb(inst);
+        if (aabb.Size != Vector3.Zero) inst.Position = new Vector3(0, -aabb.Position.Y, 0);
+        return true;
+    }
+
+    static Aabb ModelAabb(Node3D root)
+    {
+        Aabb box = default; bool has = false;
+        var inv = root.GlobalTransform.AffineInverse();
+        void Walk(Node node)
+        {
+            if (node is MeshInstance3D mi && mi.Mesh != null)
+            {
+                var local = inv * mi.GlobalTransform;   // relative to the model root, any nesting depth
+                var world = local * mi.GetAabb();
+                if (!has) { box = world; has = true; } else box = box.Merge(world);
+            }
+            foreach (var c in node.GetChildren()) Walk(c);
+        }
+        Walk(root);
+        return box;
+    }
+
     /// Returns true when the car has left the lot and can be freed.
     public bool Drive(float delta, int boardIdx, int windowIdx)
     {

@@ -24,6 +24,7 @@ public partial class AgentManager : Node3D
     // RS-VS-002: imported staff models live here. The three knobs align the GLBs
     // to the procedural world — tune in-editor, then rebuild.
     const string StaffModelDir = "res://models/staff/";
+    const string CustomerModelDir = "res://models/customers/";
     public static float StaffModelScale = 1f;
     public static float StaffModelYaw = 0f;      // facing offset; flip to 180 if they face away
     public static float StaffModelYOffset = 0.1f;  // floor top sits at ~0.08–0.11; lifts feet onto it
@@ -59,19 +60,19 @@ public partial class AgentManager : Node3D
         switch (channel)
         {
             case "drive_thru": SpawnCar(orderId); break;
-            case "lobby": SpawnWalkin(orderId, channel, fromDoor: true); GreetManagers(); break;
-            case "mobile": SpawnWalkin(orderId, channel, fromDoor: true); GreetManagers(); break;
+            case "lobby": GreetManagers(SpawnWalkin(orderId, channel, fromDoor: true)); break;
+            case "mobile": GreetManagers(SpawnWalkin(orderId, channel, fromDoor: true)); break;
             case "delivery": SpawnWalkin(orderId, channel, fromDoor: true, courier: true); break;
         }
     }
 
     // Store manager (asst mgr / GM model) waves when a guest comes through the door.
-    void GreetManagers()
+    void GreetManagers(CustomerAgent? guest)
     {
-        var entry = _world.Anchor["door"];   // where customers come in
+        if (guest == null) return;
         foreach (var e in _staff)
             if (e.Role == "assistant_manager" || e.Role == "restaurant_manager")
-                e.GoGreet(entry);
+                e.GoGreet(guest);   // wave at the actual customer, not the doorway
     }
 
     // Patrol stops for the GM — work spots around the store, in a sensible loop.
@@ -89,7 +90,9 @@ public partial class AgentManager : Node3D
     {
         if (_cars.Count >= MaxCars) return;
         var car = new CarAgent { OrderId = orderId, Lane = _world.DtLane };
-        car.BuildCar(CarPaints[_vis.Next(CarPaints.Length)], _vis.Next(3));
+        bool truck = _vis.Next(4) == 0;   // ~25% pickups
+        if (!car.BuildCarModel("res://models/vehicles/" + (truck ? "truck.glb" : "car.glb")))
+            car.BuildCar(CarPaints[_vis.Next(CarPaints.Length)], _vis.Next(3));
         car.Position = _world.DtLane[0];
         car.Ahead = _cars.Count > 0 ? _cars[^1] : null;
         AddChild(car);
@@ -97,14 +100,20 @@ public partial class AgentManager : Node3D
         _byOrder[orderId] = car;
     }
 
-    void SpawnWalkin(string orderId, string channel, bool fromDoor, bool courier = false)
+    CustomerAgent? SpawnWalkin(string orderId, string channel, bool fromDoor, bool courier = false)
     {
-        if (_walkins.Count >= MaxWalkins) return;
+        if (_walkins.Count >= MaxWalkins) return null;
         var a = new CustomerAgent { OrderId = orderId, Channel = channel, Courier = courier };
         var shirt = courier ? new Color(0.9f, 0.45f, 0.1f) : Shirts[_vis.Next(Shirts.Length)];
-        a.BuildHuman(shirt, new Color(0.2f, 0.2f, 0.25f), Skins[_vis.Next(Skins.Length)],
-            courier ? new Color(0.9f, 0.45f, 0.1f) : null,
-            0.92f + (float)_vis.NextDouble() * 0.16f);   // RS-VS-001 height variance
+        float scale = 0.95f + (float)_vis.NextDouble() * 0.12f;   // RS-VS-001 height variance
+        string custFile = (_vis.Next(2) == 0 ? "customer_m.glb" : "customer_f.glb");
+        if (courier || !a.BuildModel(CustomerModelDir + custFile, scale, 0f, 0.1f))
+        {
+            // couriers and any missing-model case fall back to the procedural human
+            a.BuildHuman(shirt, new Color(0.2f, 0.2f, 0.25f), Skins[_vis.Next(Skins.Length)],
+                courier ? new Color(0.9f, 0.45f, 0.1f) : null,
+                0.92f + (float)_vis.NextDouble() * 0.16f);
+        }
         a.Position = _world.Anchor["door_out"] + new Vector3((float)(_vis.NextDouble() * 2 - 1), 0, -0.6f);  // on the sidewalk (navmesh), not out in the lot
         int q = System.Math.Min(CountQueued(), _world.QueueSpots.Count - 1);
         a.QueueSpot = channel == "lobby"
@@ -118,6 +127,7 @@ public partial class AgentManager : Node3D
         AddChild(a);
         _walkins.Add(a);
         _byOrder[orderId] = a;
+        return a;
     }
 
     int CountQueued()
@@ -155,6 +165,38 @@ public partial class AgentManager : Node3D
             }
 
         SyncStaff(d);
+        Separate();
+    }
+
+    // RS-VS-001 agent avoidance: nudge overlapping characters apart each frame so
+    // staff and customers stop clipping through one another. O(n^2) but n is small
+    // (~20-40 agents); a small push off the navmesh is re-pathed next frame.
+    void Separate()
+    {
+        var all = new List<Node3D>(_staff.Count + _walkins.Count);
+        all.AddRange(_staff);
+        all.AddRange(_walkins);
+        const float minGap = 0.62f;                 // personal-space radius (sum of half-widths)
+        for (int i = 0; i < all.Count; i++)
+        {
+            for (int j = i + 1; j < all.Count; j++)
+            {
+                var a = all[i]; var b = all[j];
+                var delta = a.Position - b.Position; delta.Y = 0f;
+                float dist = delta.Length();
+                if (dist > 1e-3f && dist < minGap)
+                {
+                    var push = delta / dist * ((minGap - dist) * 0.5f);   // each moves half the overlap
+                    a.Position += push;
+                    b.Position -= push;
+                }
+                else if (dist <= 1e-3f)                                    // exactly stacked: deterministic nudge
+                {
+                    var jitter = new Vector3(((i * 13 + j) % 7 - 3) * 0.05f, 0f, ((i * 7 + j) % 5 - 2) * 0.05f);
+                    a.Position += jitter;
+                }
+            }
+        }
     }
 
     void Free(CustomerAgent a, int idx)
@@ -202,9 +244,9 @@ public partial class AgentManager : Node3D
                 e.HomeSpot = _world.Anchor[key] + new Vector3((i % 3) * 0.55f - 0.55f, 0, 0);
                 e.FaceTarget = FaceFor(key, e.HomeSpot);
                 e.HasFace = true;
-                if (role == "assistant_manager" || role == "restaurant_manager")
+                if ((role == "assistant_manager" || role == "restaurant_manager") && key == "work_office")
                 {
-                    e.Patrols = true;                       // GM walks the floor checking workflow
+                    e.Patrols = true;                       // GM walks the floor only when not filling a critical spot
                     e.PatrolRoute = PatrolWaypoints();
                 }
                 if (key == "work_counter" || key == "work_counter2")
@@ -246,6 +288,14 @@ public partial class AgentManager : Node3D
         return home + new Vector3(0, 0, -1f);
     }
 
+    static bool Has(List<(string Station, string Role)> spec, params string[] stations)
+    {
+        foreach (var s in spec)
+            foreach (var st in stations)
+                if (s.Station == st) return true;
+        return false;
+    }
+
     List<(string Station, string Role)> BuildStaffSpec()
     {
         var spec = new List<(string, string)>();
@@ -257,16 +307,29 @@ public partial class AgentManager : Node3D
         string[] counterCycle = { "work_counter", "work_counter2" };
         for (int i = 0; i < _sim.CounterCoverage; i++) spec.Add((counterCycle[i % counterCycle.Length], "crew"));
         for (int i = 0; i < _sim.PrepCoverage; i++) spec.Add(("work_prep", "crew"));
-        // The drive-thru is always open, so make sure someone mans it even at thin coverage.
-        bool hasDt = false;
-        foreach (var s in spec) if (s.Item1 == "work_dt") { hasDt = true; break; }
-        if (!hasDt) spec.Add(("work_dt", "crew"));
-        // Managers each get their own model by role.
-        for (int i = 0; i < _sim.ShiftMgr; i++) spec.Add(("work_expo", "shift_manager"));  // shift mgr expedites
-        for (int i = 0; i < _sim.AsstMgr; i++) spec.Add(("work_office", "assistant_manager"));
-        for (int i = 0; i < _sim.RestMgr; i++) spec.Add(("work_office", "restaurant_manager"));
-        // A store manager (asst mgr or GM) always runs the shift; stand one in if the roster has neither.
-        if (_sim.AsstMgr == 0 && _sim.RestMgr == 0) spec.Add(("work_office", "assistant_manager"));
+        // --- Critical-flow staffing -----------------------------------------------
+        // Drive-thru, front counter, and a kitchen spot must never be empty, and there
+        // is always at least one manager. When crew is thin a manager fills the empty
+        // critical spot — floor managers (asst/GM) step in first so the shift manager
+        // can keep expediting; a crew member is the last resort so a spot is never empty.
+        var mgrs = new List<string>();
+        for (int i = 0; i < _sim.AsstMgr; i++) mgrs.Add("assistant_manager");
+        for (int i = 0; i < _sim.RestMgr; i++) mgrs.Add("restaurant_manager");
+        for (int i = 0; i < _sim.ShiftMgr; i++) mgrs.Add("shift_manager");
+        if (mgrs.Count == 0) mgrs.Add("assistant_manager");
+
+        var gaps = new List<string>();
+        if (!Has(spec, "work_dt")) gaps.Add("work_dt");
+        if (!Has(spec, "work_counter", "work_counter2")) gaps.Add("work_counter");
+        if (!Has(spec, "work_grill", "work_assembly", "work_expo", "work_fryer", "work_prep")) gaps.Add("work_grill");
+
+        int m = 0;
+        foreach (var g in gaps)
+            spec.Add((g, m < mgrs.Count ? mgrs[m++] : "crew"));   // manager fills the gap; crew only if no manager spare
+
+        for (; m < mgrs.Count; m++)                               // leftover managers do their normal jobs
+            spec.Add((mgrs[m] == "shift_manager" ? "work_expo" : "work_office", mgrs[m]));
+
         return spec;
     }
 
