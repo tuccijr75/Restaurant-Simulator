@@ -152,14 +152,14 @@ public partial class CharacterRig : Node3D
                 _bLegR = FindBone(new[] { "upleg", "thigh", "upperleg", "upper_leg", "hip", "leg" }, R, new[] { "lower", "fore", "foot", "toe" });
                 _boneDriven = _bArmL >= 0 || _bArmR >= 0 || _bLegL >= 0 || _bLegR >= 0;
                 GD.Print($"[Agent] {System.IO.Path.GetFileName(resPath)} skeleton bones={_skel.GetBoneCount()} " +
-                         $"armL={Name(_bArmL)} armR={Name(_bArmR)} legL={Name(_bLegL)} legR={Name(_bLegR)} spine={Name(_bSpine)} " +
+                         $"armL={BoneName(_bArmL)} armR={BoneName(_bArmR)} legL={BoneName(_bLegL)} legR={BoneName(_bLegR)} spine={BoneName(_bSpine)} " +
                          $"=> {(_boneDriven ? "procedural bone-drive ON" : "no recognizable limb bones")}");
             }
         }
         return true;
     }
 
-    string Name(int idx) => _skel != null && idx >= 0 ? _skel.GetBoneName(idx) : "-";
+    string BoneName(int idx) => _skel != null && idx >= 0 ? _skel.GetBoneName(idx) : "-";
 
     static Skeleton3D? FindSkel(Node n)
     {

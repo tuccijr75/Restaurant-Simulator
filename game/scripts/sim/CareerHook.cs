@@ -23,8 +23,8 @@ public partial class CareerHook : Node
 
     public CareerState State { get; private set; } = new();
 
-    Node _sceneSeen;
-    SimRunState _sim;
+    Node? _sceneSeen;
+    SimRunState? _sim;
     bool _configured;
 
     public override void _Ready()
@@ -140,8 +140,11 @@ public partial class CareerHook : Node
             {
                 using var f = FileAccess.Open(path, FileAccess.ModeFlags.Read);
                 var c = new IngredientCatalog();
-                c.Load(f.GetAsText());
-                if (c.Loaded) return c;
+                if (f != null)
+                {
+                    c.Load(f.GetAsText());
+                    if (c.Loaded) return c;
+                }
             }
         }
         catch (Exception e) { GD.PrintErr("[CareerHook] catalog load failed, using embedded: " + e.Message); }
@@ -149,7 +152,7 @@ public partial class CareerHook : Node
     }
 
     // ---- locate the SimRunState living inside the scene (any node, any field/prop) ----
-    static T FindNode<T>(Node root) where T : class
+    static T? FindNode<T>(Node? root) where T : class
     {
         if (root == null) return null;
         if (root is T t) return t;
@@ -161,7 +164,7 @@ public partial class CareerHook : Node
         return null;
     }
 
-    static SimRunState FindSim(Node root)
+    static SimRunState? FindSim(Node? root)
     {
         if (root == null) return null;
         var found = ScanNode(root);
@@ -174,7 +177,7 @@ public partial class CareerHook : Node
         return null;
     }
 
-    static SimRunState ScanNode(Node node)
+    static SimRunState? ScanNode(Node node)
     {
         var t = node.GetType();
         const BindingFlags flags = BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic;
@@ -202,8 +205,11 @@ public partial class CareerHook : Node
             if (FileAccess.FileExists(CareerPath))
             {
                 using var f = FileAccess.Open(CareerPath, FileAccess.ModeFlags.Read);
-                State = CareerState.FromJson(f.GetAsText());
-                return;
+                if (f != null)
+                {
+                    State = CareerState.FromJson(f.GetAsText());
+                    return;
+                }
             }
         }
         catch (Exception e) { GD.PrintErr("[CareerHook] load failed, starting new week: " + e.Message); }
@@ -217,7 +223,7 @@ public partial class CareerHook : Node
         {
             DirAccess.MakeDirRecursiveAbsolute(ProjectSettings.GlobalizePath(CareerDir));
             using var f = FileAccess.Open(CareerPath, FileAccess.ModeFlags.Write);
-            f.StoreString(State.ToJson());
+            f?.StoreString(State.ToJson());
         }
         catch (Exception e) { GD.PrintErr("[CareerHook] save failed: " + e.Message); }
     }

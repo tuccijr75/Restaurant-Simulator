@@ -33,7 +33,7 @@ foreach (var scenario in scenarios)
 int ingredientPass = 0, ingredientFail = 0;
 Console.WriteLine("=================== INGREDIENT MODEL (RS-IM-001) ===================");
 {
-    string catJson = null;
+    string? catJson = null;
     foreach (var p in new[] { "../../game/config/ingredients.json", "game/config/ingredients.json" })
         if (System.IO.File.Exists(p)) { catJson = System.IO.File.ReadAllText(p); break; }
     var cat = new IngredientCatalog();

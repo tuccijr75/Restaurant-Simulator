@@ -70,7 +70,7 @@ public sealed class IngredientCatalog
         catch { Loaded = false; }
     }
 
-    public Ingredient Get(string id) => Items.TryGetValue(id, out var i) ? i : null;
+    public Ingredient? Get(string id) => Items.TryGetValue(id, out var i) ? i : null;
     public IReadOnlyList<(string Ingredient,double Qty)> BomFor(string menuItem) =>
         Bom.TryGetValue(menuItem, out var b) ? b : Array.Empty<(string,double)>();
 

@@ -14,7 +14,7 @@ public class SimRunState{
   public double Created;
   public double Total;                 // RS-HQ-001: reversible on abandonment
   public double MinQuality=100;        // worst freshness drawn from hold
-  public bool Remade,HandoffQueued,Abandoned,Comped;
+  public bool Remade,HandoffQueued,Abandoned;
   public int IntakeTaskId;             // RS-FE-001: kitchen waits for order intake
   public List<EquipTask> Tasks=new();
   public List<PendingItem> Pending=new(); // items waiting on hold stock (item.taken deferred)
@@ -492,8 +492,8 @@ public class SimRunState{
  // (scenario,seed) replay stays byte-identical; Godot/harness set EnableRealIngredients
  // before the run when config/ingredients.json is available.
  public bool EnableRealIngredients;
- public IngredientCatalog Catalog;
- IngredientLedger ingredients;
+ public IngredientCatalog? Catalog;
+ IngredientLedger? ingredients;
  double lastIngredientTick=360;
  static readonly Dictionary<string,string> abstractToMenu=new(){
   {"fried_main","crispy_chicken_sandwich"},{"grilled_main","classic_burger"},{"side","fries"},{"beverage","fountain_drink"}};
