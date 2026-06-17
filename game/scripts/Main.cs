@@ -15,6 +15,7 @@ public partial class Main : Node3D
     Hud3D _hud = null!;
     GameplayUi _gameplay = null!;
     VitalsAndFx _vitals = null!;
+    StaffUi _staffUi = null!;
     CanvasLayer _dashLayer = null!;
     bool _roofManualHide;
 
@@ -45,6 +46,10 @@ public partial class Main : Node3D
         AddChild(_vitals);
         _vitals.Init(_sim, _world);
 
+        _staffUi = new StaffUi { Name = "StaffUi" };
+        AddChild(_staffUi);
+        _staffUi.Init(_agents);
+
         // Existing 2D dashboard, shared sim, hidden until TAB.
         // MUST be created BEFORE KillFocus(_dashLayer): _dashLayer was previously
         // assigned after the KillFocus calls, so KillFocus(null) threw in _Ready,
@@ -63,6 +68,7 @@ public partial class Main : Node3D
         // the dashboard exists so its buttons are actually covered.
         KillFocus(_dashLayer);
         KillFocus(_gameplay);
+        KillFocus(_staffUi);
         if (InputMap.HasAction("ui_focus_next")) InputMap.ActionEraseEvents("ui_focus_next");
         if (InputMap.HasAction("ui_focus_prev")) InputMap.ActionEraseEvents("ui_focus_prev");
     }
@@ -97,19 +103,24 @@ public partial class Main : Node3D
         foreach (var l in _world.InteriorLights) l.LightEnergy = Mathf.Lerp(0.25f, 1.3f, darkness);
     }
 
-    // RS-GP-001: click a station to open its control panel.
-    void TryPickStation(Vector2 screenPos)
+    // RS-GP-001: click a station to open its control panel. Returns true if a
+    // station was hit, so the caller can fall through to employee picking otherwise.
+    bool TryPickStation(Vector2 screenPos)
     {
         var cam = GetViewport().GetCamera3D();
-        if (cam == null) return;
+        if (cam == null) return false;
         var from = cam.ProjectRayOrigin(screenPos);
         var to = from + cam.ProjectRayNormal(screenPos) * 80f;
         var q = PhysicsRayQueryParameters3D.Create(from, to);
         var hit = GetWorld3D().DirectSpaceState.IntersectRay(q);
-        if (hit.Count == 0) return;
+        if (hit.Count == 0) return false;
         var collider = hit["collider"].As<Node>();
         if (collider != null && collider.HasMeta("station"))
+        {
             _gameplay.OpenStation(collider.GetMeta("station").AsString());
+            return true;
+        }
+        return false;
     }
 
     static void KillFocus(Node n)
@@ -158,7 +169,7 @@ public partial class Main : Node3D
         if (@event is InputEventMouseButton mb && mb.Pressed && mb.ButtonIndex == MouseButton.Left
             && Input.MouseMode != Input.MouseModeEnum.Captured && !_dashLayer.Visible)
         {
-            TryPickStation(mb.Position);
+            if (!TryPickStation(mb.Position)) _staffUi.TryPickEmployee(mb.Position);   // station first, then a crew member
             return;
         }
         if (@event is not InputEventKey k || !k.Pressed || k.Echo) return;
@@ -182,6 +193,7 @@ public partial class Main : Node3D
             case Key.Key0: _cams.Select(9); break;
             case Key.R: _roofManualHide = !_roofManualHide; break;
             case Key.M: _sim.ToggleManagerMode(); break;
+            case Key.P: _staffUi.ToggleSchedule(); break;   // #10 staff schedule
             case Key.F9:
                 if (_hud.ReportVisible) _hud.HideReport();
                 else _hud.ShowReport(SelfTest.Run(_sim.Scenario, _sim.Seed));

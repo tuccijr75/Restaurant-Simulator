@@ -31,6 +31,7 @@ public partial class CareerHook : Node
     {
         ProcessMode = ProcessModeEnum.Always; // keep working while the sim is paused
         Load();
+        AgentManager.RosterWeekSeed = State.WeekSeed;   // roster shares the career week seed
         GD.Print($"[CareerHook] ready — week_seed={State.WeekSeed} day={State.DayIndex}/{CareerState.DaysPerWeek} reputation={State.Reputation:0.0} (F5 export, F6 advance day, F7 reset week)");
     }
 
@@ -54,6 +55,8 @@ public partial class CareerHook : Node
         if (_sim != null && !_configured && _sim.EventSeq == 0 && !State.WeekComplete)
         {
             ConfigureSim(_sim);
+            var agents = FindNode<AgentManager>(scene);   // point the floor roster at today
+            if (agents != null) agents.RosterDay = State.DayIndex % 7;
             _configured = true;
         }
     }
@@ -146,6 +149,18 @@ public partial class CareerHook : Node
     }
 
     // ---- locate the SimRunState living inside the scene (any node, any field/prop) ----
+    static T FindNode<T>(Node root) where T : class
+    {
+        if (root == null) return null;
+        if (root is T t) return t;
+        foreach (var child in root.GetChildren())
+        {
+            var r = FindNode<T>(child);
+            if (r != null) return r;
+        }
+        return null;
+    }
+
     static SimRunState FindSim(Node root)
     {
         if (root == null) return null;
