@@ -16,6 +16,7 @@ public sealed class WorldLayout
     public readonly Dictionary<string, Vector3> Anchor = new();
     public readonly List<Vector3> DtLane = new();        // drive-thru waypoints
     public readonly List<Vector3> QueueSpots = new();    // lobby register queue
+    public readonly List<Vector3> ParkingSpots = new();  // customer parking stall walk-up points
     public readonly List<Vector3> Tables = new();        // dining seats
     public NavigationRegion3D NavRegion = null!;         // baked walkable area
     public Vector3 Door => Anchor["door"];
@@ -164,6 +165,13 @@ public static class WorldBuilder
             Box(w, new Vector3(0.14f, 0.13f, 5.0f), new Vector3(x, 0.0f, 13.5f), new Color(0.92f, 0.92f, 0.92f), "stripe");
         }
         L.Anchor["parking_row"] = new Vector3(-9, 0, 13.5f);
+        Box(w, new Vector3(24f, 0.14f, 1.4f), new Vector3(0f, -0.016f, 12.1f), new Color(0.7f, 0.7f, 0.7f), "sidewalk");
+        Box(w, new Vector3(2.2f, 0.14f, 4.4f), new Vector3(0f, -0.018f, 11.4f), new Color(0.7f, 0.7f, 0.7f), "sidewalk");
+        for (int i = 0; i < 7; i++)
+        {
+            float x = -9.0f + i * 3.0f;
+            L.ParkingSpots.Add(new Vector3(x, 0, 12.1f));
+        }
         // sidewalk outside the second (east) entrance so the doorway connects to walkable nav
         Box(w, new Vector3(1.8f, 0.14f, 6f), new Vector3(13.1f, -0.02f, 4.8f), new Color(0.7f, 0.7f, 0.7f), "sidewalk");
         Pole(w, new Vector3(20, 0, 18), "pole_sign", topSign: true);

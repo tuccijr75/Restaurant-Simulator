@@ -14,6 +14,7 @@ public partial class AgentManager : Node3D
 
     readonly List<CustomerAgent> _walkins = new();
     readonly List<CarAgent> _cars = new();
+    readonly Dictionary<string, Node3D> _parkedCars = new();
     readonly Dictionary<string, Node> _byOrder = new();
     readonly List<EmployeeAgent> _staff = new();
     string _staffSignature = "";
@@ -132,6 +133,12 @@ public partial class AgentManager : Node3D
                 0.92f + (float)_vis.NextDouble() * 0.16f);
         }
         a.Position = _world.Anchor["door_out"] + new Vector3((float)(_vis.NextDouble() * 2 - 1), 0, -0.6f);  // on the sidewalk (navmesh), not out in the lot
+        var parkingSpot = SelectParkingSpot(channel, courier);
+        if (parkingSpot.HasValue)
+        {
+            a.Position = parkingSpot.Value + new Vector3((float)(_vis.NextDouble() * 0.5f - 0.25f), 0, 0.15f);
+            SpawnParkedCar(orderId, parkingSpot.Value);
+        }
         int q = System.Math.Min(CountQueued(), _world.QueueSpots.Count - 1);
         a.QueueSpot = channel == "lobby"
             ? _world.QueueSpots[q]
@@ -140,13 +147,49 @@ public partial class AgentManager : Node3D
         bool dines = channel == "lobby" && !courier && _vis.NextDouble() < 0.45 && _world.Tables.Count > 0;
         a.TableSpot = dines ? _world.Tables[_vis.Next(_world.Tables.Count)] : Vector3.Zero;
         a.BusSpot = _world.Anchor["pickup"] + new Vector3((float)(_vis.NextDouble() * 1.2 - 0.6), 0, 0.5f);  // #6 return the tray to the counter
-        a.ExitSpot = _world.Anchor["door_out"] + new Vector3((float)(_vis.NextDouble() * 2 - 1), 0, -0.8f);  // reachable point on the sidewalk so they actually despawn
+        a.ExitSpot = parkingSpot ?? _world.Anchor["door_out"] + new Vector3((float)(_vis.NextDouble() * 2 - 1), 0, -0.8f);  // reachable point so they actually despawn
         a.Configure(orderPause: channel == "lobby" ? 6f : 0f, dineSeconds: dines ? 25f + _vis.Next(40) : 0f);
         AddChild(a);
         _walkins.Add(a);
         _byOrder[orderId] = a;
         return a;
     }
+
+    Vector3? SelectParkingSpot(string channel, bool courier)
+    {
+        if (channel != "lobby" || courier || _world.ParkingSpots.Count == 0 || _vis.NextDouble() > 0.6) return null;
+
+        int start = _vis.Next(_world.ParkingSpots.Count);
+        for (int i = 0; i < _world.ParkingSpots.Count; i++)
+        {
+            var spot = _world.ParkingSpots[(start + i) % _world.ParkingSpots.Count];
+            bool occupied = false;
+            foreach (var parked in _parkedCars.Values)
+            {
+                if (parked != null && IsInstanceValid(parked) && parked.Position.DistanceSquaredTo(CarSpotFor(spot)) < 1.0f)
+                {
+                    occupied = true;
+                    break;
+                }
+            }
+            if (!occupied) return spot;
+        }
+        return null;
+    }
+
+    void SpawnParkedCar(string orderId, Vector3 walkSpot)
+    {
+        var car = new CarAgent();
+        bool truck = _vis.Next(4) == 0;
+        if (!car.BuildCarModel("res://models/vehicles/" + (truck ? "truck.glb" : "car.glb")))
+            car.BuildCar(CarPaints[_vis.Next(CarPaints.Length)], _vis.Next(3));
+        car.Position = CarSpotFor(walkSpot);
+        car.RotationDegrees = new Vector3(0, 180f, 0);
+        AddChild(car);
+        _parkedCars[orderId] = car;
+    }
+
+    static Vector3 CarSpotFor(Vector3 walkSpot) => walkSpot + new Vector3(0, 0, 1.7f);
 
     int CountQueued()
     {
@@ -220,6 +263,11 @@ public partial class AgentManager : Node3D
     void Free(CustomerAgent a, int idx)
     {
         _byOrder.Remove(a.OrderId);
+        if (_parkedCars.TryGetValue(a.OrderId, out var car))
+        {
+            if (car != null && IsInstanceValid(car)) car.QueueFree();
+            _parkedCars.Remove(a.OrderId);
+        }
         a.QueueFree();
         _walkins.RemoveAt(idx);
     }
