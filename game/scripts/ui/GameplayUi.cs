@@ -115,7 +115,12 @@ public partial class GameplayUi : CanvasLayer
         else if (_station == "fryer") { _sim.DropBatch("fried_main"); _sim.DropBatch("fries"); }
     }
 
-    public void OpenStation(string id) { _station = id; _stationPanel.Visible = true; }
+    public void OpenStation(string id)
+    {
+        _station = id;
+        _stationPanel.Visible = true;
+        UpdateStationPanel();
+    }
 
     public override void _Process(double delta)
     {
@@ -167,5 +172,69 @@ public partial class GameplayUi : CanvasLayer
             _sim.WorstEquipment,
             _sim.InspectionScore < 0 ? (_sim.InspectorIncoming ? "incoming!" : "pending") : _sim.InspectionScore.ToString("0", inv),
             _sim.OvertimePremium, _sim.CompCost, _sim.MaintSpend, _sim.SupplyRunCost);
+
+        if (_stationPanel.Visible) UpdateStationPanel();
+    }
+
+    void UpdateStationPanel()
+    {
+        _stationTitle.Text = StationTitle(_station);
+        _stationInfo.Text = StationDetails(_station);
+    }
+
+    string StationTitle(string id) => id switch
+    {
+        "pos_register_1" => "POS 1 - Front Counter",
+        "pos_register_2" => "POS 2 - Front Counter",
+        "mobile_shelf" => "Mobile Pickup Shelf",
+        "dt_window" => "Drive-Thru Window",
+        "order_board" => "Drive-Thru Order Board",
+        "beverage" => "Beverage Station",
+        "grill" => "Grill Station",
+        "fryer" => "Fryer Station",
+        "assembly" => "Assembly Station",
+        "expo" => "Expo Station",
+        "prep" => "Prep Station",
+        "cooler" => "Walk-In Cooler",
+        _ => id.Length == 0 ? "Station" : id.Replace('_', ' ').ToUpperInvariant(),
+    };
+
+    string StationDetails(string id)
+    {
+        var inv = CultureInfo.InvariantCulture;
+        return id switch
+        {
+            "pos_register_1" or "pos_register_2" =>
+                string.Format(inv,
+                    "Front counter orders {0}\nOpen tickets {1}  Completed {2}\nCounter SOS {3:0}s  Abandoned {4}\nCounter coverage {5}  Open labor {6}\nProjected 30m sales ${7:0}",
+                    _sim.FrontCounter, _sim.Tickets, _sim.CompletedTickets, _sim.FcSos, _sim.AbandonedTickets,
+                    _sim.CounterCoverage, _sim.CoverageOpen, _sim.ProjectedSalesThis30),
+            "mobile_shelf" =>
+                string.Format(inv,
+                    "Mobile orders {0}\nPickup handoff queue shares expo load {1}\nOpen tickets {2}  Completed {3}\nCounter coverage {4}",
+                    _sim.Mobile, _sim.ExpoLoad, _sim.Tickets, _sim.CompletedTickets, _sim.CounterCoverage),
+            "dt_window" or "order_board" =>
+                string.Format(inv,
+                    "Drive-thru orders {0}\nDT SOS {1:0}s  Balked cars {2}\nDrive coverage {3}  Window load {4}\nOpen labor {5}",
+                    _sim.DriveThru, _sim.DtSos, _sim.BalkedCars, _sim.DriveCoverage, _sim.ExpoLoad, _sim.CoverageOpen),
+            "grill" =>
+                string.Format(inv, "Load {0}/{1:0}  Backlog {2:0.0}m\nHeld grilled {3:0}/{4:0}\nWorst equipment {5}",
+                    _sim.GrillLoad, _sim.GrillCapacity, _sim.GrillBacklogMinutes, _sim.HoldLevel("grilled_main"), _sim.HoldCapacity("grilled_main"), _sim.WorstEquipment),
+            "fryer" =>
+                string.Format(inv, "Load {0}/{1:0}  Backlog {2:0.0}m\nHeld fried {3:0}/{4:0}  fries {5:0}/{6:0}\nWorst equipment {7}",
+                    _sim.FryerLoad, _sim.FryerCapacity, _sim.FryerBacklogMinutes, _sim.HoldLevel("fried_main"), _sim.HoldCapacity("fried_main"), _sim.HoldLevel("fries"), _sim.HoldCapacity("fries"), _sim.WorstEquipment),
+            "assembly" =>
+                string.Format(inv, "Assembly load {0}/{1:0}\nBacklog {2:0.0}m\nKitchen coverage {3}",
+                    _sim.AssemblyLoad, _sim.AssemblyCapacity, _sim.AssemblyBacklogMinutes, _sim.KitchenCoverage),
+            "expo" or "beverage" =>
+                string.Format(inv, "Expo/beverage load {0}/{1:0}\nBacklog {2:0.0}m\nBottleneck {3}",
+                    _sim.ExpoLoad, _sim.ExpoCapacity + _sim.BeverageCapacity, _sim.ExpoBacklogMinutes, _sim.BottleneckStation),
+            "prep" or "cooler" =>
+                string.Format(inv, "Prep {0:0}  Raw {1:0}\nCooler {2:0.0}F  Inspection {3}\nPrep coverage {4}",
+                    _sim.Prep, _sim.Raw, _sim.CoolerTemp, _sim.InspectionScore < 0 ? "pending" : _sim.InspectionScore.ToString("0", inv), _sim.PrepCoverage),
+            _ =>
+                string.Format(inv, "Bottleneck {0}  Risk {1}\nOpen tickets {2}  Completed {3}\nCoverage used {4}/{5}",
+                    _sim.BottleneckStation, _sim.DelayRisk ? "YES" : "no", _sim.Tickets, _sim.CompletedTickets, _sim.CoverageUsed, _sim.CoveragePool),
+        };
     }
 }

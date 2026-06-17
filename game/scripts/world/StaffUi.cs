@@ -13,17 +13,22 @@ namespace RestaurantSimulator;
 public partial class StaffUi : CanvasLayer
 {
     AgentManager _agents = null!;
+    CameraDirector _cams = null!;
     EmployeeAgent? _selected;
     float _refresh;
     bool _scheduleVisible;
 
     Panel _inspect = null!;
     Label _inspectLabel = null!;
-    Button _returnBtn = null!;
+    Button _returnBtn = null!, _followBtn = null!;
     Panel _schedule = null!;
     Label _scheduleLabel = null!;
 
-    public void Init(AgentManager agents) => _agents = agents;
+    public void Init(AgentManager agents, CameraDirector cams)
+    {
+        _agents = agents;
+        _cams = cams;
+    }
 
     public override void _Ready()
     {
@@ -33,7 +38,7 @@ public partial class StaffUi : CanvasLayer
         _inspect = new Panel { Visible = false };
         _inspect.AnchorTop = 1; _inspect.AnchorBottom = 1;
         _inspect.OffsetLeft = 16; _inspect.OffsetRight = 372;
-        _inspect.OffsetTop = -256; _inspect.OffsetBottom = -16;
+        _inspect.OffsetTop = -292; _inspect.OffsetBottom = -16;
         AddChild(_inspect);
 
         var vb = new VBoxContainer();
@@ -47,10 +52,19 @@ public partial class StaffUi : CanvasLayer
         _inspectLabel.SizeFlagsVertical = Control.SizeFlags.ExpandFill;
         vb.AddChild(_inspectLabel);
 
+        var actions = new HBoxContainer();
+        actions.AddThemeConstantOverride("separation", 8);
+        vb.AddChild(actions);
+
         _returnBtn = new Button { Text = "Return to station" };
         _returnBtn.FocusMode = Control.FocusModeEnum.None;
         _returnBtn.Pressed += OnReturnPressed;
-        vb.AddChild(_returnBtn);
+        actions.AddChild(_returnBtn);
+
+        _followBtn = new Button { Text = "Follow camera" };
+        _followBtn.FocusMode = Control.FocusModeEnum.None;
+        _followBtn.Pressed += OnFollowPressed;
+        actions.AddChild(_followBtn);
 
         // ---- #10 schedule panel (top-right) ----
         _schedule = new Panel { Visible = false };
@@ -75,6 +89,12 @@ public partial class StaffUi : CanvasLayer
         if (_selected != null && IsInstanceValid(_selected)) _selected.ReturnToStation();
     }
 
+    void OnFollowPressed()
+    {
+        if (_selected != null && IsInstanceValid(_selected) && _cams != null)
+            _cams.Follow(_selected, _selected.EmpName);
+    }
+
     // Returns true if a staff member was clicked (so the caller stops there).
     public bool TryPickEmployee(Vector2 screenPos)
     {
@@ -84,6 +104,8 @@ public partial class StaffUi : CanvasLayer
 
         EmployeeAgent? best = null;
         float bestScore = 1f;
+        var rayFrom = cam.ProjectRayOrigin(screenPos);
+        var rayDir = cam.ProjectRayNormal(screenPos).Normalized();
         foreach (var e in _agents.Staff)
         {
             if (e == null || !IsInstanceValid(e)) continue;
@@ -96,6 +118,8 @@ public partial class StaffUi : CanvasLayer
             float screenHeight = screenFoot.DistanceTo(screenHead);
             float pickRadius = Mathf.Clamp(screenHeight * 0.45f, 38f, 98f);
             float nearest = DistanceToProjectedBody(cam, e.GlobalPosition, screenPos);
+            float rayMiss = DistanceRayToSegment(rayFrom, rayDir, foot, head);
+            if (rayMiss < 0.42f) nearest = Mathf.Min(nearest, pickRadius * 0.35f);
             float score = nearest / pickRadius;
             if (score < bestScore) { bestScore = score; best = e; }
         }
@@ -104,6 +128,20 @@ public partial class StaffUi : CanvasLayer
         _inspect.Visible = best != null;
         if (best != null) UpdateInspect();
         return best != null;
+    }
+
+    static float DistanceRayToSegment(Vector3 rayFrom, Vector3 rayDir, Vector3 a, Vector3 b)
+    {
+        float best = float.MaxValue;
+        for (int i = 0; i <= 6; i++)
+        {
+            var p = a.Lerp(b, i / 6f);
+            var along = (p - rayFrom).Dot(rayDir);
+            if (along < 0f) continue;
+            var closest = rayFrom + rayDir * along;
+            best = Mathf.Min(best, closest.DistanceTo(p));
+        }
+        return best;
     }
 
     static float DistanceToProjectedBody(Camera3D cam, Vector3 origin, Vector2 screenPos)

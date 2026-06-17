@@ -17,15 +17,18 @@ public partial class CameraDirector : Node3D
 
     readonly List<CamDef> _cams = new();
     Camera3D _free = null!;
+    Camera3D _follow = null!;
+    Node3D? _followTarget;
+    string _followName = "";
     int _current;
-    bool _tour, _freeMode;
+    bool _tour, _freeMode, _followMode;
     float _tourTimer;
     const float TourSeconds = 7f;
     Vector2 _look;
 
-    public string CurrentName => _freeMode ? "FREE CAM" : _cams.Count == 0 ? "-" : _cams[_current].Name;
-    public bool TourOn => _tour;
-    public bool IsOverhead => !_freeMode && _cams.Count > 0 && _cams[_current].Name.Contains("OVERHEAD");
+    public string CurrentName => _followMode ? "FOLLOW " + _followName : _freeMode ? "FREE CAM" : _cams.Count == 0 ? "-" : _cams[_current].Name;
+    public bool TourOn => _tour && !_followMode;
+    public bool IsOverhead => !_freeMode && !_followMode && _cams.Count > 0 && _cams[_current].Name.Contains("OVERHEAD");
     public bool IsFreeHigh => _freeMode && _free.Position.Y > 5.2f;
 
     public void Build(Node3D root, WorldLayout w)
@@ -33,16 +36,16 @@ public partial class CameraDirector : Node3D
         // (name, mount position, look-at target)
         var defs = new (string, Vector3, Vector3)[]
         {
-            ("CAM-01 GRILL",        new Vector3(-8.5f, 3.2f, -6.5f), w.Anchor["grill"] + Vector3.Up * 0.6f),
-            ("CAM-02 FRYER",        new Vector3(-4.2f, 3.2f, -6.5f), w.Anchor["fryer"] + Vector3.Up * 0.6f),
-            ("CAM-03 PREP/WALK-IN", new Vector3(-1.8f, 3.2f, -6.5f), (w.Anchor["prep"] + w.Anchor["cooler"]) / 2 + Vector3.Up * 0.6f),
-            ("CAM-04 ASSEMBLY",     new Vector3(-3.0f, 3.2f, 0.6f),  w.Anchor["assembly"] + Vector3.Up * 0.5f),
-            ("CAM-05 BEV/EXPO",     new Vector3(3.6f, 3.2f, 0.9f),   (w.Anchor["beverage"] + w.Anchor["expo"]) / 2 + Vector3.Up * 0.6f),
-            ("CAM-06 FRONT COUNTER",new Vector3(-0.5f, 2.3f, 5.4f),  new Vector3(-0.5f, 0.95f, -0.8f)),
-            ("CAM-07 LOBBY/DINING", new Vector3(11.2f, 3.1f, 6.3f),  new Vector3(-3f, 0.7f, 1.0f)),
-            ("CAM-08 DT WINDOW",    new Vector3(10.9f, 3.2f, -2.6f), w.Anchor["dt_window"] + new Vector3(2.0f, 0.4f, 0)),
-            ("CAM-09 DT LANE/BOARD",new Vector3(18.5f, 3.6f, -10f),  w.Anchor["order_board"] + new Vector3(-1.5f, -0.4f, 2f)),
-            ("CAM-10 LOT/ENTRANCE", new Vector3(-15f, 4.6f, 13f),    new Vector3(0, 0.8f, 7.5f)),
+            ("CAM-01 GRILL",        new Vector3(6.8f, 3.3f, -6.3f),   w.Anchor["grill"] + Vector3.Up * 0.6f),
+            ("CAM-02 FRYER",        new Vector3(-4.6f, 3.3f, -6.2f),  w.Anchor["fryer"] + Vector3.Up * 0.6f),
+            ("CAM-03 PREP/WALK-IN", new Vector3(9.6f, 3.2f, -6.0f),   (w.Anchor["prep"] + w.Anchor["cooler"]) / 2 + Vector3.Up * 0.6f),
+            ("CAM-04 ASSEMBLY",     new Vector3(-7.8f, 3.0f, -1.4f),  w.Anchor["assembly"] + Vector3.Up * 0.55f),
+            ("CAM-05 BEV/EXPO",     new Vector3(-8.8f, 3.2f, 0.7f),   (w.Anchor["beverage"] + w.Anchor["expo"]) / 2 + Vector3.Up * 0.65f),
+            ("CAM-06 FRONT COUNTER",new Vector3(0.4f, 2.6f, 5.9f),    new Vector3(-0.2f, 0.95f, -1.0f)),
+            ("CAM-07 LOBBY/DINING", new Vector3(10.6f, 3.2f, 5.7f),   new Vector3(-4f, 0.75f, 3.2f)),
+            ("CAM-08 DT WINDOW",    new Vector3(-11.4f, 3.1f, -0.6f), w.Anchor["dt_window"] + new Vector3(0.2f, 0.5f, 0)),
+            ("CAM-09 DT LANE/BOARD",new Vector3(-18.4f, 3.8f, -10f),  w.Anchor["order_board"] + new Vector3(1.3f, -0.2f, 1.8f)),
+            ("CAM-10 LOT/ENTRANCE", new Vector3(-13.8f, 4.7f, 16.2f), new Vector3(0, 0.8f, 8.3f)),
         };
         foreach (var (name, pos, target) in defs)
         {
@@ -62,6 +65,9 @@ public partial class CameraDirector : Node3D
         _free.LookAt(new Vector3(0, 1.2f, 0), Vector3.Up);
         _look = new Vector2(_free.Rotation.Y, _free.Rotation.X);
 
+        _follow = new Camera3D { Position = new Vector3(0, 2.4f, 10), Fov = 62 };
+        root.AddChild(_follow);
+
         Select(5); // start on front counter
     }
 
@@ -70,6 +76,8 @@ public partial class CameraDirector : Node3D
         if (i < 0 || i >= _cams.Count) return;
         _current = i;
         _freeMode = false;
+        _followMode = false;
+        _followTarget = null;
         Input.MouseMode = Input.MouseModeEnum.Visible;
         _cams[_current].Cam.MakeCurrent();
     }
@@ -78,10 +86,25 @@ public partial class CameraDirector : Node3D
     public void Overhead() { _tour = false; Select(_cams.Count - 1); }
     public void ToggleTour() { _tour = !_tour; _tourTimer = 0; if (_tour && _freeMode) Select(_current); }
 
+    public void Follow(Node3D target, string label)
+    {
+        if (target == null || !IsInstanceValid(target)) return;
+        _tour = false;
+        _freeMode = false;
+        _followMode = true;
+        _followTarget = target;
+        _followName = label;
+        Input.MouseMode = Input.MouseModeEnum.Visible;
+        UpdateFollowCamera(1f);
+        _follow.MakeCurrent();
+    }
+
     public void ToggleFree()
     {
         _freeMode = !_freeMode;
         _tour = false;
+        _followMode = false;
+        _followTarget = null;
         if (_freeMode)
         {
             _free.MakeCurrent();
@@ -104,6 +127,11 @@ public partial class CameraDirector : Node3D
 
     public override void _Process(double delta)
     {
+        if (_followMode)
+        {
+            if (_followTarget == null || !IsInstanceValid(_followTarget)) { Select(_current); return; }
+            UpdateFollowCamera((float)delta);
+        }
         if (_tour)
         {
             _tourTimer += (float)delta;
@@ -127,5 +155,20 @@ public partial class CameraDirector : Node3D
             if (dir.LengthSquared() > 0.001f)
                 _free.Position += dir.Normalized() * speed * (float)delta;
         }
+    }
+
+    void UpdateFollowCamera(float delta)
+    {
+        if (_followTarget == null) return;
+        var target = _followTarget.GlobalPosition + Vector3.Up * 1.15f;
+        var back = -_followTarget.GlobalTransform.Basis.Z;
+        back.Y = 0f;
+        if (back.LengthSquared() < 0.01f) back = Vector3.Back;
+        back = back.Normalized();
+        var desired = target + back * 3.8f + Vector3.Up * 1.55f;
+        float t = Mathf.Clamp(1f - Mathf.Exp(-7f * delta), 0f, 1f);
+        _follow.GlobalPosition = _follow.GlobalPosition.Lerp(desired, t);
+        if (_follow.GlobalPosition.DistanceSquaredTo(target) > 0.04f)
+            _follow.LookAt(target, Vector3.Up);
     }
 }

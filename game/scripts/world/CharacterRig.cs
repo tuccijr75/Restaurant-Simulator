@@ -458,11 +458,13 @@ public partial class CharacterRig : Node3D
             float weight = 1f - dist / radius;
             float sideSign = away.Dot(lateral) >= 0f ? 1f : -1f;
             var awayDir = away / dist;
+            bool walkingIntoOther = desired.Dot(-awayDir) > 0.35f;
 
             // Blend a sidestep with a smaller personal-space push so agents route
             // around one another instead of pressing straight into the overlap.
-            steer += lateral * sideSign * weight * 1.35f;
-            steer += awayDir * weight * 0.45f;
+            steer += lateral * sideSign * weight * (walkingIntoOther ? 2.35f : 1.35f);
+            steer += awayDir * weight * (walkingIntoOther ? 0.8f : 0.45f);
+            if (walkingIntoOther && dist < 0.9f) steer -= desired * weight * 0.85f;
         }
 
         return steer.LengthSquared() > 0.0001f ? steer.Normalized() : desired;

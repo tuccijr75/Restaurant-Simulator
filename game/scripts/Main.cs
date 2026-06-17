@@ -48,7 +48,7 @@ public partial class Main : Node3D
 
         _staffUi = new StaffUi { Name = "StaffUi" };
         AddChild(_staffUi);
-        _staffUi.Init(_agents);
+        _staffUi.Init(_agents, _cams);
 
         // Existing 2D dashboard, shared sim, hidden until TAB.
         // MUST be created BEFORE KillFocus(_dashLayer): _dashLayer was previously
