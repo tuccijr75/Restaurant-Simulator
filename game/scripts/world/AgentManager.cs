@@ -65,6 +65,11 @@ public partial class AgentManager : Node3D
         _roster = new Roster(RosterWeekSeed);
     }
 
+    // Read-only hooks for the staff UI (#10 schedule panel, #12 click-inspect).
+    public System.Collections.Generic.IReadOnlyList<EmployeeAgent> Staff => _staff;
+    public Roster StaffRoster => _roster;
+    public int SimMinute => (int)_sim.Minute;
+
     // ---------------- spawning ----------------
 
     void OnOrder(string channel, string orderId)
@@ -134,6 +139,7 @@ public partial class AgentManager : Node3D
         a.PickupSpot = channel == "lobby" ? _world.Anchor["pickup"] : _world.Anchor["mobile_shelf"] + new Vector3(0, 0, 1.0f);
         bool dines = channel == "lobby" && !courier && _vis.NextDouble() < 0.45 && _world.Tables.Count > 0;
         a.TableSpot = dines ? _world.Tables[_vis.Next(_world.Tables.Count)] : Vector3.Zero;
+        a.BusSpot = _world.Anchor["pickup"] + new Vector3((float)(_vis.NextDouble() * 1.2 - 0.6), 0, 0.5f);  // #6 return the tray to the counter
         a.ExitSpot = _world.Anchor["door_out"] + new Vector3((float)(_vis.NextDouble() * 2 - 1), 0, -0.8f);  // reachable point on the sidewalk so they actually despawn
         a.Configure(orderPause: channel == "lobby" ? 6f : 0f, dineSeconds: dines ? 25f + _vis.Next(40) : 0f);
         AddChild(a);

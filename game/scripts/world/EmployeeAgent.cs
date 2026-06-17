@@ -25,6 +25,7 @@ public partial class EmployeeAgent : CharacterRig
     bool _onSupplyRun;
     bool _sweeping;
     float _sweepTimer;
+    float _returnHold;   // RS-ST-002 #12: manual "return to your station" override window
     bool _beatToggle;
     public bool Patrols;
     public System.Collections.Generic.List<Vector3> PatrolRoute = new();
@@ -41,6 +42,15 @@ public partial class EmployeeAgent : CharacterRig
     {
         if (!Patrols || _greetCooldown > 0f) return;
         _greetTarget = customer; _greeting = true; _waved = false; _greetCooldown = 8f;
+    }
+
+    /// #12: player command — drop the current idle errand and head back to the post.
+    public void ReturnToStation()
+    {
+        _onSupplyRun = _sweeping = _greeting = false;
+        ActionAnim = "";
+        _returnHold = 30f;
+        Task = "Returning to station";
     }
 
     public void Init(int salt)
@@ -69,10 +79,25 @@ public partial class EmployeeAgent : CharacterRig
     public void Drive(float delta, bool stationBusy)
     {
         if (_greetCooldown > 0f) _greetCooldown -= delta;
+
+        // #12: player told them to get back to their post — overrides idle wandering
+        // (supply runs, sweeping, patrol) for a short window, but never a scheduled break.
+        if (_returnHold > 0f && !OnBreak)
+        {
+            _returnHold -= delta;
+            Working = false;
+            _onSupplyRun = _sweeping = _greeting = false;
+            ActionAnim = "";
+            if (StepToward(HomeSpot, delta) && HasFace) FaceToward(FaceTarget, delta);
+            Task = "Returning to station";
+            return;
+        }
+
         if (Patrols) { DrivePatrol(delta); return; }
 
         if (OnBreak)
         {
+            Task = "On break";
             if (Seated) return;                                   // sitting / mid-transition: hold
             if (StepToward(BreakSpot, delta)) { Working = false; RequestSeated(true); }  // arrived -> sit down
             else ActionAnim = "";                                 // still walking -> walk
@@ -84,12 +109,14 @@ public partial class EmployeeAgent : CharacterRig
         {
             Working = false;
             ActionAnim = "sweeping";   // ping-pong loop is set on the clip itself
+            Task = "Sweeping the lobby";
             _sweepTimer -= delta;
             if (_sweepTimer <= 0) { _sweeping = false; ActionAnim = ""; _supplyTimer = 45 + _vis.Next(90); }
             return;
         }
         if (_onSupplyRun)
         {
+            Task = "Walk-in supply run";
             if (StepToward(CoolerSpot, delta))
             {
                 _onSupplyRun = false;
@@ -99,10 +126,11 @@ public partial class EmployeeAgent : CharacterRig
         }
         // Cashiers step up to the register when a customer is ordering, otherwise stand back.
         Vector3 home = (IsCashier && stationBusy) ? ServeSpot : HomeSpot;
-        if (!StepToward(home, delta)) return;
+        if (!StepToward(home, delta)) { Task = "Walking to station"; return; }
         Working = stationBusy;
         if (HasFace) FaceToward(FaceTarget, delta);   // turn to face the equipment / customer while on station
-        if (IsCashier) return;                        // cashiers stay at the counter (no cooler/sweep beat)
+        if (IsCashier) { Task = stationBusy ? "Serving register" : "At register"; return; }
+        Task = stationBusy ? Assigned : "At station";
         _supplyTimer -= delta;
         if (_supplyTimer <= 0 && !stationBusy)
         {
@@ -119,6 +147,7 @@ public partial class EmployeeAgent : CharacterRig
     {
         if (_greeting)
         {
+            Task = "Greeting a guest";
             if (_greetTarget == null || !IsInstanceValid(_greetTarget)) { _greeting = false; return; }  // guest already left
             Vector3 cpos = _greetTarget.Position; cpos.Y = 0;
             if (FlatDist(Position, cpos) > GreetRange) { StepToward(cpos, delta); return; }  // close the gap to the guest
@@ -130,6 +159,7 @@ public partial class EmployeeAgent : CharacterRig
             return;
         }
         if (PatrolRoute.Count == 0) { Moving = false; return; }
+        Task = "Walking the floor";
         if (StepToward(PatrolRoute[_patrolIdx % PatrolRoute.Count], delta))  // arrived at a stop
         {
             Moving = false;
