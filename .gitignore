@@ -31,11 +31,6 @@ game/.import/
 game/.imports/
 game/export_presets.cfg
 game/*.translation
-restaurant-simulator-(4.3)/.godot/
-restaurant-simulator-(4.3)/.import/
-restaurant-simulator-(4.3)/.imports/
-restaurant-simulator-(4.3)/export_presets.cfg
-restaurant-simulator-(4.3)/*.translation
 
 # Godot / .NET build outputs
 game/bin/
@@ -44,10 +39,6 @@ game/.mono/
 game/.vs/
 game/**/bin/
 game/**/obj/
-restaurant-simulator-(4.3)/bin/
-restaurant-simulator-(4.3)/obj/
-restaurant-simulator-(4.3)/.mono/
-restaurant-simulator-(4.3)/.vs/
 tools/**/bin/
 tools/**/obj/
 

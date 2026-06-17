@@ -10,11 +10,11 @@ Merge this folder over the repo root (it only touches the paths listed in
 2. `tools/engine-selftest/` — `dotnet run` replays all 10 scenarios twice and prints the
    pass/fail gate (90/90 PASS at seed 12345 in CI here).
 3. `build-workflows/` — RS-3D-001 brief, audit (full findings F-01..F-18), handoff,
-   episode package, receipt; updated `state.json` / `current-task.md`.
+   episode package, receipt; authoritative state is under `build-workflows/state/`.
 4. `docs/07_3D_WORLD_AND_CAMERAS.md` — world/camera/controls spec.
 
 Controls: SPACE start/pause · 1-9,0/O cameras · C next · T tour · F free cam · TAB
 dashboard · F9 self-test · F5 export.
 
-Recommended next: delete `restaurant-simulator-(4.3)/` (stale prototype, audit F-14) and
-run RS-CF-001 to wire the config JSONs into the engine (F-17/F-18).
+Cleanup note: `restaurant-simulator-(4.3)/` was removed after file-by-file review as the
+stale prototype from audit F-14. Continue from the canonical `game/` project.
