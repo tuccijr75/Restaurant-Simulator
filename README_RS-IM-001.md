@@ -2,7 +2,7 @@
 
 Real per-ingredient inventory/hold/waste model + multi-day career mode.
 
-## rev 2 fixes (from first in-editor F8 export)
+## rev 2 fixes (from first in-editor export pass)
 - Zero phantom waste (perishables produced just-in-time, not pre-seeded).
 - Burgers consume lettuce + tomato.
 - With real model on: legacy "prep quality low" alerts suppressed, end_of_shift
@@ -11,7 +11,9 @@ Real per-ingredient inventory/hold/waste model + multi-day career mode.
 ## Setup (one step)
 Project > Project Settings > Autoload > add res://game/scripts/sim/CareerHook.cs
 as "CareerHook", Enable. Real ingredients then auto-enable every run.
-F6 advance day, F7 reset week, F8 hardened export. See QUICKSTART_CAREER_F6.md.
+F6 advance day, F7 reset week, F5 export. When real ingredients are active, the
+per-ingredient ledger lives inside `inventory_ledger.json`. See
+QUICKSTART_CAREER_F6.md.
 
 ## Verify
     cd tools/engine-selftest && dotnet run -c Release   # 120/120 + 7/7 + 11/11, PASS

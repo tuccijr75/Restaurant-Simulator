@@ -83,20 +83,47 @@ public partial class StaffUi : CanvasLayer
         if (cam == null) return false;
 
         EmployeeAgent? best = null;
-        float bestD = 44f;   // pixel pick radius
+        float bestScore = 1f;
         foreach (var e in _agents.Staff)
         {
             if (e == null || !IsInstanceValid(e)) continue;
-            var world = e.GlobalPosition + Vector3.Up * 1.0f;
-            if (cam.IsPositionBehind(world)) continue;
-            float d = cam.UnprojectPosition(world).DistanceTo(screenPos);
-            if (d < bestD) { bestD = d; best = e; }
+            var foot = e.GlobalPosition + Vector3.Up * 0.15f;
+            var head = e.GlobalPosition + Vector3.Up * 1.8f;
+            if (cam.IsPositionBehind(foot) || cam.IsPositionBehind(head)) continue;
+
+            var screenFoot = cam.UnprojectPosition(foot);
+            var screenHead = cam.UnprojectPosition(head);
+            float screenHeight = screenFoot.DistanceTo(screenHead);
+            float pickRadius = Mathf.Clamp(screenHeight * 0.45f, 38f, 98f);
+            float nearest = DistanceToProjectedBody(cam, e.GlobalPosition, screenPos);
+            float score = nearest / pickRadius;
+            if (score < bestScore) { bestScore = score; best = e; }
         }
 
         _selected = best;
         _inspect.Visible = best != null;
         if (best != null) UpdateInspect();
         return best != null;
+    }
+
+    static float DistanceToProjectedBody(Camera3D cam, Vector3 origin, Vector2 screenPos)
+    {
+        var right = cam.GlobalTransform.Basis.X.Normalized() * 0.24f;
+        var samples = new[]
+        {
+            origin + Vector3.Up * 0.35f,
+            origin + Vector3.Up * 0.95f,
+            origin + Vector3.Up * 1.45f,
+            origin + Vector3.Up * 0.95f + right,
+            origin + Vector3.Up * 0.95f - right,
+        };
+        float best = float.MaxValue;
+        foreach (var p in samples)
+        {
+            if (cam.IsPositionBehind(p)) continue;
+            best = Mathf.Min(best, cam.UnprojectPosition(p).DistanceTo(screenPos));
+        }
+        return best;
     }
 
     public void ToggleSchedule()

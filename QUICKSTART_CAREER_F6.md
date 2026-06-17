@@ -36,20 +36,18 @@ Remove the `CareerHook` autoload entry. Runs revert to Main's default seed.
 
 ---
 
-## Update: real ingredients + crash-proof export (RS-IM-001)
+## Update: real ingredients + F5 export (RS-IM-001)
 With the CareerHook autoload registered, every run now uses the **real
 per-ingredient model** (34 ingredients, each with its own hold time/temp/cost) —
 no setup needed. Waste is now realistic and per-item (fries, proteins age out;
-buns/packaging/frozen/cheese don't), and exports include a new
-`ingredient_ledger.json`.
+buns/packaging/frozen/cheese don't).
 
-New key:
-- **F8** = hardened export. Writes all nine contract files to
+Export:
+- **F5** = export. Writes the contract bundle to
   `user://outputs/sim_<scenario>_<seed>/`, creating the folder first and
-  null-checking every write — so it can't crash the way F5 did. Use F8 if F5
-  still fails. The Output panel prints the exact folder path.
+  null-checking writes. When real ingredients are active, the per-ingredient
+  ledger lives inside `inventory_ledger.json`; the separate
+  `ingredient_ledger.json` file is no longer emitted.
 
-If F5 still crashes: it's almost certainly `Main`'s own export writer hitting a
-missing `user://outputs` directory (Godot returns a null FileAccess, then NREs).
-Paste the Godot console output at the crash and it's a ~2-line fix in Main. F8
-works regardless.
+If F5 fails, paste the Godot console output at the crash so the active export
+writer can be fixed directly.

@@ -20,10 +20,10 @@
 
 ## Blockers / honesty
 - In-editor smoke test pending (no Godot in build env).
-- F5 crash: not reproduced here (Main's export writer is not in the provided sources).
-  Most likely a FileAccess.Open(null) NRE on a missing user://outputs dir. Shipped a
-  hardened F8 export (dir creation + null checks) as a working alternative; the exact
-  F5 fix needs the Godot console stack trace.
+- F5 export is the canonical Godot export path. If it fails in editor, capture
+  the Godot console trace for the active `Main` export writer.
+- When real ingredients are active, `inventory_ledger.json` is the per-ingredient
+  ledger; the separate `ingredient_ledger.json` file is no longer emitted.
 
 ## Rollback
 Safe/additive. Set EnableRealIngredients=false (or remove Catalog) to fully revert to

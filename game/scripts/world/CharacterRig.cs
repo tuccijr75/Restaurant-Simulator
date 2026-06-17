@@ -12,6 +12,7 @@ public partial class CharacterRig : Node3D
     float _t;
     public bool Moving, Working;
     public float WalkSpeed = 1.5f;
+    static readonly List<CharacterRig> ActiveRigs = new();
 
     // RS-VS-002: optional imported GLB body (staff). When present the procedural
     // limbs aren't built; the model's own AnimationPlayer drives walk/idle/work.
@@ -38,6 +39,16 @@ public partial class CharacterRig : Node3D
     Skeleton3D? _skel;
     int _bSpine = -1, _bArmL = -1, _bArmR = -1, _bLegL = -1, _bLegR = -1;
     bool _boneDriven;
+
+    public override void _EnterTree()
+    {
+        if (!ActiveRigs.Contains(this)) ActiveRigs.Add(this);
+    }
+
+    public override void _ExitTree()
+    {
+        ActiveRigs.Remove(this);
+    }
 
     public void BuildHuman(Color shirt, Color pants, Color skin, Color? hat = null, float heightScale = 1f)
     {
@@ -411,12 +422,50 @@ public partial class CharacterRig : Node3D
         float dist = d.Length();
         if (dist < 0.12f) { Moving = false; return true; }
         Moving = true;
-        var step = d.Normalized() * Mathf.Min(WalkSpeed * delta, dist);
+        var heading = AvoidedHeading(pos, d.Normalized());
+        var step = heading * Mathf.Min(WalkSpeed * delta, dist);
         Position += step;
         float targetYaw = Mathf.Atan2(step.X, step.Z);
         // frame-rate-independent smooth turn toward heading
         Rotation = new Vector3(0, Mathf.LerpAngle(Rotation.Y, targetYaw, 1f - Mathf.Exp(-TurnRate * delta)), 0);
         return false;
+    }
+
+    Vector3 AvoidedHeading(Vector3 pos, Vector3 desired)
+    {
+        const float radius = 1.25f;
+        const float radiusSq = radius * radius;
+        var steer = desired;
+        var lateral = new Vector3(desired.Z, 0, -desired.X);
+
+        for (int i = 0; i < ActiveRigs.Count; i++)
+        {
+            var other = ActiveRigs[i];
+            if (other == this || other == null || !IsInstanceValid(other)) continue;
+            var otherPos = other.Position; otherPos.Y = 0;
+            var away = pos - otherPos;
+            float distSq = away.LengthSquared();
+            if (distSq > radiusSq) continue;
+
+            if (distSq < 0.0001f)
+            {
+                float side = ((GetInstanceId() + other.GetInstanceId()) & 1UL) == 0 ? 1f : -1f;
+                steer += lateral * side * 0.9f;
+                continue;
+            }
+
+            float dist = Mathf.Sqrt(distSq);
+            float weight = 1f - dist / radius;
+            float sideSign = away.Dot(lateral) >= 0f ? 1f : -1f;
+            var awayDir = away / dist;
+
+            // Blend a sidestep with a smaller personal-space push so agents route
+            // around one another instead of pressing straight into the overlap.
+            steer += lateral * sideSign * weight * 1.35f;
+            steer += awayDir * weight * 0.45f;
+        }
+
+        return steer.LengthSquared() > 0.0001f ? steer.Normalized() : desired;
     }
 
     /// Smoothly turn to face a point without moving (used while standing at a station).

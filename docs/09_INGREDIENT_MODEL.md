@@ -58,10 +58,10 @@ deterministic `item.taken` stream.
    the ledger at shift start, consumes the menu BOM at each `item.taken`, ticks
    hold clocks and temp audit once per sim-minute.
 
-4. **Output** — a new `ingredient_ledger.json` joins the export contract whenever
+4. **Output** — `inventory_ledger.json` becomes the per-ingredient ledger whenever
    the model is active, and `end_of_shift_summary.json` gains
    `ingredient_waste_cost_usd` / `ingredient_waste_units` / `ingredient_waste_by_item`.
-   The legacy bucket `inventory_ledger.json` remains for back-compat (superseded).
+   The legacy bucket inventory ledger is emitted only when the real model is off.
 
 ### Result
 
@@ -91,10 +91,10 @@ So the operator sees one coherent picture (not the old bucket artifacts):
 When the model is off (the 120/120 self-test), every one of these reverts exactly,
 so legacy determinism is untouched.
 
-### Export / crash note
+### Export
 
-The Godot `CareerHook` also provides a hardened **F8** export: it creates
-`user://outputs/sim_<scenario>_<seed>/`, writes all nine contract files with
-null-checked `FileAccess`, and logs the path — a crash-proof alternative to
-`Main`'s F5 while that handler's writer (the suspected missing-directory NRE) is
-confirmed from the Godot console trace.
+Godot exports through **F5** in `Main`: it creates
+`user://outputs/sim_<scenario>_<seed>/`, writes the contract files returned by
+`Exports.BuildAll`, and null-checks `FileAccess`. When real ingredients are
+active, the per-ingredient ledger is embedded in `inventory_ledger.json`; the
+separate `ingredient_ledger.json` file is no longer emitted.

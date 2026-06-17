@@ -18,8 +18,10 @@ time/temperature were not modeled.
   its own hold clock; cooking depletes raw source; per-item waste costed; temp audit.
 - SimRunState — opt-in EnableRealIngredients/Catalog; opens ledger at shift start,
   consumes BOM at item.taken, ticks hold clocks per sim-minute. Replay-neutral.
-- Exports — adds ingredient_ledger.json; end_of_shift gains ingredient_waste_* fields.
-- CareerHook — enables the model on every Godot run; adds hardened F8 export.
+- Exports — `inventory_ledger.json` becomes the per-ingredient ledger when the
+  real model is active; end_of_shift gains ingredient_waste_* fields.
+- CareerHook — enables the model on every Godot run; F5 remains the canonical
+  Godot export path.
 
 ## Acceptance (headless, verified)
 - 120/120 self-test unchanged (event stream byte-identical with model on vs off).
@@ -33,5 +35,5 @@ Ingredient data is a deterministic input; no per-employee signal. Hold times/tem
 are operator_calibration_required (FDA Food Code 2022 grounded).
 
 ## Blockers
-In-editor Godot 4.6 smoke test (autoload + F5/F8). F5 crash root-cause still needs the
-Godot console trace; F8 hardened export ships as the crash-proof path meanwhile.
+In-editor Godot 4.6 smoke test (autoload + F5 export). If F5 fails, capture the
+Godot console trace for the active `Main` export writer.

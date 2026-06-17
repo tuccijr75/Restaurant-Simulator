@@ -169,7 +169,7 @@ public partial class Main : Node3D
         if (@event is InputEventMouseButton mb && mb.Pressed && mb.ButtonIndex == MouseButton.Left
             && Input.MouseMode != Input.MouseModeEnum.Captured && !_dashLayer.Visible)
         {
-            if (!TryPickStation(mb.Position)) _staffUi.TryPickEmployee(mb.Position);   // station first, then a crew member
+            if (!_staffUi.TryPickEmployee(mb.Position)) TryPickStation(mb.Position);   // crew first; station controls are fallback
             return;
         }
         if (@event is not InputEventKey k || !k.Pressed || k.Echo) return;

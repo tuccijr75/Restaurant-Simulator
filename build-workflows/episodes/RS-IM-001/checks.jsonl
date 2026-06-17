@@ -6,4 +6,4 @@
 {"check":"realistic_waste","result":"PASS","note":"normal_day $46.54: fries+proteins; zero on dry/cold/frozen; vs ~$472 legacy phantom"}
 {"check":"replay_neutral","result":"PASS"}
 {"check":"godot_in_editor_smoke","result":"DEFERRED"}
-{"check":"f5_crash_root_cause","result":"OPEN","note":"needs Godot console trace; F8 hardened export shipped as workaround"}
+{"check":"f5_export_smoke","result":"OPEN","note":"F5 is the canonical Godot export path; capture the Godot console trace if it fails"}

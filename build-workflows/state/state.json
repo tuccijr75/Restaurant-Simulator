@@ -30,5 +30,5 @@
   },
   "engine_verification": "120/120 self-test + 7/7 ingredient + 11/11 career = PASS",
   "last_updated": "2026-06-13T15:30:00-04:00",
-  "next_action": "Register CareerHook autoload, run in Godot 4.6, press F8 to export (incl ingredient_ledger.json). If F5 still crashes, capture the console trace. Next: RS-IM-002 (ASC schema validation for the per-ingredient ledger; retire legacy bucket ledger)."
+  "next_action": "Register CareerHook autoload, run in Godot 4.6, press F5 to export. When real ingredients are active, inventory_ledger.json contains the per-ingredient ledger. If F5 fails, capture the console trace. Next: RS-IM-002 (ASC schema validation for the per-ingredient inventory ledger; keep the legacy bucket ledger only for real-model-off mode)."
 }
