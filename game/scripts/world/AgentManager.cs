@@ -18,6 +18,7 @@ public partial class AgentManager : Node3D
     readonly Dictionary<string, Node> _byOrder = new();
     readonly List<EmployeeAgent> _staff = new();
     string _staffSignature = "";
+    bool _shutdown;
 
     // RS-ST-002/003: the roster is the single source of truth for who is on the
     // floor, where they stand, and their evolving stats. Built once from the career
@@ -64,6 +65,33 @@ public partial class AgentManager : Node3D
         _sim.TicketCompletedEvt += OnTicketDone;
         _sim.TicketAbandonedEvt += OnTicketDone;   // RS-HQ-001: guest gives up and leaves (same release path)
         _roster = new Roster(RosterWeekSeed);
+    }
+
+    public override void _ExitTree()
+    {
+        Shutdown();
+    }
+
+    public void Shutdown()
+    {
+        if (_shutdown) return;
+        _shutdown = true;
+        if (_sim != null)
+        {
+            _sim.OrderCreatedEvt -= OnOrder;
+            _sim.TicketCompletedEvt -= OnTicketDone;
+            _sim.TicketAbandonedEvt -= OnTicketDone;
+        }
+        foreach (var a in _walkins) if (a != null && IsInstanceValid(a)) a.QueueFree();
+        foreach (var c in _cars) if (c != null && IsInstanceValid(c)) c.QueueFree();
+        foreach (var c in _parkedCars.Values) if (c != null && IsInstanceValid(c)) c.QueueFree();
+        foreach (var e in _staff) if (e != null && IsInstanceValid(e)) e.QueueFree();
+        _walkins.Clear();
+        _cars.Clear();
+        _parkedCars.Clear();
+        _byOrder.Clear();
+        _staff.Clear();
+        _staffSignature = "";
     }
 
     // Read-only hooks for the staff UI (#10 schedule panel, #12 click-inspect).

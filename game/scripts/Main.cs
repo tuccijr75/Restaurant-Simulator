@@ -18,6 +18,7 @@ public partial class Main : Node3D
     StaffUi _staffUi = null!;
     CanvasLayer _dashLayer = null!;
     bool _roofManualHide;
+    bool _shutdown;
 
     public override void _Ready()
     {
@@ -71,6 +72,71 @@ public partial class Main : Node3D
         KillFocus(_staffUi);
         if (InputMap.HasAction("ui_focus_next")) InputMap.ActionEraseEvents("ui_focus_next");
         if (InputMap.HasAction("ui_focus_prev")) InputMap.ActionEraseEvents("ui_focus_prev");
+    }
+
+    public override void _ExitTree()
+    {
+        ShutdownForQuit();
+    }
+
+    public override void _Notification(int what)
+    {
+        if (what == NotificationPredelete || what == NotificationWMCloseRequest)
+            ShutdownForQuit();
+    }
+
+    public void ShutdownForQuit()
+    {
+        if (_shutdown) return;
+        _shutdown = true;
+        DisconnectButtonSignalsRecursive(this);
+        _agents?.Shutdown();
+        FreeIfAlive(_dashLayer);
+        FreeIfAlive(_gameplay);
+        FreeIfAlive(_staffUi);
+        FreeIfAlive(_hud);
+        Input.MouseMode = Input.MouseModeEnum.Visible;
+        GetViewport()?.GuiReleaseFocus();
+        _agents = null!;
+        _staffUi = null!;
+        _vitals = null!;
+        _gameplay = null!;
+        _hud = null!;
+        _cams = null!;
+        _dashLayer = null!;
+        _world = null!;
+        _sim = null!;
+        System.GC.Collect();
+        System.GC.WaitForPendingFinalizers();
+        System.GC.Collect();
+    }
+
+    static void FreeIfAlive(Node? node)
+    {
+        if (node == null || !IsInstanceValid(node) || node.IsQueuedForDeletion()) return;
+        node.GetParent()?.RemoveChild(node);
+        node.Free();
+    }
+
+    static void DisconnectButtonSignalsRecursive(Node node)
+    {
+        if (node is Button button)
+        {
+            foreach (var connection in button.GetSignalConnectionList(Button.SignalName.Pressed))
+            {
+                if (!connection.TryGetValue("callable", out var callableVariant)) continue;
+                var callable = callableVariant.AsCallable();
+                try
+                {
+                    button.Disconnect(Button.SignalName.Pressed, callable);
+                }
+                catch
+                {
+                    // Some engine-created callables are already disconnected during teardown.
+                }
+            }
+        }
+        foreach (Node child in node.GetChildren()) DisconnectButtonSignalsRecursive(child);
     }
 
     public override void _Process(double delta)

@@ -75,6 +75,13 @@ public partial class VitalsAndFx : Node3D
         }
     }
 
+    public override void _ExitTree()
+    {
+        if (_steam != null) _steam.Emitting = false;
+        _boards.Clear();
+        _beacons.Clear();
+    }
+
     public override void _Process(double delta)
     {
         _pulse += (float)delta;

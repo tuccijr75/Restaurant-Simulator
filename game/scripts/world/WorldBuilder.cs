@@ -41,7 +41,7 @@ public static class WorldBuilder
         var w = new Node3D { Name = "World" };
         root.AddChild(w);
 
-        Sky(w);
+        var (sun, sky) = Sky(w);
 
         // ---------- ground ----------
         Box(w, new Vector3(90, 0.1f, 90), new Vector3(0, -0.05f, 6), Grass, "grass");
@@ -203,7 +203,7 @@ public static class WorldBuilder
         L.Anchor["work_counter"] = new Vector3(-2.0f, 0, -1.8f);
         L.Anchor["work_dt"] = new Vector3(-10.2f, 0, -3.0f);       // at the drive-thru window, inside
         L.Anchor["work_office"] = new Vector3(-10.8f, 0, -4.9f);   // manager stands in front of the desk
-        L.Sun = _lastSun; L.SkyMat = _lastSky;
+        L.Sun = sun; L.SkyMat = sky;
         L.LotLights.AddRange(_lotLights); _lotLights.Clear();
         // RS-VS-001: interior ceiling lights — dim by day, carry the room at night.
         foreach (var at in new[]{ new Vector3(-5f,3.9f,-4f), new Vector3(0f,3.9f,-4f), new Vector3(5f,3.9f,-4f),
@@ -286,7 +286,7 @@ public static class WorldBuilder
     }
 
     // ---------- helpers ----------
-    static void Sky(Node3D w)
+    static (DirectionalLight3D Sun, ProceduralSkyMaterial Sky) Sky(Node3D w)
     {
         var sky = new ProceduralSkyMaterial
         {
@@ -311,11 +311,9 @@ public static class WorldBuilder
             Name = "Sun"
         };
         w.AddChild(sun);
-        _lastSun = sun; _lastSky = sky;
+        return (sun, sky);
     }
     static readonly System.Collections.Generic.List<OmniLight3D> _lotLights = new();
-    static DirectionalLight3D _lastSun = null!;
-    static ProceduralSkyMaterial _lastSky = null!;
 
     public static MeshInstance3D Box(Node3D parent, Vector3 size, Vector3 pos, Color color, string name)
     {

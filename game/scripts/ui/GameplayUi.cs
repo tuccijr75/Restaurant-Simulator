@@ -68,6 +68,11 @@ public partial class GameplayUi : CanvasLayer
         _stationPanel.Visible = false;
     }
 
+    public override void _ExitTree()
+    {
+        _sim = null!;
+    }
+
     PanelContainer Panel(Color bg, Color border)
     {
         var p = new PanelContainer();

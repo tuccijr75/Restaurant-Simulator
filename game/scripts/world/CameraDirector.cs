@@ -71,6 +71,15 @@ public partial class CameraDirector : Node3D
         Select(5); // start on front counter
     }
 
+    public override void _ExitTree()
+    {
+        _followTarget = null;
+        _followMode = false;
+        _freeMode = false;
+        _tour = false;
+        Input.MouseMode = Input.MouseModeEnum.Visible;
+    }
+
     public void Select(int i)
     {
         if (i < 0 || i >= _cams.Count) return;

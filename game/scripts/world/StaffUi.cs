@@ -30,6 +30,13 @@ public partial class StaffUi : CanvasLayer
         _cams = cams;
     }
 
+    public override void _ExitTree()
+    {
+        _selected = null;
+        _agents = null!;
+        _cams = null!;
+    }
+
     public override void _Ready()
     {
         Layer = 6;
