@@ -43,8 +43,8 @@ public partial class CameraDirector : Node3D
             ("CAM-05 BEV/EXPO",     new Vector3(-8.8f, 3.2f, 0.7f),   (w.Anchor["beverage"] + w.Anchor["expo"]) / 2 + Vector3.Up * 0.65f),
             ("CAM-06 FRONT COUNTER",new Vector3(0.4f, 2.6f, 5.9f),    new Vector3(-0.2f, 0.95f, -1.0f)),
             ("CAM-07 LOBBY/DINING", new Vector3(10.6f, 3.2f, 5.7f),   new Vector3(-4f, 0.75f, 3.2f)),
-            ("CAM-08 DT WINDOW",    new Vector3(-11.4f, 3.1f, -0.6f), w.Anchor["dt_window"] + new Vector3(0.2f, 0.5f, 0)),
-            ("CAM-09 DT LANE/BOARD",new Vector3(-18.4f, 3.8f, -10f),  w.Anchor["order_board"] + new Vector3(1.3f, -0.2f, 1.8f)),
+            ("CAM-08 DT WINDOW",    new Vector3(-10.1f, 2.9f, -1.25f), w.Anchor["dt_window"] + new Vector3(-0.25f, 0.55f, -0.25f)),
+            ("CAM-09 DT LANE/BOARD",new Vector3(-24.0f, 6.2f, 7.5f),  w.Anchor["order_board"] + new Vector3(1.8f, 0.05f, 0.8f)),
             ("CAM-10 LOT/ENTRANCE", new Vector3(-13.8f, 4.7f, 16.2f), new Vector3(0, 0.8f, 8.3f)),
         };
         foreach (var (name, pos, target) in defs)

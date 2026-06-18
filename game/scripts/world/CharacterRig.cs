@@ -384,6 +384,8 @@ public partial class CharacterRig : Node3D
     readonly System.Collections.Generic.List<Vector3> _path = new();
     int _pathIdx;
     Vector3 _navTarget = new(99999f, 0, 99999f);
+    Vector3 _lastMovePos = new(99999f, 0, 99999f);
+    float _stuckSeconds;
 
     /// Move toward a flat target, routing around obstacles via the navigation mesh
     /// when one is baked; falls back to a straight line if no path is available.
@@ -422,7 +424,23 @@ public partial class CharacterRig : Node3D
         float dist = d.Length();
         if (dist < 0.12f) { Moving = false; return true; }
         Moving = true;
-        var heading = AvoidedHeading(pos, d.Normalized());
+        if (_lastMovePos.X < 90000f)
+        {
+            float movedSq = (pos - _lastMovePos).LengthSquared();
+            if (dist > 0.5f && movedSq < 0.0009f) _stuckSeconds += delta;
+            else _stuckSeconds = Mathf.Max(0f, _stuckSeconds - delta * 2f);
+        }
+        _lastMovePos = pos;
+
+        var desired = d.Normalized();
+        var heading = AvoidedHeading(pos, desired);
+        if (_stuckSeconds > 0.45f)
+        {
+            float side = (GetInstanceId() & 1UL) == 0 ? 1f : -1f;
+            var lateral = new Vector3(desired.Z, 0, -desired.X) * side;
+            float reverse = _stuckSeconds > 1.15f ? 0.65f : 0.25f;
+            heading = (heading + lateral * 1.6f - desired * reverse).Normalized();
+        }
         var step = heading * Mathf.Min(WalkSpeed * delta, dist);
         Position += step;
         float targetYaw = Mathf.Atan2(step.X, step.Z);
@@ -459,12 +477,13 @@ public partial class CharacterRig : Node3D
             float sideSign = away.Dot(lateral) >= 0f ? 1f : -1f;
             var awayDir = away / dist;
             bool walkingIntoOther = desired.Dot(-awayDir) > 0.35f;
+            bool faceToFace = Moving && other.Moving && desired.Dot(other.GlobalTransform.Basis.Z) > 0.35f;
 
             // Blend a sidestep with a smaller personal-space push so agents route
             // around one another instead of pressing straight into the overlap.
-            steer += lateral * sideSign * weight * (walkingIntoOther ? 2.35f : 1.35f);
+            steer += lateral * sideSign * weight * ((walkingIntoOther || faceToFace) ? 2.65f : 1.35f);
             steer += awayDir * weight * (walkingIntoOther ? 0.8f : 0.45f);
-            if (walkingIntoOther && dist < 0.9f) steer -= desired * weight * 0.85f;
+            if ((walkingIntoOther || faceToFace) && dist < 0.9f) steer -= desired * weight * 0.95f;
         }
 
         return steer.LengthSquared() > 0.0001f ? steer.Normalized() : desired;

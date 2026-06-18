@@ -99,9 +99,9 @@ public static class WorldBuilder
         // grill = RIGHT arm, faces IN (-X); pulled in toward center
         Station(w, L, "grill", new Vector3(3.2f, 0.5f, -4.2f), new Vector3(1.4f, 1.0f, 3.0f), DarkSteel, "GRILL", glow: new Color(1f, 0.35f, 0.1f), yaw: 270f);
         // expo = TOP of the U (front), faces IN (-Z); hands off to the counter behind it
-        Station(w, L, "expo", new Vector3(-0.7f, 0.8f, -2.4f), new Vector3(2.4f, 0.5f, 0.8f), Steel, "EXPO", glow: new Color(1f, 0.55f, 0.15f), yaw: 180f);
-        // (6) hot-holding unit on the BACK (-X side) of the sandwich board, centered along it
-        Prop(w, "holding_unit", new Vector3(-5.4f, 0.75f, -4.2f), new Vector3(0.6f, 1.5f, 1.4f), new Color(0.86f, 0.7f, 0.4f));
+        Station(w, L, "expo", new Vector3(-0.7f, 0.8f, -2.4f), new Vector3(2.4f, 0.9f, 0.8f), Steel, "EXPO", glow: new Color(1f, 0.55f, 0.15f), yaw: 180f, modelScale: new Vector3(1.0f, 1.8f, 1.0f));
+        // Hot-holding unit sits on top of the sandwich board, rotated across the rail.
+        Prop(w, "holding_unit", new Vector3(-4.5f, 0.94f, -4.2f), new Vector3(0.9f, 0.32f, 0.42f), new Color(0.86f, 0.7f, 0.4f), yaw: 90f, baseY: 0.92f, modelScale: new Vector3(0.45f, 0.45f, 0.45f));
         // prep counter, back-right (kept clear of the walk-in to declutter that corner)
         Station(w, L, "prep", new Vector3(4.8f, 0.5f, -6.0f), new Vector3(2.0f, 0.95f, 1.0f), Steel, "PREP", yaw: 0f);
         // crew beverage station, front-left of the kitchen by the drive-thru, faces IN (+X)
@@ -306,7 +306,7 @@ public static class WorldBuilder
         ((StandardMaterial3D)mi.MaterialOverride).Transparency = BaseMaterial3D.TransparencyEnum.Alpha;
     }
 
-    static void Station(Node3D w, WorldLayout L, string id, Vector3 pos, Vector3 size, Color color, string label, Color? glow = null, bool hide = false, float yaw = 0f)
+    static void Station(Node3D w, WorldLayout L, string id, Vector3 pos, Vector3 size, Color color, string label, Color? glow = null, bool hide = false, float yaw = 0f, Vector3? modelScale = null)
     {
         var mi = Box(w, size, pos, color, "st_" + id);
         // RS-GP-001: clickable — a static body with the station id in metadata.
@@ -338,16 +338,16 @@ public static class WorldBuilder
         var cands = EquipAlias.TryGetValue(id, out var alias)
             ? new[] { "st_" + id, id, alias }
             : new[] { "st_" + id, id };
-        if (LoadEquip(w, cands, pos, "equip_" + id, yaw) != null) mi.Visible = false;
+        if (LoadEquip(w, cands, pos, "equip_" + id, yaw, modelScale: modelScale) != null) mi.Visible = false;
     }
 
     // An unmanned equipment piece: a navmesh obstacle that loads st_<id>.glb if present.
     // No work anchor, click target, or label (it's a prop in the workflow, not a station).
-    static void Prop(Node3D w, string id, Vector3 pos, Vector3 size, Color color, string? model = null, float yaw = 0f)
+    static void Prop(Node3D w, string id, Vector3 pos, Vector3 size, Color color, string? model = null, float yaw = 0f, float? baseY = null, Vector3? modelScale = null)
     {
         var mi = Box(w, size, pos, color, "st_" + id);
         var cands = model != null ? new[] { model } : new[] { "st_" + id, id };
-        if (LoadEquip(w, cands, pos, "equip_" + id, yaw) != null) mi.Visible = false;
+        if (LoadEquip(w, cands, pos, "equip_" + id, yaw, baseY, modelScale) != null) mi.Visible = false;
     }
 
     // Beverage machines, self-serve fountains, kiosks, and the enclosed office + restroom rooms.
@@ -432,7 +432,7 @@ public static class WorldBuilder
     // Try each candidate filename in res://models/kitchen/; on the first hit, instance
     // it, sit its base on the floor (any origin), name it equip_* (navmesh ignores it),
     // and return it so the caller can hide the placeholder box(es).
-    static Node3D? LoadEquip(Node3D w, string[] candidates, Vector3 pos, string nodeName, float yawDeg = 0f)
+    static Node3D? LoadEquip(Node3D w, string[] candidates, Vector3 pos, string nodeName, float yawDeg = 0f, float? baseY = null, Vector3? modelScale = null)
     {
         foreach (var cand in candidates)
         {
@@ -442,10 +442,11 @@ public static class WorldBuilder
             if (packed == null) continue;
             var inst = packed.Instantiate<Node3D>();
             inst.Name = nodeName;
+            if (modelScale.HasValue) inst.Scale = modelScale.Value;
             if (yawDeg != 0f) inst.RotationDegrees = new Vector3(0, yawDeg, 0);
             w.AddChild(inst);
             inst.Position = new Vector3(pos.X, 0, pos.Z);
-            inst.Position += new Vector3(0, FloorTop - WorldMinY(inst), 0);  // base -> floor
+            inst.Position += new Vector3(0, (baseY ?? FloorTop) - WorldMinY(inst), 0);  // base -> floor/top
             GD.Print($"[Equip] {nodeName}: loaded {cand}.glb");
             return inst;
         }
