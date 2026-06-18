@@ -153,9 +153,10 @@ public partial class AgentManager : Node3D
         var shirt = courier ? new Color(0.9f, 0.45f, 0.1f) : Shirts[_vis.Next(Shirts.Length)];
         float scale = CustomerModelScale * (0.95f + (float)_vis.NextDouble() * 0.12f);   // RS-VS-001 height variance
         string custFile = (_vis.Next(2) == 0 ? "customer_m.glb" : "customer_f.glb");
-        if (courier || !a.BuildModel(CustomerModelDir + custFile, scale, 0f, 0.1f))
+        if (!a.BuildModel(CustomerModelDir + custFile, scale, 0f, 0.1f))
         {
-            // couriers and any missing-model case fall back to the procedural human
+            // Missing-model case only. Mobile/delivery pickup guests should still
+            // use the customer_m/f GLBs, not the procedural fallback.
             a.BuildHuman(shirt, new Color(0.2f, 0.2f, 0.25f), Skins[_vis.Next(Skins.Length)],
                 courier ? new Color(0.9f, 0.45f, 0.1f) : null,
                 0.92f + (float)_vis.NextDouble() * 0.16f);
@@ -168,10 +169,14 @@ public partial class AgentManager : Node3D
             SpawnParkedCar(orderId, parkingSpot.Value);
         }
         int q = System.Math.Min(CountQueued(), _world.QueueSpots.Count - 1);
+        int pickupIdx = channel == "lobby" ? 0 : CountPickupGuests();
+        float pickupLane = (pickupIdx % 5) - 2f;
         a.QueueSpot = channel == "lobby"
             ? _world.QueueSpots[q]
-            : _world.Anchor["mobile_wait"] + new Vector3((float)(_vis.NextDouble() * 1.6f - 0.8f), 0, 0.3f);
-        a.PickupSpot = channel == "lobby" ? _world.Anchor["pickup"] : _world.Anchor["mobile_shelf"] + new Vector3(0, 0, 1.0f);
+            : _world.Anchor["mobile_wait"] + new Vector3(pickupLane * 0.45f, 0, 0.25f + (pickupIdx / 5) * 0.55f);
+        a.PickupSpot = channel == "lobby"
+            ? _world.Anchor["pickup"]
+            : _world.Anchor["mobile_shelf"] + new Vector3(pickupLane * 0.36f, 0, 0.85f + (pickupIdx / 5) * 0.35f);
         bool dines = channel == "lobby" && !courier && _vis.NextDouble() < 0.45 && _world.Tables.Count > 0;
         a.TableSpot = dines ? _world.Tables[_vis.Next(_world.Tables.Count)] : Vector3.Zero;
         a.BusSpot = _world.Anchor["pickup"] + new Vector3((float)(_vis.NextDouble() * 1.2 - 0.6), 0, 0.5f);  // #6 return the tray to the counter
@@ -225,6 +230,14 @@ public partial class AgentManager : Node3D
         foreach (var a in _walkins)
             if (a.Channel == "lobby" && (a.State == CustomerAgent.Phase.Enter ||
                 a.State == CustomerAgent.Phase.Ordering || a.State == CustomerAgent.Phase.Waiting)) n++;
+        return n;
+    }
+
+    int CountPickupGuests()
+    {
+        int n = 0;
+        foreach (var a in _walkins)
+            if (a.Channel == "mobile" || a.Channel == "delivery") n++;
         return n;
     }
 

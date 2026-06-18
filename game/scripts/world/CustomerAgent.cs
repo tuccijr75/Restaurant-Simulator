@@ -84,11 +84,13 @@ public partial class CustomerAgent : CharacterRig
                 break;
             case Phase.Ordering:
                 Working = false; Moving = false;
+                HoldWithPersonalSpace(delta);
                 _pause -= delta;
                 if (_pause <= 0) State = Phase.Waiting;
                 break;
             case Phase.Waiting:
                 Moving = false;
+                HoldWithPersonalSpace(delta);
                 if (TicketDone) State = Phase.ToPickup;
                 break;
             case Phase.ToPickup:

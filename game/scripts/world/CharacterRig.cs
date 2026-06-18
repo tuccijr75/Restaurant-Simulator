@@ -489,6 +489,50 @@ public partial class CharacterRig : Node3D
         return steer.LengthSquared() > 0.0001f ? steer.Normalized() : desired;
     }
 
+    /// Stationary characters still need personal-space behavior. Without this,
+    /// queued/waiting customers become fixed blockers while moving agents steer.
+    public void HoldWithPersonalSpace(float delta)
+    {
+        const float radius = 1.25f;
+        const float minGap = 0.78f;
+        var pos = Position; pos.Y = 0f;
+        var push = Vector3.Zero;
+        for (int i = 0; i < ActiveRigs.Count; i++)
+        {
+            var other = ActiveRigs[i];
+            if (other == this || other == null || !IsInstanceValid(other)) continue;
+            var otherPos = other.Position; otherPos.Y = 0f;
+            var away = pos - otherPos;
+            float distSq = away.LengthSquared();
+            if (distSq > radius * radius) continue;
+
+            if (distSq < 0.0001f)
+            {
+                float side = ((GetInstanceId() + other.GetInstanceId()) & 1UL) == 0 ? 1f : -1f;
+                push += new Vector3(side, 0f, -side) * 0.35f;
+                continue;
+            }
+
+            float dist = Mathf.Sqrt(distSq);
+            var awayDir = away / dist;
+            float weight = 1f - dist / radius;
+            push += awayDir * weight;
+            if (dist < minGap) push += awayDir * ((minGap - dist) * 1.4f);
+        }
+
+        if (push.LengthSquared() < 0.0001f)
+        {
+            Moving = false;
+            return;
+        }
+
+        var heading = push.Normalized();
+        Position += heading * Mathf.Min(WalkSpeed * 0.55f * delta, 0.06f);
+        float targetYaw = Mathf.Atan2(heading.X, heading.Z);
+        Rotation = new Vector3(0, Mathf.LerpAngle(Rotation.Y, targetYaw, 1f - Mathf.Exp(-TurnRate * delta)), 0);
+        Moving = false;
+    }
+
     /// Smoothly turn to face a point without moving (used while standing at a station).
     public void FaceToward(Vector3 point, float delta)
     {
