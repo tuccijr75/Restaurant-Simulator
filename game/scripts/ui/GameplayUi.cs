@@ -13,6 +13,7 @@ public partial class GameplayUi : CanvasLayer
     Button _optA = null!, _optB = null!;
     int _toastId = -1;
     string _station = "";
+    bool _shutdown;
 
     public void Init(SimRunState sim)
     {
@@ -70,7 +71,38 @@ public partial class GameplayUi : CanvasLayer
 
     public override void _ExitTree()
     {
+        ShutdownForQuit();
+    }
+
+    public void ShutdownForQuit()
+    {
+        DisconnectButtonsRecursive(this);
+        if (_shutdown) return;
+        _shutdown = true;
         _sim = null!;
+        _toast = null!;
+        _stationPanel = null!;
+        _toastTitle = null!;
+        _toastDeadline = null!;
+        _objectives = null!;
+        _stationInfo = null!;
+        _stationTitle = null!;
+        _optA = null!;
+        _optB = null!;
+    }
+
+    static void DisconnectButtonsRecursive(Node node)
+    {
+        if (node is Button button)
+        {
+            foreach (var connection in button.GetSignalConnectionList(Button.SignalName.Pressed))
+            {
+                if (!connection.TryGetValue("callable", out var callableVariant)) continue;
+                try { button.Disconnect(Button.SignalName.Pressed, callableVariant.AsCallable()); }
+                catch { }
+            }
+        }
+        foreach (Node child in node.GetChildren()) DisconnectButtonsRecursive(child);
     }
 
     PanelContainer Panel(Color bg, Color border)

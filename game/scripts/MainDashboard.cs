@@ -4,6 +4,7 @@ namespace RestaurantSimulator;
 
 public partial class MainDashboard:Control{
  public SimRunState? Shared;
+ bool _shutdown;
  public override void _Ready(){
   var st=Shared??new SimRunState();
   AddBackground();
@@ -55,5 +56,33 @@ public partial class MainDashboard:Control{
   var bg=new ColorRect{Color=DashTheme.Background};
   bg.SetAnchorsPreset(LayoutPreset.FullRect);
   AddChild(bg);
+ }
+
+ public override void _ExitTree(){
+  ShutdownForQuit();
+ }
+
+ public void ShutdownForQuit(){
+  if(_shutdown)return;
+  _shutdown=true;
+  DisconnectDynamicSignals(this);
+  Shared=null;
+  System.GC.Collect();
+  System.GC.WaitForPendingFinalizers();
+  System.GC.Collect();
+ }
+
+ static void DisconnectDynamicSignals(Node node){
+  if(node is Button button)Disconnect(button,Button.SignalName.Pressed);
+  if(node is OptionButton option)Disconnect(option,OptionButton.SignalName.ItemSelected);
+  foreach(Node child in node.GetChildren())DisconnectDynamicSignals(child);
+ }
+
+ static void Disconnect(GodotObject obj,StringName signal){
+  foreach(var connection in obj.GetSignalConnectionList(signal)){
+   if(!connection.TryGetValue("callable",out var callableVariant))continue;
+   try{obj.Disconnect(signal,callableVariant.AsCallable());}
+   catch{}
+  }
  }
 }

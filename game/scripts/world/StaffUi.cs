@@ -23,6 +23,7 @@ public partial class StaffUi : CanvasLayer
     Button _returnBtn = null!, _followBtn = null!;
     Panel _schedule = null!;
     Label _scheduleLabel = null!;
+    bool _shutdown;
 
     public void Init(AgentManager agents, CameraDirector cams)
     {
@@ -32,9 +33,35 @@ public partial class StaffUi : CanvasLayer
 
     public override void _ExitTree()
     {
+        ShutdownForQuit();
+    }
+
+    public void ShutdownForQuit()
+    {
+        DisconnectButton(_returnBtn);
+        DisconnectButton(_followBtn);
+        if (_shutdown) return;
+        _shutdown = true;
         _selected = null;
         _agents = null!;
         _cams = null!;
+        _inspect = null!;
+        _inspectLabel = null!;
+        _returnBtn = null!;
+        _followBtn = null!;
+        _schedule = null!;
+        _scheduleLabel = null!;
+    }
+
+    static void DisconnectButton(Button? button)
+    {
+        if (button == null || !IsInstanceValid(button)) return;
+        foreach (var connection in button.GetSignalConnectionList(Button.SignalName.Pressed))
+        {
+            if (!connection.TryGetValue("callable", out var callableVariant)) continue;
+            try { button.Disconnect(Button.SignalName.Pressed, callableVariant.AsCallable()); }
+            catch { }
+        }
     }
 
     public override void _Ready()

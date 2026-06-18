@@ -16,6 +16,7 @@ public partial class Main : Node3D
     GameplayUi _gameplay = null!;
     VitalsAndFx _vitals = null!;
     StaffUi _staffUi = null!;
+    MainDashboard _dashboard = null!;
     CanvasLayer _dashLayer = null!;
     bool _roofManualHide;
     bool _shutdown;
@@ -58,9 +59,9 @@ public partial class Main : Node3D
         // which then NRE'd on every _dashLayer.Visible access (TAB, clicks, F5 path).
         _dashLayer = new CanvasLayer { Visible = false, Layer = 5, Name = "Dashboard" };
         AddChild(_dashLayer);
-        var dash = new MainDashboard { Shared = _sim };
-        dash.SetAnchorsPreset(Control.LayoutPreset.FullRect);
-        _dashLayer.AddChild(dash);
+        _dashboard = new MainDashboard { Shared = _sim };
+        _dashboard.SetAnchorsPreset(Control.LayoutPreset.FullRect);
+        _dashLayer.AddChild(_dashboard);
 
         // Once any Button is clicked it grabs keyboard focus, and Godot's GUI
         // focus navigation then consumes TAB (and SPACE re-presses the button)
@@ -91,6 +92,10 @@ public partial class Main : Node3D
         _shutdown = true;
         DisconnectButtonSignalsRecursive(this);
         _agents?.Shutdown();
+        _dashboard?.ShutdownForQuit();
+        _gameplay?.ShutdownForQuit();
+        _staffUi?.ShutdownForQuit();
+        _hud?.ShutdownForQuit();
         FreeIfAlive(_dashLayer);
         FreeIfAlive(_gameplay);
         FreeIfAlive(_staffUi);
@@ -98,6 +103,7 @@ public partial class Main : Node3D
         Input.MouseMode = Input.MouseModeEnum.Visible;
         GetViewport()?.GuiReleaseFocus();
         _agents = null!;
+        _dashboard = null!;
         _staffUi = null!;
         _vitals = null!;
         _gameplay = null!;

@@ -13,6 +13,7 @@ public partial class Hud3D : CanvasLayer
     Label _ops = null!, _camTag = null!, _alert = null!, _help = null!, _prompt = null!, _report = null!;
     PanelContainer _reportPanel = null!;
     float _blink;
+    bool _shutdown;
 
     public void Init(SimRunState sim, CameraDirector cams)
     {
@@ -97,6 +98,26 @@ public partial class Hud3D : CanvasLayer
     public bool ReportVisible => _reportPanel.Visible;
     public void ShowReport(string text) { _report.Text = text + "\n\n(F9 closes)"; _reportPanel.Visible = true; }
     public void HideReport() => _reportPanel.Visible = false;
+
+    public override void _ExitTree()
+    {
+        ShutdownForQuit();
+    }
+
+    public void ShutdownForQuit()
+    {
+        if (_shutdown) return;
+        _shutdown = true;
+        _sim = null!;
+        _cams = null!;
+        _ops = null!;
+        _camTag = null!;
+        _alert = null!;
+        _help = null!;
+        _prompt = null!;
+        _report = null!;
+        _reportPanel = null!;
+    }
 
     public override void _Process(double delta)
     {
