@@ -20,17 +20,17 @@ public partial class VitalsAndFx : Node3D
         _sim = sim;
         _world = world;
 
-        foreach (var id in new[] { "grill", "fryer", "assembly", "expo", "beverage" })
+        foreach (var id in new[] { "grill", "fryer", "assembly", "expo" })
         {
             if (!_world.Anchor.TryGetValue(id, out var at)) continue;
 
             var board = new Label3D
             {
-                FontSize = 40,
+                FontSize = 14,
                 Position = at + new Vector3(0, 2.05f, 0),
                 Billboard = BaseMaterial3D.BillboardModeEnum.Enabled,
                 Modulate = new Color(0.65f, 1f, 0.75f),
-                OutlineSize = 8,
+                OutlineSize = 3,
                 Name = "kds_" + id
             };
             AddChild(board);
@@ -97,8 +97,6 @@ public partial class VitalsAndFx : Node3D
             _sim.HoldLevel("fries"), _sim.HoldCapacity("fries"), Age("fries")));
         Set("assembly", string.Format(inv, "ASSEMBLY {0:0.0}m", _sim.AssemblyBacklogMinutes));
         Set("expo", string.Format(inv, "EXPO {0:0.0}m | BOARD {1}", _sim.ExpoBacklogMinutes, _sim.Tickets));
-        Set("beverage", string.Format(inv, "BEV | CSAT {0:0.0}", _sim.Csat));
-
         foreach (var (id, board) in _boards)
         {
             bool warn = id switch

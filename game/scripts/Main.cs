@@ -18,6 +18,7 @@ public partial class Main : Node3D
     StaffUi _staffUi = null!;
     MainDashboard _dashboard = null!;
     CanvasLayer _dashLayer = null!;
+    Label3D _stationHover = null!;
     bool _roofManualHide;
     bool _shutdown;
 
@@ -27,6 +28,16 @@ public partial class Main : Node3D
         _sim = new SimRunState { ExternallyDriven = true, TimeScale = 10.0 };
 
         _world = WorldBuilder.Build(this);
+        _stationHover = new Label3D
+        {
+            Visible = false,
+            FontSize = 20,
+            Billboard = BaseMaterial3D.BillboardModeEnum.Enabled,
+            Modulate = new Color(1f, 1f, 1f, 0.92f),
+            OutlineSize = 4,
+            Name = "station_hover_label"
+        };
+        AddChild(_stationHover);
 
         _cams = new CameraDirector { Name = "Cameras" };
         AddChild(_cams);
@@ -96,6 +107,7 @@ public partial class Main : Node3D
         _gameplay?.ShutdownForQuit();
         _staffUi?.ShutdownForQuit();
         _hud?.ShutdownForQuit();
+        FreeIfAlive(_stationHover);
         FreeIfAlive(_dashLayer);
         FreeIfAlive(_gameplay);
         FreeIfAlive(_staffUi);
@@ -109,6 +121,7 @@ public partial class Main : Node3D
         _gameplay = null!;
         _hud = null!;
         _cams = null!;
+        _stationHover = null!;
         _dashLayer = null!;
         _world = null!;
         _sim = null!;
@@ -151,6 +164,7 @@ public partial class Main : Node3D
         // Roof auto-hides for the overhead camera and a high free cam, plus the R toggle.
         bool hide = _roofManualHide || _cams.IsOverhead || _cams.IsFreeHigh;
         if (_world.RoofGroup.Visible == hide) _world.RoofGroup.Visible = !hide;
+        UpdateStationHover();
         UpdateDayNight();
     }
 
@@ -193,6 +207,44 @@ public partial class Main : Node3D
             return true;
         }
         return false;
+    }
+
+    void UpdateStationHover()
+    {
+        if (_stationHover == null || !IsInstanceValid(_stationHover)) return;
+        if (_dashLayer.Visible || Input.MouseMode == Input.MouseModeEnum.Captured || _hud.ReportVisible)
+        {
+            _stationHover.Visible = false;
+            return;
+        }
+        var cam = GetViewport().GetCamera3D();
+        if (cam == null)
+        {
+            _stationHover.Visible = false;
+            return;
+        }
+        var screenPos = GetViewport().GetMousePosition();
+        var from = cam.ProjectRayOrigin(screenPos);
+        var to = from + cam.ProjectRayNormal(screenPos) * 80f;
+        var hit = GetWorld3D().DirectSpaceState.IntersectRay(PhysicsRayQueryParameters3D.Create(from, to));
+        if (hit.Count == 0)
+        {
+            _stationHover.Visible = false;
+            return;
+        }
+        var collider = hit["collider"].As<Node3D>();
+        if (collider == null || !collider.HasMeta("station_label"))
+        {
+            _stationHover.Visible = false;
+            return;
+        }
+        _stationHover.Text = collider.GetMeta("station_label").AsString();
+        float y = collider.HasMeta("station_hover_y")
+            ? (float)collider.GetMeta("station_hover_y").AsDouble()
+            : collider.GlobalPosition.Y + 1.0f;
+        var hitPos = hit["position"].AsVector3();
+        _stationHover.GlobalPosition = new Vector3(hitPos.X, y, hitPos.Z);
+        _stationHover.Visible = true;
     }
 
     static void KillFocus(Node n)

@@ -104,8 +104,8 @@ public static class WorldBuilder
         Prop(w, "holding_unit", new Vector3(-4.5f, 0.94f, -4.2f), new Vector3(0.9f, 0.32f, 0.42f), new Color(0.86f, 0.7f, 0.4f), yaw: 90f, baseY: 0.92f, modelScale: new Vector3(0.45f, 0.45f, 0.45f));
         // prep counter, back-right (kept clear of the walk-in to declutter that corner)
         Station(w, L, "prep", new Vector3(4.8f, 0.5f, -6.0f), new Vector3(2.0f, 0.95f, 1.0f), Steel, "PREP", yaw: 0f);
-        // crew beverage station, front-left of the kitchen by the drive-thru, faces IN (+X)
-        Station(w, L, "beverage", new Vector3(-7.0f, 0.7f, -2.6f), new Vector3(1.0f, 1.5f, 1.4f), DarkSteel, "BEVERAGE", yaw: 90f);
+        // Drinks are fulfilled from lobby self-serve fountains or the drive-thru soda machine.
+        L.Anchor["beverage"] = new Vector3(-10.8f, 0.7f, -1.6f);
 
         // (1) drive-thru window on the LEFT (west) wall; faces INTO the kitchen (+X)
         Station(w, L, "dt_window", new Vector3(-11.6f, 0.6f, -3.0f), new Vector3(0.6f, 1.1f, 1.4f), Steel, "DT WINDOW", yaw: 90f);
@@ -198,7 +198,7 @@ public static class WorldBuilder
         L.Anchor["work_fryer"] = new Vector3(-1.0f, 0, -5.4f);
         L.Anchor["work_prep"] = new Vector3(4.8f, 0, -5.1f);
         L.Anchor["work_assembly"] = new Vector3(-3.5f, 0, -4.2f);
-        L.Anchor["work_beverage"] = new Vector3(-6.3f, 0, -2.6f);
+        L.Anchor["work_beverage"] = new Vector3(-10.2f, 0, -2.2f);
         L.Anchor["work_expo"] = new Vector3(-0.7f, 0, -1.7f);
         L.Anchor["work_counter"] = new Vector3(-2.0f, 0, -1.8f);
         L.Anchor["work_dt"] = new Vector3(-10.2f, 0, -3.0f);       // at the drive-thru window, inside
@@ -342,6 +342,8 @@ public static class WorldBuilder
         var shape = new CollisionShape3D { Shape = new BoxShape3D { Size = size } };
         body.AddChild(shape);
         body.SetMeta("station", id);
+        body.SetMeta("station_label", label);
+        body.SetMeta("station_hover_y", pos.Y + size.Y / 2f + 0.35f);
         w.AddChild(body);
         if (glow.HasValue)
         {
@@ -350,17 +352,6 @@ public static class WorldBuilder
             m.Emission = glow.Value;
             m.EmissionEnergyMultiplier = 0.35f;
         }
-        var tag = new Label3D
-        {
-            Text = label,
-            FontSize = 56,
-            Position = pos + new Vector3(0, size.Y / 2 + 0.55f, 0),
-            Billboard = BaseMaterial3D.BillboardModeEnum.Enabled,
-            Modulate = new Color(1, 1, 1),
-            OutlineSize = 10,
-            Name = "lbl_" + id
-        };
-        w.AddChild(tag);
         L.Anchor[id] = pos;
         if (hide) mi.Visible = false;   // e.g. POS: the counter's monitor mesh is the visual; box stays for click/anchor
         var cands = EquipAlias.TryGetValue(id, out var alias)

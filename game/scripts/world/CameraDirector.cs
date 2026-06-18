@@ -36,14 +36,14 @@ public partial class CameraDirector : Node3D
         // (name, mount position, look-at target)
         var defs = new (string, Vector3, Vector3)[]
         {
-            ("CAM-01 GRILL",        new Vector3(6.8f, 3.3f, -6.3f),   w.Anchor["grill"] + Vector3.Up * 0.6f),
-            ("CAM-02 FRYER",        new Vector3(-4.6f, 3.3f, -6.2f),  w.Anchor["fryer"] + Vector3.Up * 0.6f),
-            ("CAM-03 PREP/WALK-IN", new Vector3(9.6f, 3.2f, -6.0f),   (w.Anchor["prep"] + w.Anchor["cooler"]) / 2 + Vector3.Up * 0.6f),
-            ("CAM-04 ASSEMBLY",     new Vector3(-7.8f, 3.0f, -1.4f),  w.Anchor["assembly"] + Vector3.Up * 0.55f),
-            ("CAM-05 BEV/EXPO",     new Vector3(-8.8f, 3.2f, 0.7f),   (w.Anchor["beverage"] + w.Anchor["expo"]) / 2 + Vector3.Up * 0.65f),
-            ("CAM-06 FRONT COUNTER",new Vector3(0.4f, 2.6f, 5.9f),    new Vector3(-0.2f, 0.95f, -1.0f)),
+            ("CAM-01 GRILL",        new Vector3(5.8f, 3.55f, -2.0f),  w.Anchor["grill"] + Vector3.Up * 0.75f),
+            ("CAM-02 FRYER",        new Vector3(-3.8f, 3.55f, -2.0f), w.Anchor["fryer"] + Vector3.Up * 0.75f),
+            ("CAM-03 PREP/WALK-IN", new Vector3(6.5f, 3.55f, -2.2f),  (w.Anchor["prep"] + w.Anchor["cooler"]) / 2 + Vector3.Up * 0.75f),
+            ("CAM-04 ASSEMBLY",     new Vector3(-2.4f, 3.35f, -1.35f), w.Anchor["assembly"] + Vector3.Up * 0.7f),
+            ("CAM-05 EXPO/PICKUP",  new Vector3(-2.3f, 3.15f, 0.75f), (w.Anchor["expo"] + w.Anchor["mobile_shelf"]) / 2 + Vector3.Up * 0.75f),
+            ("CAM-06 FRONT COUNTER",new Vector3(5.4f, 3.0f, 4.8f),    new Vector3(-0.2f, 1.0f, -0.8f)),
             ("CAM-07 LOBBY/DINING", new Vector3(10.6f, 3.2f, 5.7f),   new Vector3(-4f, 0.75f, 3.2f)),
-            ("CAM-08 DT WINDOW",    new Vector3(-10.1f, 2.9f, -1.25f), w.Anchor["dt_window"] + new Vector3(-0.25f, 0.55f, -0.25f)),
+            ("CAM-08 DT WINDOW",    new Vector3(-9.5f, 3.05f, -0.8f), w.Anchor["dt_window"] + new Vector3(0.4f, 0.65f, -0.1f)),
             ("CAM-09 DT LANE/BOARD",new Vector3(-24.0f, 6.2f, 7.5f),  w.Anchor["order_board"] + new Vector3(1.8f, 0.05f, 0.8f)),
             ("CAM-10 LOT/ENTRANCE", new Vector3(-13.8f, 4.7f, 16.2f), new Vector3(0, 0.8f, 8.3f)),
         };
