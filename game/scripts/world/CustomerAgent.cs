@@ -13,6 +13,7 @@ public partial class CustomerAgent : CharacterRig
     public string OrderId = "";
     public string Channel = "lobby";
     public bool TicketDone;
+    public bool UsesKiosk;
     public Vector3 QueueSpot, PickupSpot, TableSpot, ExitSpot, BusSpot;
     public bool Courier;
     float _pause;

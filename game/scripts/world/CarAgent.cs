@@ -121,7 +121,7 @@ public partial class CarAgent : Node3D
         if (Ahead != null && IsInstanceValid(Ahead) && !Ahead.Exiting)
         {
             var gap = (Ahead.Position - Position).Length();
-            if (gap < 4.2f && LaneIndex <= Ahead.LaneIndex) { if (_brakeMat != null) _brakeMat.EmissionEnergyMultiplier = 2.2f; return false; }
+            if (gap < 6.0f && LaneIndex <= Ahead.LaneIndex) { if (_brakeMat != null) _brakeMat.EmissionEnergyMultiplier = 2.2f; return false; }
         }
 
         var pos = Position; pos.Y = 0;

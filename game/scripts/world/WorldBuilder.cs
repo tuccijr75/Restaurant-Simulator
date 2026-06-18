@@ -16,6 +16,7 @@ public sealed class WorldLayout
     public readonly Dictionary<string, Vector3> Anchor = new();
     public readonly List<Vector3> DtLane = new();        // drive-thru waypoints
     public readonly List<Vector3> QueueSpots = new();    // lobby register queue
+    public readonly List<Vector3> KioskSpots = new();    // lobby self-order kiosks
     public readonly List<Vector3> ParkingSpots = new();  // customer parking stall walk-up points
     public readonly List<Vector3> Tables = new();        // dining seats
     public NavigationRegion3D NavRegion = null!;         // baked walkable area
@@ -193,6 +194,8 @@ public static class WorldBuilder
         L.QueueSpots.Add(new Vector3(-2.0f, 0, 2.3f));
         L.QueueSpots.Add(new Vector3(-1.2f, 0, 3.3f));
         L.QueueSpots.Add(new Vector3(-1.2f, 0, 4.3f));
+        L.KioskSpots.Add(new Vector3(-1.25f, 0, 2.5f));
+        L.KioskSpots.Add(new Vector3(1.25f, 0, 2.5f));
         // Employee work spots (sim station id -> world position, crew side of fixtures)
         L.Anchor["work_grill"] = new Vector3(2.0f, 0, -4.2f);
         L.Anchor["work_fryer"] = new Vector3(-1.0f, 0, -5.4f);

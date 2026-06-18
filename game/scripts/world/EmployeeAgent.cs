@@ -122,6 +122,12 @@ public partial class EmployeeAgent : CharacterRig
                 _onSupplyRun = false;
                 _supplyTimer = 45 + _vis.Next(90);
             }
+            else if (DestinationBlockedSeconds > 2.0f)
+            {
+                _onSupplyRun = false;
+                _supplyTimer = 18 + _vis.Next(30);
+                Task = "Yielding aisle";
+            }
             return;
         }
         // Cashiers step up to the register when a customer is ordering, otherwise stand back.
@@ -150,7 +156,11 @@ public partial class EmployeeAgent : CharacterRig
             Task = "Greeting a guest";
             if (_greetTarget == null || !IsInstanceValid(_greetTarget)) { _greeting = false; return; }  // guest already left
             Vector3 cpos = _greetTarget.Position; cpos.Y = 0;
-            if (FlatDist(Position, cpos) > GreetRange) { StepToward(cpos, delta); return; }  // close the gap to the guest
+            if (FlatDist(Position, cpos) > GreetRange)
+            {
+                if (!StepToward(cpos, delta) && DestinationBlockedSeconds > 2.0f) _greeting = false;
+                return;
+            }  // close the gap to the guest
             Moving = false;
             FaceToward(cpos, delta);                                      // turn toward the customer
             if (!_waved) { TriggerOneShot("waving", 2.5f); _waved = true; _greetTimer = 2.5f; }
