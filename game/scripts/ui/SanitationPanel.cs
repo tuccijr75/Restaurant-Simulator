@@ -4,7 +4,7 @@ using Godot;
 namespace RestaurantSimulator;
 
 public partial class SanitationPanel:DashCard{
- SimRunState? s; Label status=new();
+ SimRunState? s; Label status=null!;
  public SanitationPanel(){CardTitle="Sanitation";}
  public override void _Ready(){
   base._Ready();

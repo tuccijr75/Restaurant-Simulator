@@ -4,7 +4,7 @@ using Godot;
 namespace RestaurantSimulator;
 
 public partial class ExportPanel:DashCard{
- SimRunState? s; Label status=new(); Button export=new();
+ SimRunState? s; Label status=null!; Button export=null!;
  public ExportPanel(){CardTitle="Exports";}
  public override void _Ready(){
   base._Ready();

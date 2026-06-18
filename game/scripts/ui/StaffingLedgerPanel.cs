@@ -4,7 +4,7 @@ using Godot;
 namespace RestaurantSimulator;
 
 public partial class StaffingLedgerPanel:DashCard{
- SimRunState? s; Label status=new(); Button export=new();
+ SimRunState? s; Label status=null!; Button export=null!;
  public StaffingLedgerPanel(){CardTitle="Staffing Ledger";CustomMinimumSize=new Vector2(330,240);}
  public override void _Ready(){
   base._Ready();

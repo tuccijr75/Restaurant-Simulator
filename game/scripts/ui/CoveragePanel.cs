@@ -4,7 +4,7 @@ using Godot;
 namespace RestaurantSimulator;
 
 public partial class CoveragePanel:DashCard{
- SimRunState? s; Label info=new();
+ SimRunState? s; Label info=null!;
  public CoveragePanel(){CardTitle="Coverage";CustomMinimumSize=new Vector2(330,255);}
  public override void _Ready(){
   base._Ready();

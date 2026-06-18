@@ -4,7 +4,7 @@ using Godot;
 namespace RestaurantSimulator;
 
 public partial class PosPanel:DashCard{
- SimRunState? s; Label status=new();
+ SimRunState? s; Label status=null!;
  public PosPanel(){CardTitle="POS";CustomMinimumSize=new Vector2(330,300);}
  public override void _Ready(){
   base._Ready();

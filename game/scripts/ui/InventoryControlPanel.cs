@@ -4,7 +4,7 @@ using Godot;
 namespace RestaurantSimulator;
 
 public partial class InventoryControlPanel:DashCard{
- SimRunState? s; Label status=new();
+ SimRunState? s; Label status=null!;
  public InventoryControlPanel(){CardTitle="Prep / Waste";CustomMinimumSize=new Vector2(330,220);}
  public override void _Ready(){
   base._Ready();

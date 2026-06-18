@@ -4,7 +4,7 @@ using Godot;
 namespace RestaurantSimulator;
 
 public partial class TemperaturePanel:DashCard{
- SimRunState? s; Label status=new();
+ SimRunState? s; Label status=null!;
  public TemperaturePanel(){CardTitle="Temperatures";}
  public override void _Ready(){
   base._Ready();

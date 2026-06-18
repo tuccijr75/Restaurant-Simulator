@@ -5,7 +5,7 @@ using System;
 namespace RestaurantSimulator;
 
 public partial class LaborPanel:DashCard{
- SimRunState? s; Label status=new();
+ SimRunState? s; Label status=null!;
  public LaborPanel(){CardTitle="Labor";CustomMinimumSize=new Vector2(330,300);}
  public override void _Ready(){
   base._Ready();

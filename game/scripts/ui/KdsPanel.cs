@@ -4,7 +4,7 @@ using Godot;
 namespace RestaurantSimulator;
 
 public partial class KdsPanel:DashCard{
- SimRunState? s; Label status=new();
+ SimRunState? s; Label status=null!;
  public KdsPanel(){CardTitle="KDS";}
  public override void _Ready(){base._Ready();status=StatusLabel();}
  public void Bind(SimRunState st){s=st;}

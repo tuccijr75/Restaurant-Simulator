@@ -4,7 +4,7 @@ using Godot;
 namespace RestaurantSimulator;
 
 public partial class ClockPanel:DashCard{
- SimRunState? s; Label status=new(); Button run=new();
+ SimRunState? s; Label status=null!; Button run=null!;
  public ClockPanel(){CardTitle="Clock / Run";}
  public override void _Ready(){
   base._Ready();

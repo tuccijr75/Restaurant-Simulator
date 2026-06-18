@@ -6,7 +6,7 @@ namespace RestaurantSimulator;
 public partial class ScenarioPanel:DashCard{
  static readonly string[] Scenarios={"normal_day","slow_day","rush_day","weather_disruption","staffing_call_off","equipment_failure","local_event_surge","school_event_surge","holiday_pattern","multi_rush_condition"};
  static readonly double[] Speeds={1.0,10.0,60.0,300.0,900.0};
- SimRunState? s; OptionButton scenarioPick=new(); OptionButton speedPick=new(); Label status=new();
+ SimRunState? s; OptionButton scenarioPick=new(); OptionButton speedPick=new(); Label status=null!;
  public ScenarioPanel(){CardTitle="Scenario";}
  public override void _Ready(){
   base._Ready();
