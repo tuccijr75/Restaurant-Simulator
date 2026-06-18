@@ -1,0 +1,31 @@
+{
+  "schema_version": "1.0.0",
+  "synthetic_data": true,
+  "data_classification": "INTERNAL_SIM",
+  "notes": "Competitive vendor pricing model for back-office negotiation. Distributor pricing is account and region specific; these ranges are simulation defaults based on common broadline, local, and club/spot-buy purchasing patterns.",
+  "vendors": [
+    {"id": "broadline_national_a", "name": "Broadline National A", "type": "broadline", "lead_time_days": 2, "delivery_days": ["mon", "wed", "fri"], "minimum_order_usd": 750, "case_minimum": 12, "fuel_surcharge_pct": 2.5, "fill_rate_pct": 97, "payment_terms": "net_14", "strengths": ["one-stop ordering", "high fill rate", "rebates"], "risks": ["higher minimums", "fuel surcharge"]},
+    {"id": "broadline_national_b", "name": "Broadline National B", "type": "broadline", "lead_time_days": 2, "delivery_days": ["tue", "thu", "sat"], "minimum_order_usd": 650, "case_minimum": 10, "fuel_surcharge_pct": 2.0, "fill_rate_pct": 95, "payment_terms": "net_14", "strengths": ["competitive proteins", "strong frozen program"], "risks": ["substitutions during shortages"]},
+    {"id": "produce_local", "name": "Local Produce Co-op", "type": "local_specialist", "lead_time_days": 1, "delivery_days": ["mon", "tue", "wed", "thu", "fri"], "minimum_order_usd": 150, "case_minimum": 3, "fuel_surcharge_pct": 0.0, "fill_rate_pct": 92, "payment_terms": "net_7", "strengths": ["fresh produce", "low minimum"], "risks": ["seasonal volatility"]},
+    {"id": "dairy_local", "name": "Regional Dairy", "type": "local_specialist", "lead_time_days": 2, "delivery_days": ["mon", "thu"], "minimum_order_usd": 250, "case_minimum": 5, "fuel_surcharge_pct": 1.0, "fill_rate_pct": 94, "payment_terms": "net_10", "strengths": ["milk and frozen dessert mix", "stable service"], "risks": ["limited assortment"]},
+    {"id": "club_spot_buy", "name": "Club Spot Buy", "type": "cash_and_carry", "lead_time_days": 0, "delivery_days": ["daily"], "minimum_order_usd": 0, "case_minimum": 1, "fuel_surcharge_pct": 0.0, "fill_rate_pct": 85, "payment_terms": "card_on_purchase", "strengths": ["emergency buys", "no minimum"], "risks": ["labor time", "no guaranteed supply", "higher unit cost"]}
+  ],
+  "ingredient_price_ranges": [
+    {"ingredient_id": "frozen_beef_patty", "unit": "each", "broadline_national_a": [0.52, 0.62], "broadline_national_b": [0.50, 0.60], "club_spot_buy": [0.63, 0.78]},
+    {"ingredient_id": "frozen_breaded_chicken", "unit": "each", "broadline_national_a": [0.61, 0.72], "broadline_national_b": [0.58, 0.70], "club_spot_buy": [0.76, 0.94]},
+    {"ingredient_id": "frozen_nuggets", "unit": "each", "broadline_national_a": [0.065, 0.085], "broadline_national_b": [0.06, 0.08], "club_spot_buy": [0.09, 0.12]},
+    {"ingredient_id": "frozen_fries", "unit": "serving", "broadline_national_a": [0.14, 0.19], "broadline_national_b": [0.13, 0.18], "club_spot_buy": [0.20, 0.27]},
+    {"ingredient_id": "hamburger_bun", "unit": "each", "broadline_national_a": [0.12, 0.17], "broadline_national_b": [0.13, 0.18], "club_spot_buy": [0.18, 0.26]},
+    {"ingredient_id": "shredded_lettuce", "unit": "portion", "broadline_national_a": [0.055, 0.08], "produce_local": [0.045, 0.09], "club_spot_buy": [0.08, 0.12]},
+    {"ingredient_id": "tomato_slice", "unit": "slice", "broadline_national_a": [0.08, 0.14], "produce_local": [0.07, 0.16], "club_spot_buy": [0.13, 0.20]},
+    {"ingredient_id": "soda_syrup", "unit": "serving", "broadline_national_a": [0.15, 0.21], "broadline_national_b": [0.16, 0.22]},
+    {"ingredient_id": "soft_serve_mix", "unit": "serving", "dairy_local": [0.30, 0.39], "broadline_national_a": [0.33, 0.44], "club_spot_buy": [0.46, 0.58]},
+    {"ingredient_id": "drink_cup", "unit": "each", "broadline_national_a": [0.04, 0.06], "broadline_national_b": [0.045, 0.065], "club_spot_buy": [0.07, 0.10]}
+  ],
+  "negotiation_levers": [
+    {"id": "volume_commitment", "effect": "Lower unit price 2-8 percent when weekly case volume is guaranteed.", "tradeoff": "Raises spoilage and cash risk if demand misses."},
+    {"id": "multi_category_rebate", "effect": "Earn 1-4 percent rebate by bundling protein, packaging, and frozen with one broadliner.", "tradeoff": "Reduces flexibility to spot-buy cheaper items."},
+    {"id": "delivery_window", "effect": "Off-peak delivery can reduce surcharge or minimum.", "tradeoff": "May increase labor receiving burden."},
+    {"id": "substitution_policy", "effect": "Accepting approved substitutes improves fill rate.", "tradeoff": "Can affect product consistency and guest satisfaction."}
+  ]
+}

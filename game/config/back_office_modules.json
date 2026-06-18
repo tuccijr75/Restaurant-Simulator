@@ -1,0 +1,14 @@
+{
+  "schema_version": "1.0.0",
+  "synthetic_data": true,
+  "modules": [
+    {"id": "vendor_negotiations", "name": "Vendor Negotiations", "pos_area": "back_office", "systems": ["vendor_catalog", "purchase_contracts", "ingredient_catalog"], "player_decisions": ["select primary vendor", "negotiate rebates", "approve substitutions", "set minimum delivery cadence"]},
+    {"id": "purchase_orders", "name": "Purchase Orders", "pos_area": "back_office", "systems": ["inventory_ledger", "sales_forecast"], "player_decisions": ["order by par", "rush buy", "delay truck", "split order across vendors"]},
+    {"id": "menu_engineering", "name": "Menu Engineering", "pos_area": "back_office", "systems": ["menu_products", "ingredient_catalog", "sales_mix"], "player_decisions": ["change prices", "disable low-margin items", "feature promos", "daypart availability"]},
+    {"id": "labor_scheduler", "name": "Labor Scheduler", "pos_area": "back_office", "systems": ["staffing_ledger", "forecast"], "player_decisions": ["schedule coverage", "approve breaks", "call in support", "cut labor"]},
+    {"id": "maintenance", "name": "Maintenance", "pos_area": "back_office", "systems": ["equipment_ledger"], "player_decisions": ["preventive maintenance", "repair vendor", "defer repair", "replace equipment"]},
+    {"id": "cash_controls", "name": "Cash Controls", "pos_area": "back_office", "systems": ["pos_sales", "deposits"], "player_decisions": ["count drawer", "investigate variance", "safe drop", "deposit closeout"]},
+    {"id": "food_safety", "name": "Food Safety", "pos_area": "back_office", "systems": ["inventory_ledger", "temp_checks"], "player_decisions": ["log temperatures", "discard unsafe product", "respond to inspection", "assign cleaning tasks"]},
+    {"id": "guest_recovery", "name": "Guest Recovery", "pos_area": "back_office", "systems": ["event_stream", "csat"], "player_decisions": ["approve comp", "issue refund", "coach station", "adjust service target"]}
+  ]
+}

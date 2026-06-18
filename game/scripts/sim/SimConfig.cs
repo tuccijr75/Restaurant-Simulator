@@ -26,9 +26,9 @@ public static class SimConfig
     public static int HoldLimitFriedMin = 20, HoldLimitGrilledMin = 15, HoldLimitFriesMin = 7;
 
     // ---- patience / abandonment (RS-HQ-001) — operator_calibration_required
-    public static int PatienceDtSec = 720, PatienceLobbySec = 720, PatienceMobileSec = 1200, PatienceDeliverySec = 1500;
-    public static int DtBalkQueueDepth = 9;
-    public static int LobbyBalkQueueDepth = 8, MobileThrottleQueueDepth = 18, DeliveryThrottleQueueDepth = 18;
+    public static int PatienceDtSec = 1200, PatienceLobbySec = 1200, PatienceMobileSec = 1800, PatienceDeliverySec = 2400;
+    public static int DtBalkQueueDepth = 6;
+    public static int LobbyBalkQueueDepth = 5, MobileThrottleQueueDepth = 9, DeliveryThrottleQueueDepth = 9;
 
     // ---- satisfaction (RS-HQ-001)
     public static double CsatPassTarget = 75;

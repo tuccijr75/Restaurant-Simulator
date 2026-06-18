@@ -57,7 +57,7 @@ Console.WriteLine("=================== INGREDIENT MODEL (RS-IM-001) ============
     var ib = RunIng("normal_day", 12345);
     void IC(string name, bool ok) { Console.WriteLine((ok ? "[PASS] " : "[FAIL] ") + name); if (ok) ingredientPass++; else ingredientFail++; }
 
-    IC("catalog loaded (34 ingredients)", cat.Loaded && cat.Items.Count == 34);
+    IC("catalog loaded with expanded sellable-product ingredients", cat.Loaded && cat.Items.Count >= 44);
     IC("real ingredient ledger active", ia.RealIngredientsActive);
     IC("deterministic ingredient ledger (hash match)",
         Exports.Sha256Hex(ia.IngredientLedgerJson) == Exports.Sha256Hex(ib.IngredientLedgerJson));

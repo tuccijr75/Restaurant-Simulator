@@ -50,10 +50,11 @@ public class SimRunState{
   public bool Queued,Started,Done;
  }
  class ItemSpec{
-  public string Id="",Family="",Station="";
+  public string Id="",DisplayName="",Category="",Family="",Station="",Dayparts="all";
   public double CookSeconds,HoldMinutes,AssemblySeconds,ExpoSeconds,Price;
   public double BatchSize=1;
   public string? HoldFamily;  // RS-HQ-001: draws cooked product from this pan
+  public Dictionary<string,double> Draw=new();
  }
  // RS-GP-001: interrupt the player must answer (auto-resolves with the default).
  public class Decision{
@@ -165,14 +166,10 @@ public class SimRunState{
   Orders++;
   if(ch=="drive_thru")DriveThru++;else if(ch=="lobby")FrontCounter++;else if(ch=="delivery")Delivery++;else Mobile++;
   var oid=$"ord_{Orders:000000}";
-  var fried=Roll(1)<500;
-  var hasFries=Roll(2)<650;
-  var hasDrink=Roll(3)<600;
-  var secondMain=Roll(4)<200;
-  var count=1+(secondMain?1:0)+(hasFries?1:0)+(hasDrink?1:0);
-  var orderTotal=(fried?items["fried_main"].Price:items["grilled_main"].Price)
-   +(secondMain?(Roll(5)<500?items["fried_main"].Price:items["grilled_main"].Price):0)
-   +(hasFries?items["side"].Price:0)+(hasDrink?items["beverage"].Price:0);
+  var cart=BuildCart(ch);
+  var count=cart.Count;
+  var orderTotal=0.0;
+  foreach(var spec in cart)orderTotal+=spec.Price;
   SalesTotal+=orderTotal;
   var b=(int)(Minute/30)%48;
   tickets30[b]++;
@@ -185,10 +182,12 @@ public class SimRunState{
   // Mobile/delivery were ordered remotely — no intake labor.
   if(ch=="drive_thru")t.IntakeTaskId=CreateTask(t,"order_intake","service","drive_thru","dt_service",SimConfig.DtIntakeSec,0).Id;
   else if(ch=="lobby")t.IntakeTaskId=CreateTask(t,"order_intake","service","lobby","counter_service",SimConfig.FcIntakeSec,0).Id;
-  if(fried){MainsSold++;RegisterItem(t,items["fried_main"],new Dictionary<string,double>{{"cooked_fried_main",1},{"prep_pack",.5}});}else{MainsSold++;RegisterItem(t,items["grilled_main"],new Dictionary<string,double>{{"cooked_grilled_main",1},{"prep_pack",.5}});}
-  if(secondMain){MainsSold++;var sm2=Roll(5)<500;RegisterItem(t,sm2?items["fried_main"]:items["grilled_main"],new Dictionary<string,double>{{sm2?"cooked_fried_main":"cooked_grilled_main",1},{"prep_pack",.5}});}
-  if(hasFries){FriesSold++;RegisterItem(t,items["side"],new Dictionary<string,double>{{"cooked_fries",1}});}
-  if(hasDrink){DrinksSold++;RegisterItem(t,items["beverage"],new Dictionary<string,double>{{"drink_mix",.25}});}
+  foreach(var spec in cart){
+   if(spec.Category=="main"||spec.Category=="breakfast")MainsSold++;
+   else if(spec.Category=="side")FriesSold++;
+   else if(spec.Category=="beverage")DrinksSold++;
+   RegisterItem(t,spec,new Dictionary<string,double>(spec.Draw));
+  }
   TryTakeItems(t);
   QueueReadyTasks(t);
   Emit("ticket.updated",$"{{\"ticket_id\":\"tkt_{t.Id:000000}\",\"order_id\":\"{oid}\",\"status\":\"queued\",\"queue_seconds\":0,\"station_id\":\"{FirstOpenStation(t)}\"}}");
@@ -197,6 +196,30 @@ public class SimRunState{
  void RegisterItem(Ticket t,ItemSpec spec,Dictionary<string,double> draw){
   t.Pending.Add(new PendingItem{Spec=spec,Draw=draw});
  }
+
+ List<ItemSpec> BuildCart(string ch){
+  var cart=new List<ItemSpec>();
+  if(Daypart=="breakfast"){
+   cart.Add(Pick(new[]{"sausage_egg_cheese_biscuit","bacon_egg_cheese_biscuit","chicken_biscuit","breakfast_platter","hash_brown_bowl"},31));
+   if(Roll(32)<620)cart.Add(items[Roll(33)<720?"hash_browns":"fries_small"]);
+   if(Roll(34)<720)cart.Add(items[Roll(35)<600?"coffee":"iced_coffee"]);
+   if(Roll(36)<120)cart.Add(Pick(new[]{"vanilla_shake","strawberry_shake","slush"},37));
+   return cart;
+  }
+  var mainPool=Daypart=="late_night"
+   ? new[]{"classic_burger","double_cheeseburger","crispy_chicken_sandwich","nuggets_6pc","nuggets_10pc"}
+   : new[]{"classic_burger","deluxe_burger","double_cheeseburger","crispy_chicken_sandwich","grilled_chicken_sandwich","nuggets_6pc","nuggets_10pc"};
+  cart.Add(Pick(mainPool,41));
+  if(Roll(42)<(Daypart=="dinner"?260:180))cart.Add(Pick(mainPool,43));
+  if(Roll(44)<710)cart.Add(items[Roll(45)<350?"fries_small":Roll(46)<780?"fries_medium":"fries_large"]);
+  if(Roll(47)<680)cart.Add(items[Roll(48)<250?"fountain_drink_small":Roll(49)<780?"fountain_drink_medium":"fountain_drink_large"]);
+  if((ch=="lobby"||Daypart=="afternoon"||Daypart=="dinner")&&Roll(50)<220)
+   cart.Add(Pick(new[]{"soft_serve_cone","chocolate_sundae","strawberry_sundae","vanilla_shake","chocolate_shake","strawberry_shake","frozen_blended_drink","slush"},51));
+  if(Roll(52)<55)cart.Add(items["bottled_water"]);
+  return cart;
+ }
+
+ ItemSpec Pick(string[] ids,int salt)=>items[ids[Math.Abs(Roll(salt))%ids.Length]];
  // RS-HQ-001: item.taken fires only once the hold pan can actually supply the
  // item — a stockout defers the take (and the lifecycle) while the guest waits.
  void TryTakeItems(Ticket t){
@@ -228,7 +251,7 @@ public class SimRunState{
    ItemSeq++;
    itemSb.Append($"{ItemSeq} {TimeText} taken order {t.OrderId} item {spec.Id} hold {spec.HoldFamily??"none"} quality {Num(t.MinQuality)} assembly {Num(spec.AssemblySeconds)}s expo {Num(spec.ExpoSeconds)}s price ${spec.Price:0.00}\n");
    Emit("item.taken",$"{{\"order_id\":\"{t.OrderId}\",\"item_id\":\"{spec.Id}\",\"quantity\":1,\"station_ids\":[\"{spec.Station}\"],\"inventory_draw\":{DrawJson(pi.Draw)},\"status\":\"taken\"}}");
-   if(ingredients!=null&&abstractToMenu.TryGetValue(spec.Id,out var mi))ingredients.ConsumeMenuItem(mi,Minute);
+   if(ingredients!=null)ingredients.ConsumeMenuItem(MenuIngredientId(spec.Id),Minute);
    t.TakenCount++;
    t.Pending.RemoveAt(i);
   }
@@ -237,7 +260,7 @@ public class SimRunState{
    QueueReadyTasks(t);
   }
  }
- static readonly Dictionary<string,string> coockedToPan=new(){{"cooked_fried_main","fried_main"},{"cooked_grilled_main","grilled_main"},{"cooked_fries","fries"}};
+ static readonly Dictionary<string,string> coockedToPan=new(){{"cooked_fried_main","fried_main"},{"cooked_grilled_main","grilled_main"},{"cooked_nuggets","nuggets"},{"cooked_fries","fries"}};
  double DrawCooked(HoldPan pan,double qty){
   inventory[pan.Cooked]=Math.Max(0,inventory.GetValueOrDefault(pan.Cooked)-qty);
   invConsumed[pan.Cooked]=invConsumed.GetValueOrDefault(pan.Cooked)+qty;
@@ -539,8 +562,9 @@ public class SimRunState{
  public IngredientCatalog? Catalog;
  IngredientLedger? ingredients;
  double lastIngredientTick=360;
- static readonly Dictionary<string,string> abstractToMenu=new(){
-  {"fried_main","crispy_chicken_sandwich"},{"grilled_main","classic_burger"},{"side","fries"},{"beverage","fountain_drink"}};
+ static readonly Dictionary<string,string> legacyMenuAliases=new(){
+  {"fried_main","crispy_chicken_sandwich"},{"grilled_main","classic_burger"},{"side","fries_medium"},{"beverage","fountain_drink_medium"},{"fries","fries_medium"},{"fountain_drink","fountain_drink_medium"}};
+ static string MenuIngredientId(string id)=>legacyMenuAliases.TryGetValue(id,out var mi)?mi:id;
  void EnsureIngredientLedger(){
   if(ingredients!=null||!EnableRealIngredients)return;
   ingredients=new IngredientLedger(Catalog??IngredientCatalog.Default());
@@ -842,14 +866,40 @@ public class SimRunState{
   return "["+string.Join(",",rows)+"]";
  }}
  public string ActiveOverloadStation=>activeOverloadStation;
- void EnsureEquipment(){if(equipmentReady)return;equipmentReady=true;AddEquipment("fryer_fries_1","fryer","fries",70);AddEquipment("fryer_fries_2","fryer","fries",70);AddEquipment("fryer_main_1","fryer","fried_main",70);AddEquipment("fryer_main_2","fryer","fried_main",70);AddEquipment("burger_press_1","grill","grilled_main",95);AddEquipment("soda_1","beverage","beverage",45);AddEquipment("soda_2","beverage","beverage",45);AddEquipment("soda_3","beverage","beverage",45);AddEquipment("soda_4","beverage","beverage",45);AddEquipment("assembly_rail_1","assembly","assembly",60);AddEquipment("assembly_rail_2","assembly","assembly",60);AddEquipment("expo_lane_1","expo","expo",65);AddEquipment("expo_lane_2","expo","expo",65);AddEquipment("dt_window_1","drive_thru","dt_service",60);AddEquipment("dt_window_2","drive_thru","dt_service",60);AddEquipment("dt_window_3","drive_thru","dt_service",60);AddEquipment("counter_pos_1","lobby","counter_service",60);AddEquipment("counter_pos_2","lobby","counter_service",60);AddEquipment("counter_pos_3","lobby","counter_service",60);AddEquipment("pickup_shelf_1","pickup","pickup_service",80);// RS-HQ-001: mains/fries are cook-to-hold (full-cycle latency lives in the pan,
-  // draws take seconds). Fries keep a 15 s scoop at the fryer; beverage stays made-to-order.
-  items["fried_main"]=new ItemSpec{Id="fried_main",Family="fried_main",Station="fryer",CookSeconds=0,HoldFamily="fried_main",HoldMinutes=SimConfig.HoldLimitFriedMin,AssemblySeconds=44,ExpoSeconds=20,Price=6.25};
-  items["grilled_main"]=new ItemSpec{Id="grilled_main",Family="grilled_main",Station="grill",CookSeconds=0,HoldFamily="grilled_main",HoldMinutes=SimConfig.HoldLimitGrilledMin,AssemblySeconds=44,ExpoSeconds=20,Price=6.35};
-  items["side"]=new ItemSpec{Id="side",Family="fries",Station="fryer",CookSeconds=0,HoldFamily="fries",HoldMinutes=SimConfig.HoldLimitFriesMin,AssemblySeconds=18,ExpoSeconds=7,Price=2.75};  // bag at assembly: scoops must not queue behind 180s vat cycles
-  items["beverage"]=new ItemSpec{Id="beverage",Family="beverage",Station="beverage",CookSeconds=25,HoldMinutes=0,AssemblySeconds=0,ExpoSeconds=6,Price=2.35};
+ void EnsureEquipment(){if(equipmentReady)return;equipmentReady=true;AddEquipment("fryer_fries_1","fryer","fries",95);AddEquipment("fryer_fries_2","fryer","fries",95);AddEquipment("fryer_main_1","fryer","fried_main",95);AddEquipment("fryer_main_2","fryer","fried_main",95);AddEquipment("fryer_nuggets_1","fryer","nuggets",85);AddEquipment("burger_press_1","grill","grilled_main",125);AddEquipment("soda_1","beverage","beverage",70);AddEquipment("soda_2","beverage","beverage",70);AddEquipment("soda_3","beverage","beverage",70);AddEquipment("soda_4","beverage","beverage",70);AddEquipment("coffee_brewer_1","beverage","coffee",60);AddEquipment("shake_machine_1","beverage","dessert",60);AddEquipment("assembly_rail_1","assembly","assembly",85);AddEquipment("assembly_rail_2","assembly","assembly",85);AddEquipment("expo_lane_1","expo","expo",95);AddEquipment("expo_lane_2","expo","expo",95);AddEquipment("dt_window_1","drive_thru","dt_service",85);AddEquipment("dt_window_2","drive_thru","dt_service",85);AddEquipment("dt_window_3","drive_thru","dt_service",85);AddEquipment("counter_pos_1","lobby","counter_service",85);AddEquipment("counter_pos_2","lobby","counter_service",85);AddEquipment("counter_pos_3","lobby","counter_service",85);AddEquipment("pickup_shelf_1","pickup","pickup_service",110);// RS-HQ-001: cook-to-hold families stay operational; sellable ids are real products.
+  AddProduct("classic_burger","Classic Burger","main","grilled_main","grill",0,"grilled_main",SimConfig.HoldLimitGrilledMin,40,18,6.49,new(){{"cooked_grilled_main",1},{"prep_pack",.5}});
+  AddProduct("deluxe_burger","Deluxe Burger","main","grilled_main","grill",0,"grilled_main",SimConfig.HoldLimitGrilledMin,46,20,7.99,new(){{"cooked_grilled_main",1.35},{"prep_pack",.5}});
+  AddProduct("double_cheeseburger","Double Cheeseburger","main","grilled_main","grill",0,"grilled_main",SimConfig.HoldLimitGrilledMin,50,22,8.49,new(){{"cooked_grilled_main",2},{"prep_pack",.5}});
+  AddProduct("crispy_chicken_sandwich","Crispy Chicken Sandwich","main","fried_main","fryer",0,"fried_main",SimConfig.HoldLimitFriedMin,44,20,6.99,new(){{"cooked_fried_main",1},{"prep_pack",.5}});
+  AddProduct("grilled_chicken_sandwich","Grilled Chicken Sandwich","main","grilled_main","grill",0,"grilled_main",SimConfig.HoldLimitGrilledMin,44,20,7.29,new(){{"cooked_grilled_main",1},{"prep_pack",.5}});
+  AddProduct("nuggets_6pc","6 pc Nuggets","main","nuggets","fryer",0,"nuggets",SimConfig.HoldLimitFriedMin,16,10,4.79,new(){{"cooked_nuggets",6}});
+  AddProduct("nuggets_10pc","10 pc Nuggets","main","nuggets","fryer",0,"nuggets",SimConfig.HoldLimitFriedMin,18,12,6.99,new(){{"cooked_nuggets",10}});
+  AddProduct("fries_small","Small Fries","side","fries","fryer",0,"fries",SimConfig.HoldLimitFriesMin,13,7,2.29,new(){{"cooked_fries",.75}});
+  AddProduct("fries_medium","Medium Fries","side","fries","fryer",0,"fries",SimConfig.HoldLimitFriesMin,16,7,2.79,new(){{"cooked_fries",1}});
+  AddProduct("fries_large","Large Fries","side","fries","fryer",0,"fries",SimConfig.HoldLimitFriesMin,19,8,3.49,new(){{"cooked_fries",1.35}});
+  AddProduct("fountain_drink_small","Small Fountain Drink","beverage","beverage","beverage",18,null,0,0,5,1.99,new(){{"drink_mix",.18}});
+  AddProduct("fountain_drink_medium","Medium Fountain Drink","beverage","beverage","beverage",22,null,0,0,6,2.49,new(){{"drink_mix",.25}});
+  AddProduct("fountain_drink_large","Large Fountain Drink","beverage","beverage","beverage",25,null,0,0,7,2.89,new(){{"drink_mix",.32}});
+  AddProduct("bottled_water","Bottled Water","beverage","beverage","beverage",8,null,0,0,4,1.79,new(){{"drink_mix",.05}});
+  AddProduct("coffee","Coffee","beverage","coffee","beverage",20,null,0,0,5,1.89,new(){{"drink_mix",.12}});
+  AddProduct("iced_coffee","Iced Coffee","beverage","coffee","beverage",28,null,0,0,6,2.79,new(){{"drink_mix",.18}});
+  AddProduct("sausage_egg_cheese_biscuit","Sausage Egg Cheese Biscuit","breakfast","grilled_main","grill",0,"grilled_main",SimConfig.HoldLimitGrilledMin,38,18,4.49,new(){{"cooked_grilled_main",1},{"prep_pack",.5}});
+  AddProduct("bacon_egg_cheese_biscuit","Bacon Egg Cheese Biscuit","breakfast","grilled_main","grill",0,"grilled_main",SimConfig.HoldLimitGrilledMin,40,18,4.69,new(){{"cooked_grilled_main",1},{"prep_pack",.5}});
+  AddProduct("chicken_biscuit","Chicken Biscuit","breakfast","fried_main","fryer",0,"fried_main",SimConfig.HoldLimitFriedMin,34,18,4.79,new(){{"cooked_fried_main",1},{"prep_pack",.5}});
+  AddProduct("breakfast_platter","Breakfast Platter","breakfast","grilled_main","grill",0,"grilled_main",SimConfig.HoldLimitGrilledMin,58,24,6.99,new(){{"cooked_grilled_main",1.5},{"cooked_fries",.75},{"prep_pack",.5}});
+  AddProduct("hash_brown_bowl","Hash Brown Bowl","breakfast","grilled_main","grill",0,"grilled_main",SimConfig.HoldLimitGrilledMin,46,20,5.79,new(){{"cooked_grilled_main",1},{"cooked_fries",.75},{"prep_pack",.5}});
+  AddProduct("hash_browns","Hash Browns","side","fries","fryer",0,"fries",SimConfig.HoldLimitFriesMin,12,6,1.99,new(){{"cooked_fries",.6}});
+  AddProduct("soft_serve_cone","Vanilla Soft Serve Cone","dessert","dessert","beverage",24,null,0,0,5,1.79,new(){{"drink_mix",.12}});
+  AddProduct("chocolate_sundae","Chocolate Sundae","dessert","dessert","beverage",32,null,0,0,6,2.79,new(){{"drink_mix",.18}});
+  AddProduct("strawberry_sundae","Strawberry Sundae","dessert","dessert","beverage",32,null,0,0,6,2.79,new(){{"drink_mix",.18}});
+  AddProduct("vanilla_shake","Vanilla Shake","dessert","dessert","beverage",38,null,0,0,7,3.49,new(){{"drink_mix",.28}});
+  AddProduct("chocolate_shake","Chocolate Shake","dessert","dessert","beverage",40,null,0,0,7,3.59,new(){{"drink_mix",.28}});
+  AddProduct("strawberry_shake","Strawberry Shake","dessert","dessert","beverage",40,null,0,0,7,3.59,new(){{"drink_mix",.28}});
+  AddProduct("frozen_blended_drink","Frozen Blended Drink","dessert","dessert","beverage",36,null,0,0,7,3.69,new(){{"drink_mix",.24}});
+  AddProduct("slush","Slush","dessert","dessert","beverage",28,null,0,0,6,2.49,new(){{"drink_mix",.2}});
   pans["fried_main"]=new HoldPan{Family="fried_main",Station="fryer",Cooked="cooked_fried_main",Raw=new[]{("main_protein",1.0)},CycleSeconds=330,BatchQty=8,Capacity=16,LimitMin=SimConfig.HoldLimitFriedMin};
   pans["grilled_main"]=new HoldPan{Family="grilled_main",Station="grill",Cooked="cooked_grilled_main",Raw=new[]{("main_protein",1.0)},CycleSeconds=150,BatchQty=6,Capacity=12,LimitMin=SimConfig.HoldLimitGrilledMin};
+  pans["nuggets"]=new HoldPan{Family="nuggets",Station="fryer",Cooked="cooked_nuggets",Raw=new[]{("main_protein",0.12)},CycleSeconds=240,BatchQty=24,Capacity=48,LimitMin=SimConfig.HoldLimitFriedMin};
   pans["fries"]=new HoldPan{Family="fries",Station="fryer",Cooked="cooked_fries",Raw=new[]{("side_base",1.0)},CycleSeconds=180,BatchQty=4,Capacity=12,LimitMin=SimConfig.HoldLimitFriesMin};
   foreach(var pan in pans.Values){
    inventory[pan.Cooked]=pan.BatchQty;            // opening hold = one fresh batch
@@ -858,6 +908,9 @@ public class SimRunState{
   prepBatches.Add((260,360));                      // opening prep batch == opening inventory
  }
  void AddEquipment(string id,string station,string family,double cap){equipment.Add(new EquipmentUnit{Id=id,Station=station,Family=family,BaseCapacity=cap});}
+ void AddProduct(string id,string name,string category,string family,string station,double cook,string? holdFamily,double holdMin,double assembly,double expo,double price,Dictionary<string,double> draw){
+  items[id]=new ItemSpec{Id=id,DisplayName=name,Category=category,Family=family,Station=station,CookSeconds=cook,HoldFamily=holdFamily,HoldMinutes=holdMin,AssemblySeconds=assembly,ExpoSeconds=expo,Price=price,Draw=draw};
+ }
 
  double RatePerSimMinute(){if(Minute<360||Minute>=SimConfig.LastOrderMinute)return 0;var daily=Scenario=="slow_day"?620:Scenario=="rush_day"?1180:Scenario=="weather_disruption"?760:Scenario=="local_event_surge"?1050:Scenario=="school_event_surge"?980:Scenario=="holiday_pattern"?840:Scenario=="multi_rush_condition"?1120:920;return daily*DaypartShare()/DaypartMinutes()*Curve()*ScenarioMultiplier()*ReputationDemandMultiplier;}
  double ScenarioMultiplier()=>Scenario=="rush_day"?1.10:Scenario=="weather_disruption"?.86:Scenario=="equipment_failure"?.95:Scenario=="staffing_call_off"?.97:Scenario=="multi_rush_condition"?1.08:1.0;
@@ -885,7 +938,18 @@ public class SimRunState{
  public double BottleneckBacklogMinutes=>StationBacklog(BottleneckStation);public string BottleneckEquipment{get{EnsureEquipment();string id="none";var best=-1.0;foreach(var e in equipment){var ratio=EquipmentLoad(e)/Math.Max(1,EquipmentCapacity(e));if(ratio>best){best=ratio;id=e.Id;}}return id;}}
  public int EquipmentCount{get{EnsureEquipment();return equipment.Count;}}public int OpenTaskCount{get{var n=0;foreach(var t in activeTickets)foreach(var task in t.Tasks)if(!task.Done)n++;return n;}}
  public string EquipmentSummary{get{EnsureEquipment();var parts=new List<string>();foreach(var e in equipment)parts.Add($"{e.Id}:{Num(EquipmentLoad(e))}/{Num(EquipmentCapacity(e))}");return string.Join(";",parts);}}
- public string ItemCatalogJson=>"[{\"item_id\":\"fried_main\",\"equipment\":\"fryer_main_1|fryer_main_2\",\"cook_seconds\":330,\"hold_minutes\":20,\"dependency\":\"cook->assembly->expo\",\"events\":\"item.taken->item.completed\"},{\"item_id\":\"grilled_main\",\"equipment\":\"burger_press_1\",\"cook_seconds\":150,\"hold_minutes\":15,\"dependency\":\"cook->assembly->expo\",\"events\":\"item.taken->item.completed\"},{\"item_id\":\"side\",\"equipment\":\"fryer_fries_1|fryer_fries_2\",\"cook_seconds\":180,\"hold_minutes\":7,\"dependency\":\"cook->assembly->expo\",\"events\":\"item.taken->item.completed\"},{\"item_id\":\"beverage\",\"equipment\":\"soda_1|soda_2|soda_3|soda_4\",\"cook_seconds\":22,\"hold_minutes\":0,\"dependency\":\"pour->expo\",\"events\":\"item.taken->item.completed\"}]";
+ public string ItemCatalogJson=>BuildItemCatalogJson();
+ string BuildItemCatalogJson(){
+  EnsureEquipment();
+  var rows=new List<string>();
+  foreach(var spec in items.Values){
+   var eq=new List<string>();
+   foreach(var e in equipment)if(e.Family==spec.Family)eq.Add(e.Id);
+   var dependency=spec.CookSeconds>0?"make->expo":spec.AssemblySeconds>0?"hold->assembly->expo":"expo";
+   rows.Add($"{{\"item_id\":\"{Json(spec.Id)}\",\"display_name\":\"{Json(spec.DisplayName)}\",\"category\":\"{Json(spec.Category)}\",\"station\":\"{Json(spec.Station)}\",\"family\":\"{Json(spec.Family)}\",\"equipment\":\"{Json(string.Join("|",eq))}\",\"cook_seconds\":{Num(spec.CookSeconds)},\"hold_family\":{JsonStringOrNull(spec.HoldFamily)},\"hold_minutes\":{Num(spec.HoldMinutes)},\"assembly_seconds\":{Num(spec.AssemblySeconds)},\"expo_seconds\":{Num(spec.ExpoSeconds)},\"price_usd\":{Num(spec.Price)},\"inventory_draw\":{DrawJson(spec.Draw)},\"dependency\":\"{dependency}\",\"events\":\"item.taken->item.completed\"}}");
+  }
+  return "["+string.Join(",",rows)+"]";
+ }
  double StationLoad(string station)=>station=="fryer"?FryerLoad:station=="grill"?GrillLoad:station=="assembly"?AssemblyLoad:ExpoLoad;double StationCapacity(string station)=>station=="fryer"?FryerCapacity:station=="grill"?GrillCapacity:station=="assembly"?AssemblyCapacity:ExpoCapacity+BeverageCapacity;double StationBacklog(string station){var cap=StationCapacity(station);var load=StationLoad(station);return cap<=0?(load>0?999:0):load/cap;}
  public bool SanitizerDue=>SanitizerAge>=120;public bool TempCheckDue=>TempCheckAge>=120;public bool TempOutOfRange=>CoolerTemp>41||HotHoldTemp<135;public string HoldAlert{get{foreach(var pan in pans.Values)if(pan.Level<=0&&pan.InFlight==0)return $"ALERT: {pan.Family} hold empty";return "";}}
  public string AlertText=>ShiftEnded?"Shift closed":Decisions.Count>0?$"DECISION NEEDED: {Decisions[0].Title}":WorstEquipmentCondition<=10?$"ALERT: equipment down ({WorstEquipment})":HoldAlert!=""?HoldAlert:InspectorIncoming?"Warning: health inspector arriving":StationOverloaded?$"ALERT: {activeOverloadStation} overloaded | {OverloadCause} | {StationBacklog(activeOverloadStation):0.0}m backlog | equipment {BottleneckEquipment}":TempOutOfRange?"ALERT: temperature out of range":TempCheckDue?"Warning: temperature check due":SanitizerDue?"Warning: sanitizer change due":BreakDue?"Warning: break due":DelayRisk?$"Warning: {BottleneckStation} delay risk | {BottleneckBacklogMinutes:0.0}m backlog | equipment {BottleneckEquipment}":PrepQuality<50&&!EnableRealIngredients?"Warning: prep quality low":Prep<80&&!EnableRealIngredients?"Warning: prep low":"Alerts: none";public int DtSos{get{var m=MeasuredSos("drive_thru");return m>=0?(int)m:(int)Math.Min(900,SimConfig.DtSosFloor+CountActive("drive_thru")*18+(DriveCoverage<=0?120:0)+(StationOverloaded?90:0));}}public int FcSos{get{var m=MeasuredSos("lobby");return m>=0?(int)m:(int)Math.Min(720,SimConfig.FcSosFloor+CountActive("lobby")*20+(CounterCoverage<=0?120:0)+(StationOverloaded?75:0));}}public int DelSos{get{var m=MeasuredSos("delivery");return m>=0?(int)m:(int)Math.Min(2100,SimConfig.DelSosFloor+CountActive("delivery")*35+(StationOverloaded?180:0));}}public int TicketsThis30=>tickets30[(int)(Minute/30)%48];public int TicketsThis60=>tickets30[(int)(Minute/30)%48]+tickets30[((int)(Minute/30)+47)%48];public double SalesThis30=>sales30[(int)(Minute/30)%48];public double SalesThis60=>sales30[(int)(Minute/30)%48]+sales30[((int)(Minute/30)+47)%48];public string Daypart=>Minute<360?"late_night":Minute<600?"breakfast":Minute<690?"mid_morning":Minute<840?"lunch":Minute<990?"afternoon":Minute<1230?"dinner":"late_night";public string TimeText=>$"{(int)(Minute/60):00}:{(int)(Minute%60):00}";

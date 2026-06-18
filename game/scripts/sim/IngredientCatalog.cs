@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Globalization;
+using System.IO;
 using System.Text.Json;
 
 namespace RestaurantSimulator;
@@ -30,6 +31,16 @@ public sealed class IngredientCatalog
     public static IngredientCatalog Default()
     {
         var c = new IngredientCatalog();
+        foreach (var path in new[] { "game/config/ingredients.json", "../../game/config/ingredients.json", "../../../game/config/ingredients.json" })
+        {
+            try
+            {
+                if (!File.Exists(path)) continue;
+                c.Load(File.ReadAllText(path));
+                if (c.Loaded) return c;
+            }
+            catch { }
+        }
         c.Load(Embedded);
         return c;
     }
