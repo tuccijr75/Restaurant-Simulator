@@ -21,7 +21,9 @@ public partial class ExportPanel:DashCard{
   s.RefreshValidation("export");
   // README output contract (8 files) into a per-run folder.
   var dir=$"user://outputs/sim_{s.Scenario}_{s.Seed}";
-  DirAccess.MakeDirRecursiveAbsolute(ProjectSettings.GlobalizePath(dir));
+  var absoluteDir=ProjectSettings.GlobalizePath(dir);
+  DirAccess.MakeDirRecursiveAbsolute(absoluteDir);
+  CleanContractDirectory(absoluteDir);
   var ok=true;
   foreach(var (name,content) in Exports.BuildAll(s,System.DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ssZ",System.Globalization.CultureInfo.InvariantCulture)))
    ok=ok&&Write($"{dir}/{name}",content,true);
@@ -45,5 +47,12 @@ public partial class ExportPanel:DashCard{
   f.StoreString(content);
   f.Close();
   return true;
+ }
+ static void CleanContractDirectory(string absoluteDir){
+  var d=DirAccess.Open(absoluteDir);
+  if(d==null)return;
+  var keep=new System.Collections.Generic.HashSet<string>(Exports.ContractFileNames);
+  foreach(var file in d.GetFiles())
+   if(!keep.Contains(file))DirAccess.RemoveAbsolute(absoluteDir.PathJoin(file));
  }
 }

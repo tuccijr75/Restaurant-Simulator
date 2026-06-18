@@ -108,7 +108,7 @@ public partial class Hud3D : CanvasLayer
                 _sim.Orders, _sim.DriveThru, _sim.FrontCounter, _sim.Mobile, _sim.Delivery,
                 _sim.CompletedTickets, _sim.Tickets, _sim.EffectiveCrew, SimRunState.ScheduledCrewAt((int)_sim.Minute)) + "\n" +
             string.Format(inv, "Sales ${0:0}   Avg ${1:0.00}   Labor {2:0.0}%   Waste {3}u   SOS  DT {4}s / FC {5}s / DEL {6}s",
-                _sim.Sales, _sim.Orders == 0 ? 0 : _sim.Sales / _sim.Orders, _sim.LaborPercent, _sim.Waste, _sim.DtSos, _sim.FcSos, _sim.DelSos);
+                _sim.Sales, _sim.Orders == 0 ? 0 : _sim.Sales / _sim.Orders, _sim.LaborPercent, _sim.DisplayWasteUnits, _sim.DtSos, _sim.FcSos, _sim.DelSos);
 
         bool rec = (_blink % 1.2f) < 0.7f;
         _camTag.Text = $"{_cams.CurrentName}   {(rec ? "● REC" : "   REC")}   {SimEvent.BusinessDay} {_sim.TimeText}{(_cams.TourOn ? "   [TOUR]" : "")}";

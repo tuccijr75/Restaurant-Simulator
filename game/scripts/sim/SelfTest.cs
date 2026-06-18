@@ -10,19 +10,24 @@ namespace RestaurantSimulator;
 /// to the C# engine, which the Python unittest suite cannot reach (audit F-02).
 public static class SelfTest
 {
-    public static string Run(string scenario, int seed)
+    public static string Run(string scenario, int seed) => Run(scenario, seed, 1.0, false, null);
+
+    public static string Run(SimRunState runtime)
+        => Run(runtime.Scenario, runtime.Seed, runtime.ReputationDemandMultiplier, runtime.RealIngredientsActive, runtime.Catalog);
+
+    public static string Run(string scenario, int seed, double demandMultiplier, bool realIngredientsActive, IngredientCatalog? catalog)
     {
         var r = new StringBuilder();
-        r.AppendLine($"SELF-TEST scenario={scenario} seed={seed}");
-        var a = Headless(scenario, seed);
-        var b = Headless(scenario, seed);
+        r.AppendLine($"SELF-TEST scenario={scenario} seed={seed} demand_mult={demandMultiplier:0.000}");
+        var a = Headless(scenario, seed, demandMultiplier, realIngredientsActive, catalog);
+        var b = Headless(scenario, seed, demandMultiplier, realIngredientsActive, catalog);
 
         Check(r, "deterministic_replay (event stream hash)",
             Exports.Sha256Hex(a.AllJsonl) == Exports.Sha256Hex(b.AllJsonl));
         Check(r, "deterministic_replay (inventory ledger hash)",
-            Exports.Sha256Hex(a.InventoryLedgerJson) == Exports.Sha256Hex(b.InventoryLedgerJson));
+            Exports.Sha256Hex(Exports.InventoryLedger(a)) == Exports.Sha256Hex(Exports.InventoryLedger(b)));
         Check(r, "no deprecated item.sold", !a.AllJsonl.Contains("item.sold"));
-        Check(r, "inventory ledger reconciles", !a.InventoryLedgerJson.Contains("\"reconciles\":false"));
+        Check(r, "inventory ledger reconciles", !Exports.InventoryLedger(a).Contains("\"reconciles\":false"));
         Check(r, "validation status OK", a.ValidationStatus == "OK");
 
         bool lifecycleOk = true, ticketOk = true, chronoOk = true;
@@ -60,9 +65,18 @@ public static class SelfTest
         return r.ToString();
     }
 
-    static SimRunState Headless(string scenario, int seed)
+    static SimRunState Headless(string scenario, int seed, double demandMultiplier, bool realIngredientsActive, IngredientCatalog? catalog)
     {
-        var s = new SimRunState { Scenario = scenario, Seed = seed, TimeScale = 1.0, Running = true };
+        var s = new SimRunState
+        {
+            Scenario = scenario,
+            Seed = seed,
+            ReputationDemandMultiplier = demandMultiplier,
+            TimeScale = 1.0,
+            Running = true,
+            EnableRealIngredients = realIngredientsActive,
+            Catalog = catalog
+        };
         for (int i = 0; i < 1500 && !s.ShiftEnded; i++) s.Step(60);   // 60 fixed ticks per call
         return s;
     }

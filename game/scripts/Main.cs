@@ -196,7 +196,7 @@ public partial class Main : Node3D
             case Key.P: _staffUi.ToggleSchedule(); break;   // #10 staff schedule
             case Key.F9:
                 if (_hud.ReportVisible) _hud.HideReport();
-                else _hud.ShowReport(SelfTest.Run(_sim.Scenario, _sim.Seed));
+                else _hud.ShowReport(SelfTest.Run(_sim));
                 break;
             case Key.F5:
                 ExportNow();
@@ -210,7 +210,9 @@ public partial class Main : Node3D
     void ExportNow()
     {
         var dir = $"user://outputs/sim_{_sim.Scenario}_{_sim.Seed}";
-        DirAccess.MakeDirRecursiveAbsolute(ProjectSettings.GlobalizePath(dir));
+        var absoluteDir = ProjectSettings.GlobalizePath(dir);
+        DirAccess.MakeDirRecursiveAbsolute(absoluteDir);
+        CleanContractDirectory(absoluteDir);
         var stamp = System.DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ssZ", CultureInfo.InvariantCulture);
         var files = Exports.BuildAll(_sim, stamp);
         foreach (var (name, content) in files)
@@ -220,6 +222,15 @@ public partial class Main : Node3D
             f.StoreString(content);
             f.Close();
         }
-        _hud.ShowReport($"Exported {files.Count}-file output contract to {ProjectSettings.GlobalizePath(dir)}");
+        _hud.ShowReport($"Exported {files.Count}-file output contract to {absoluteDir}");
+    }
+
+    static void CleanContractDirectory(string absoluteDir)
+    {
+        var d = DirAccess.Open(absoluteDir);
+        if (d == null) return;
+        var keep = new System.Collections.Generic.HashSet<string>(Exports.ContractFileNames);
+        foreach (var file in d.GetFiles())
+            if (!keep.Contains(file)) DirAccess.RemoveAbsolute(absoluteDir.PathJoin(file));
     }
 }

@@ -5,8 +5,13 @@ namespace RestaurantSimulator;
 
 public partial class PosPanel:DashCard{
  SimRunState? s; Label status=new();
- public PosPanel(){CardTitle="POS";CustomMinimumSize=new Vector2(330,250);}
- public override void _Ready(){base._Ready();status=StatusLabel();}
+ public PosPanel(){CardTitle="POS";CustomMinimumSize=new Vector2(330,300);}
+ public override void _Ready(){
+  base._Ready();
+  status=StatusLabel();
+  status.CustomMinimumSize=new Vector2(0,220);
+  status.SizeFlagsVertical=Control.SizeFlags.ExpandFill;
+ }
  public void Bind(SimRunState st){s=st;}
  public override void _Process(double d){
   if(s==null)return;
@@ -17,6 +22,7 @@ public partial class PosPanel:DashCard{
    +$"Channels  DT {s.DriveThru}  FC {s.FrontCounter}  MOB {s.Mobile}  DEL {s.Delivery}\n"
    +$"SOS  DT {s.DtSos}s  Counter {s.FcSos}s  Delivery {s.DelSos}s\n"
    +$"Register coverage  Counter {s.CounterCoverage}  Drive {s.DriveCoverage}  Open labor {s.CoverageOpen}\n"
-   +$"Queue risk {(s.DelayRisk?"YES":"no")} | Abandoned {s.AbandonedTickets} | Balked {s.BalkedCars}";
+   +$"Queue risk {(s.DelayRisk?"YES":"no")} | Abandoned {s.AbandonedTickets} | Balked {s.BalkedCars}\n\n"
+   +s.PosTicketSummary();
  }
 }

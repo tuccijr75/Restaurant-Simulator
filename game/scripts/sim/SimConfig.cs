@@ -18,19 +18,21 @@ public static class SimConfig
 
     // ---- front-end service labor (RS-FE-001) — derived from Intouch drive-thru
     // decomposition; operator_calibration_required
-    public static int DtIntakeSec = 70, DtHandoffSec = 80;
-    public static int FcIntakeSec = 58, FcHandoffSec = 42;
-    public static int MobHandoffSec = 35, DelHandoffSec = 55;
+    public static int DtIntakeSec = 112, DtHandoffSec = 92;
+    public static int FcIntakeSec = 78, FcHandoffSec = 58;
+    public static int MobHandoffSec = 64, DelHandoffSec = 118;
 
     // ---- hold pans (RS-HQ-001) — fries hold from docs/06; others operator_calibration_required
     public static int HoldLimitFriedMin = 20, HoldLimitGrilledMin = 15, HoldLimitFriesMin = 7;
 
     // ---- patience / abandonment (RS-HQ-001) — operator_calibration_required
-    public static int PatienceDtSec = 540, PatienceLobbySec = 600, PatienceMobileSec = 900, PatienceDeliverySec = 1200;
+    public static int PatienceDtSec = 720, PatienceLobbySec = 720, PatienceMobileSec = 1200, PatienceDeliverySec = 1500;
     public static int DtBalkQueueDepth = 9;
+    public static int LobbyBalkQueueDepth = 8, MobileThrottleQueueDepth = 18, DeliveryThrottleQueueDepth = 18;
 
     // ---- satisfaction (RS-HQ-001)
     public static double CsatPassTarget = 75;
+    public static int LastOrderMinute = 1380;
 
     // ---- food safety (FDA Food Code 2022)
     public static double ColdMaxF = 41, HotMinF = 135;

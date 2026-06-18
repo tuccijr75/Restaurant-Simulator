@@ -91,18 +91,22 @@ public partial class CarAgent : Node3D
     static Aabb ModelAabb(Node3D root)
     {
         Aabb box = default; bool has = false;
-        var inv = root.GlobalTransform.AffineInverse();
-        void Walk(Node node)
+        void Walk(Node node, Transform3D parentToRoot)
         {
+            var toRoot = parentToRoot;
+            if (node is Node3D n3 && node != root)
+                toRoot *= n3.Transform;
+
             if (node is MeshInstance3D mi && mi.Mesh != null)
             {
-                var local = inv * mi.GlobalTransform;   // relative to the model root, any nesting depth
-                var world = local * mi.GetAabb();
+                // BuildCarModel can run before this CarAgent enters the scene tree.
+                // Stay in local transforms so model bounds never depend on GlobalTransform.
+                var world = toRoot * mi.GetAabb();
                 if (!has) { box = world; has = true; } else box = box.Merge(world);
             }
-            foreach (var c in node.GetChildren()) Walk(c);
+            foreach (var c in node.GetChildren()) Walk(c, toRoot);
         }
-        Walk(root);
+        Walk(root, Transform3D.Identity);
         return box;
     }
 

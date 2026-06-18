@@ -13,6 +13,18 @@ namespace RestaurantSimulator;
 /// (Audit F-09: only the raw event stream was exported before.)
 public static class Exports
 {
+    public static readonly string[] ContractFileNames =
+    {
+        "event_stream.jsonl",
+        "inventory_ledger.json",
+        "staffing_ledger.json",
+        "recommendation_validation_dataset.json",
+        "alert_validation_dataset.json",
+        "end_of_shift_summary.json",
+        "run_receipt.json",
+        "hashes.json",
+    };
+
     static string Num(double v) => v.ToString("0.##", CultureInfo.InvariantCulture);
     static string S(string v) => "\"" + v.Replace("\\", "\\\\").Replace("\"", "\\\"") + "\"";
 

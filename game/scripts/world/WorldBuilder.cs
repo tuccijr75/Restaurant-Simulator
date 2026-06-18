@@ -220,8 +220,8 @@ public static class WorldBuilder
     }
 
     // Tunables — raise AgentRadius to keep agents further off equipment; lower CellSize for finer paths.
-    public static float NavAgentRadius = 0.35f;
-    public static float NavCellSize = 0.12f;
+    public static float NavAgentRadius = 0.375f;
+    public static float NavCellSize = 0.125f;
 
     // Bake a walkable navigation mesh from the floor, carving around equipment, counters and walls,
     // so agents path *around* fixtures instead of straight through them.
@@ -236,8 +236,8 @@ public static class WorldBuilder
             bool walkable = n == "floor" || n == "kitchen_floor" || n == "sidewalk";
             bool obstacle = n.StartsWith("st_") || n.StartsWith("counter") || n.StartsWith("wall_")
                             || n == "trash" || n == "break_table";
-            if (walkable) { src.AddMesh(mi.Mesh, mi.Transform); walk++; }
-            else if (obstacle) { src.AddMesh(mi.Mesh, mi.Transform); obs++; }
+            if (walkable) { AddMeshSource(src, mi); walk++; }
+            else if (obstacle) { AddMeshSource(src, mi); obs++; }
         }
         var nm = new NavigationMesh
         {
@@ -253,6 +253,36 @@ public static class WorldBuilder
         w.AddChild(region);
         L.NavRegion = region;
         GD.Print($"[Nav] baked navmesh: walkable={walk} obstacles={obs} polys={nm.GetPolygonCount()}");
+    }
+
+    static void AddMeshSource(NavigationMeshSourceGeometryData3D src, MeshInstance3D mi)
+    {
+        if (mi.Mesh is BoxMesh box)
+            src.AddFaces(BoxFaces(box.Size), mi.Transform);
+        else
+            src.AddMesh(mi.Mesh, mi.Transform);
+    }
+
+    static Vector3[] BoxFaces(Vector3 size)
+    {
+        var h = size * 0.5f;
+        var p000 = new Vector3(-h.X, -h.Y, -h.Z);
+        var p001 = new Vector3(-h.X, -h.Y,  h.Z);
+        var p010 = new Vector3(-h.X,  h.Y, -h.Z);
+        var p011 = new Vector3(-h.X,  h.Y,  h.Z);
+        var p100 = new Vector3( h.X, -h.Y, -h.Z);
+        var p101 = new Vector3( h.X, -h.Y,  h.Z);
+        var p110 = new Vector3( h.X,  h.Y, -h.Z);
+        var p111 = new Vector3( h.X,  h.Y,  h.Z);
+        return new[]
+        {
+            p000, p100, p110, p000, p110, p010, // -Z
+            p101, p001, p011, p101, p011, p111, // +Z
+            p001, p000, p010, p001, p010, p011, // -X
+            p100, p101, p111, p100, p111, p110, // +X
+            p010, p110, p111, p010, p111, p011, // top
+            p001, p101, p100, p001, p100, p000, // bottom
+        };
     }
 
     // ---------- helpers ----------
