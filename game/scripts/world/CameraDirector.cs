@@ -36,11 +36,11 @@ public partial class CameraDirector : Node3D
         // (name, mount position, look-at target)
         var defs = new (string, Vector3, Vector3)[]
         {
-            ("CAM-01 GRILL",        new Vector3(5.8f, 3.55f, -2.0f),  w.Anchor["grill"] + Vector3.Up * 0.75f),
-            ("CAM-02 FRYER",        new Vector3(-3.8f, 3.55f, -2.0f), w.Anchor["fryer"] + Vector3.Up * 0.75f),
-            ("CAM-03 PREP/WALK-IN", new Vector3(6.5f, 3.55f, -2.2f),  (w.Anchor["prep"] + w.Anchor["cooler"]) / 2 + Vector3.Up * 0.75f),
-            ("CAM-04 ASSEMBLY",     new Vector3(-2.4f, 3.35f, -1.35f), w.Anchor["assembly"] + Vector3.Up * 0.7f),
-            ("CAM-05 EXPO/PICKUP",  new Vector3(-2.3f, 3.15f, 0.75f), (w.Anchor["expo"] + w.Anchor["mobile_shelf"]) / 2 + Vector3.Up * 0.75f),
+            ("CAM-01 GRILL",        new Vector3(1.9f, 3.65f, -6.35f),  w.Anchor["grill"] + Vector3.Up * 0.75f),
+            ("CAM-02 FRYER",        new Vector3(-7.9f, 3.55f, -5.65f), w.Anchor["fryer"] + new Vector3(-1.4f, 0.75f, 0)),
+            ("CAM-03 PREP/WALK-IN", new Vector3(11.4f, 3.85f, -6.1f),  (w.Anchor["prep"] + w.Anchor["cooler"]) / 2 + Vector3.Up * 0.85f),
+            ("CAM-04 ASSEMBLY",     new Vector3(-1.9f, 3.45f, -2.15f), w.Anchor["assembly"] + Vector3.Up * 0.7f),
+            ("CAM-05 EXPO/PICKUP",  new Vector3(-9.2f, 3.15f, 0.45f), (w.Anchor["expo"] + w.Anchor["mobile_shelf"]) / 2 + Vector3.Up * 0.75f),
             ("CAM-06 FRONT COUNTER",new Vector3(5.4f, 3.0f, 4.8f),    new Vector3(-0.2f, 1.0f, -0.8f)),
             ("CAM-07 LOBBY/DINING", new Vector3(10.6f, 3.2f, 5.7f),   new Vector3(-4f, 0.75f, 3.2f)),
             ("CAM-08 DT WINDOW",    new Vector3(-9.5f, 3.05f, -0.8f), w.Anchor["dt_window"] + new Vector3(0.4f, 0.65f, -0.1f)),
@@ -56,7 +56,7 @@ public partial class CameraDirector : Node3D
             _cams.Add(new CamDef { Name = name, Cam = cam });
         }
         // Overhead floorplan (index 10, key O)
-        var over = new Camera3D { Position = new Vector3(0, 30, 4), RotationDegrees = new Vector3(-90, 0, 0), Fov = 55 };
+        var over = new Camera3D { Position = new Vector3(3, 34, -1.5f), RotationDegrees = new Vector3(-90, 0, 0), Fov = 60 };
         root.AddChild(over);
         _cams.Add(new CamDef { Name = "CAM-11 OVERHEAD", Cam = over });
 

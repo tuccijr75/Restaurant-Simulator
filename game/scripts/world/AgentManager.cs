@@ -375,10 +375,12 @@ public partial class AgentManager : Node3D
                     e.Patrols = true;                       // floor managers walk the floor between critical fills
                     e.PatrolRoute = PatrolWaypoints();
                 }
-                if (key == "work_counter" || key == "work_counter2")
+                if (key == "work_counter" || key == "work_counter2" || key == "work_dt")
                 {
                     e.IsCashier = true;                     // step up to the POS and serve when a customer is ordering
-                    e.ServeSpot = e.HomeSpot + new Vector3(0, 0, 0.55f);
+                    e.ServeSpot = key == "work_dt"
+                        ? _world.Anchor["dt_window"] + new Vector3(0.75f, 0, 0)
+                        : e.HomeSpot + new Vector3(0, 0, 0.55f);
                 }
                 e.CoolerSpot = _world.Anchor["freezer_door"] + new Vector3((i % 3) * 0.6f - 0.6f, 0, 0.3f + (i % 2) * 0.4f);
                 e.BreakSpot = _world.Anchor["break_room"] + new Vector3((i % 3) * 0.6f - 0.6f, 0, 0);
@@ -431,7 +433,8 @@ public partial class AgentManager : Node3D
         "work_fryer"    => C01(_sim.FryerLoad / 6f),
         "work_assembly" => C01(_sim.AssemblyLoad / 6f),
         "work_expo" or "work_beverage" => C01(_sim.ExpoLoad / 8f),
-        "work_dt" or "work_counter" or "work_counter2" => C01(_sim.Tickets / 8f),
+        "work_dt" => DriveThruNeedsAttendant() ? 1f : C01(_sim.Tickets / 8f),
+        "work_counter" or "work_counter2" => C01(_sim.Tickets / 8f),
         _ => 0.3f,
     };
 
@@ -483,7 +486,18 @@ public partial class AgentManager : Node3D
         "work_assembly" => _sim.AssemblyLoad > 0,
         "work_beverage" or "work_expo" => _sim.ExpoLoad > 0,
         "work_prep" => _sim.Prep < 100,
-        "work_counter" or "work_counter2" or "work_dt" => _sim.Tickets > 0,
+        "work_counter" or "work_counter2" => _sim.Tickets > 0,
+        "work_dt" => DriveThruNeedsAttendant(),
         _ => false
     };
+
+    bool DriveThruNeedsAttendant()
+    {
+        foreach (var car in _cars)
+        {
+            if (car == null || !IsInstanceValid(car) || car.Exiting) continue;
+            if (car.LaneIndex >= BoardIdx && car.LaneIndex <= WindowIdx) return true;
+        }
+        return false;
+    }
 }

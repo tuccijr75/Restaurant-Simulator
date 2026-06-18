@@ -47,35 +47,35 @@ public static class WorldBuilder
         // ---------- ground ----------
         Box(w, new Vector3(90, 0.1f, 90), new Vector3(0, -0.05f, 6), Grass, "grass");
         Box(w, new Vector3(46, 0.12f, 46), new Vector3(2, -0.04f, 6), Asphalt, "asphalt");
-        Box(w, new Vector3(26, 0.14f, 2.2f), new Vector3(0, -0.02f, 8.2f), new Color(0.7f, 0.7f, 0.7f), "sidewalk");
+        Box(w, new Vector3(32, 0.14f, 2.2f), new Vector3(3, -0.02f, 8.2f), new Color(0.7f, 0.7f, 0.7f), "sidewalk");
 
-        // ---------- building shell (24 x 14, walls h=4) ----------
+        // ---------- building shell (30 x 17.5, walls h=4) ----------
         // Convention: facing IN from the front door, LEFT = -X (west), RIGHT = +X (east),
         // BACK = -Z (kitchen), FRONT = +Z (door). Dining is +Z, kitchen is -Z.
-        Box(w, new Vector3(24, 0.16f, 14), new Vector3(0, 0.0f, 0), FloorTile, "floor");
-        Box(w, new Vector3(24, 0.02f, 6.0f), new Vector3(0, 0.10f, -4.0f), KitchenTile, "kitchen_floor");
-        Box(w, new Vector3(24, 4, 0.3f), new Vector3(0, 2, -7), WallCol, "wall_back");
+        Box(w, new Vector3(30, 0.16f, 17.5f), new Vector3(3, 0.0f, -1.75f), FloorTile, "floor");
+        Box(w, new Vector3(30, 0.02f, 9.5f), new Vector3(3, 0.10f, -5.75f), KitchenTile, "kitchen_floor");
+        Box(w, new Vector3(30, 4, 0.3f), new Vector3(3, 2, -10.5f), WallCol, "wall_back");
         // West (LEFT) wall with the drive-thru window gap (z -3.8 .. -2.2)
-        Box(w, new Vector3(0.3f, 4, 3.2f), new Vector3(-12, 2, -5.4f), WallCol, "wall_west_a");
+        Box(w, new Vector3(0.3f, 4, 6.7f), new Vector3(-12, 2, -7.15f), WallCol, "wall_west_a");
         Box(w, new Vector3(0.3f, 4, 9.2f), new Vector3(-12, 2, 2.4f), WallCol, "wall_west_b");
         Box(w, new Vector3(0.3f, 1.0f, 1.6f), new Vector3(-12, 0.5f, -3.0f), WallCol, "wall_west_sill");
         Box(w, new Vector3(0.3f, 1.4f, 1.6f), new Vector3(-12, 3.3f, -3.0f), WallCol, "wall_west_header");
         // East (RIGHT) wall with a second customer entrance (z 3.8 .. 5.8)
-        Box(w, new Vector3(0.3f, 4, 10.8f), new Vector3(12, 2, -1.6f), WallCol, "wall_east_a");
-        Box(w, new Vector3(0.3f, 4, 1.2f), new Vector3(12, 2, 6.4f), WallCol, "wall_east_b");
-        Box(w, new Vector3(0.3f, 0.4f, 2.0f), new Vector3(12, 3.8f, 4.8f), WallCol, "door_header_east");
+        Box(w, new Vector3(0.3f, 4, 14.3f), new Vector3(18, 2, -3.35f), WallCol, "wall_east_a");
+        Box(w, new Vector3(0.3f, 4, 1.2f), new Vector3(18, 2, 6.4f), WallCol, "wall_east_b");
+        Box(w, new Vector3(0.3f, 0.4f, 2.0f), new Vector3(18, 3.8f, 4.8f), WallCol, "door_header_east");
         // Front wall: glass storefront with center door gap (x -1..1)
         Box(w, new Vector3(10.6f, 4, 0.3f), new Vector3(-6.7f, 2, 7), WallCol, "wall_front_w_frame");
-        Box(w, new Vector3(10.6f, 4, 0.3f), new Vector3(6.7f, 2, 7), WallCol, "wall_front_e_frame");
+        Box(w, new Vector3(16.6f, 4, 0.3f), new Vector3(9.7f, 2, 7), WallCol, "wall_front_e_frame");
         Glas(w, new Vector3(9.6f, 2.4f, 0.12f), new Vector3(-6.7f, 1.6f, 7.05f), "glass_w");
-        Glas(w, new Vector3(9.6f, 2.4f, 0.12f), new Vector3(6.7f, 1.6f, 7.05f), "glass_e");
+        Glas(w, new Vector3(15.6f, 2.4f, 0.12f), new Vector3(9.7f, 1.6f, 7.05f), "glass_e");
         Box(w, new Vector3(2.2f, 0.4f, 0.3f), new Vector3(0, 3.8f, 7), WallCol, "door_header");
         var roof = new Node3D { Name = "RoofGroup" };
         w.AddChild(roof);
         L.RoofGroup = roof;
-        Box(roof, new Vector3(24.6f, 0.4f, 14.6f), new Vector3(0, 4.2f, 0), new Color(0.5f, 0.32f, 0.2f), "roof");
-        Box(roof, new Vector3(25, 0.9f, 0.3f), new Vector3(0, 4.8f, 7.2f), Accent, "parapet_front");
-        Box(roof, new Vector3(25, 0.9f, 0.3f), new Vector3(0, 4.8f, -7.2f), Accent, "parapet_back");
+        Box(roof, new Vector3(30.6f, 0.4f, 18.1f), new Vector3(3, 4.2f, -1.75f), new Color(0.5f, 0.32f, 0.2f), "roof");
+        Box(roof, new Vector3(31, 0.9f, 0.3f), new Vector3(3, 4.8f, 7.2f), Accent, "parapet_front");
+        Box(roof, new Vector3(31, 0.9f, 0.3f), new Vector3(3, 4.8f, -10.7f), Accent, "parapet_back");
         Sign(roof, new Vector3(0, 5.0f, 7.45f), "QSR  No. 1024");
 
         // ---------- counter / front of house (kitchen/dining divide at z=-1) ----------
@@ -89,31 +89,34 @@ public static class WorldBuilder
         Station(w, L, "mobile_shelf", new Vector3(-5.5f, 1.2f, -1.0f), new Vector3(1.0f, 1.4f, 0.45f), Steel, "MOBILE PICKUP");
         Box(w, new Vector3(7, 1.0f, 0.1f), new Vector3(-0.5f, 3.35f, -1.6f), new Color(0.12f, 0.12f, 0.14f), "menu_board");
 
-        // ---------- kitchen: U pattern (sandwich LEFT, grill RIGHT, expo FRONT/top, fryers BACK) ----------
+        // ---------- kitchen: drive-thru-first production line ----------
         // Model facing via yaw: 0=+Z(front), 90=+X(right), 180=-Z(back), 270=-X(left).
         // If a loaded model faces the wrong way, add/subtract 90 to its yaw.
-        // (3) two sets of fryers along the back wall; french-fry holder to their LEFT
-        Station(w, L, "fryer", new Vector3(-1.0f, 0.5f, -6.3f), new Vector3(3.2f, 1.0f, 1.1f), Steel, "FRYERS", glow: new Color(1f, 0.75f, 0.2f), yaw: 0f);
-        Prop(w, "french_fries", new Vector3(-3.4f, 0.6f, -6.3f), new Vector3(1.0f, 1.2f, 0.7f), new Color(0.85f, 0.7f, 0.25f));
-        // sandwich (assembly) = LEFT arm, faces IN toward the kitchen (+X), back to the drive-thru
-        Station(w, L, "assembly", new Vector3(-4.5f, 0.5f, -4.2f), new Vector3(1.1f, 0.95f, 3.6f), Steel, "SANDWICH", yaw: 90f);
-        // grill = RIGHT arm, faces IN (-X); pulled in toward center
-        Station(w, L, "grill", new Vector3(3.2f, 0.5f, -4.2f), new Vector3(1.4f, 1.0f, 3.0f), DarkSteel, "GRILL", glow: new Color(1f, 0.35f, 0.1f), yaw: 270f);
-        // expo = TOP of the U (front), faces IN (-Z); hands off to the counter behind it
-        Station(w, L, "expo", new Vector3(-0.7f, 0.8f, -2.4f), new Vector3(2.4f, 0.9f, 0.8f), Steel, "EXPO", glow: new Color(1f, 0.55f, 0.15f), yaw: 180f, modelScale: new Vector3(1.0f, 1.8f, 1.0f));
-        // Hot-holding unit sits on top of the sandwich board, rotated across the rail.
-        Prop(w, "holding_unit", new Vector3(-4.5f, 0.94f, -4.2f), new Vector3(0.9f, 0.32f, 0.42f), new Color(0.86f, 0.7f, 0.4f), yaw: 90f, baseY: 0.92f, modelScale: new Vector3(0.45f, 0.45f, 0.45f));
-        // prep counter, back-right (kept clear of the walk-in to declutter that corner)
-        Station(w, L, "prep", new Vector3(4.8f, 0.5f, -6.0f), new Vector3(2.0f, 0.95f, 1.0f), Steel, "PREP", yaw: 0f);
+        Station(w, L, "expo", new Vector3(-6.35f, 0.8f, -2.35f), new Vector3(2.4f, 0.9f, 0.8f), Steel, "EXPO", glow: new Color(1f, 0.55f, 0.15f), yaw: 180f, modelScale: new Vector3(1.0f, 1.8f, 1.0f));
+        Prop(w, "french_fries", new Vector3(-6.35f, 0.6f, -8.65f), new Vector3(1.0f, 1.2f, 0.7f), new Color(0.85f, 0.7f, 0.25f));
+        Station(w, L, "fryer", new Vector3(-3.55f, 0.5f, -8.65f), new Vector3(3.2f, 1.0f, 1.1f), Steel, "FRYERS", glow: new Color(1f, 0.75f, 0.2f), yaw: 0f);
+        Station(w, L, "assembly", new Vector3(-2.0f, 0.5f, -4.95f), new Vector3(3.9f, 0.95f, 1.45f), Steel, "SANDWICH", yaw: 90f);
+        Station(w, L, "grill", new Vector3(-2.0f, 0.5f, -9.35f), new Vector3(3.4f, 1.0f, 1.15f), DarkSteel, "GRILL", glow: new Color(1f, 0.35f, 0.1f), yaw: 0f);
+        // Hot-holding unit sits centered on the doubled assembly board.
+        Prop(w, "holding_unit", new Vector3(-2.0f, 0.94f, -4.95f), new Vector3(1.0f, 0.32f, 0.44f), new Color(0.86f, 0.7f, 0.4f), yaw: 90f, baseY: 0.92f, modelScale: new Vector3(0.50f, 0.50f, 0.50f));
+        // Open prep/storage room: open toward the kitchen, no door.
+        WallAlongZ(w, 8.0f, -10.5f, -7.2f, "wall_prep_room_w");
+        WallAlongZ(w, 13.1f, -10.5f, -7.2f, "wall_prep_room_e");
+        WallAlongX(w, -10.5f, 8.0f, 13.1f, "wall_prep_room_n");
+        Station(w, L, "prep", new Vector3(10.4f, 0.5f, -9.35f), new Vector3(2.2f, 0.95f, 1.0f), Steel, "PREP", yaw: 0f);
+        Box(w, new Vector3(0.48f, 1.8f, 2.4f), new Vector3(8.45f, 0.9f, -9.25f), new Color(0.54f, 0.56f, 0.58f), "st_fry_shelves");
+        Box(w, new Vector3(1.8f, 1.8f, 0.48f), new Vector3(10.6f, 0.9f, -10.05f), new Color(0.54f, 0.56f, 0.58f), "st_dry_shelves");
+        Box(w, new Vector3(1.0f, 0.28f, 0.72f), new Vector3(8.65f, 0.24f, -7.75f), new Color(0.70f, 0.72f, 0.74f), "mop_sink");
+        Box(w, new Vector3(0.08f, 0.82f, 0.08f), new Vector3(8.65f, 0.82f, -8.08f), DarkSteel, "mop_sink_faucet");
         // Drinks are fulfilled from lobby self-serve fountains or the drive-thru soda machine.
         L.Anchor["beverage"] = new Vector3(-10.8f, 0.7f, -1.6f);
 
         // (1) drive-thru window on the LEFT (west) wall; faces INTO the kitchen (+X)
         Station(w, L, "dt_window", new Vector3(-11.6f, 0.6f, -3.0f), new Vector3(0.6f, 1.1f, 1.4f), Steel, "DT WINDOW", yaw: 90f);
 
-        // (2) walk-in: back-RIGHT corner, interior, door facing the kitchen (-X); pulled left to close the kitchen in
-        Station(w, L, "cooler", new Vector3(8.0f, 1.3f, -5.3f), new Vector3(3.0f, 2.6f, 3.0f), new Color(0.8f, 0.84f, 0.88f), "WALK-IN", yaw: 270f);
-        Box(w, new Vector3(0.16f, 2.0f, 1.4f), new Vector3(6.45f, 1.1f, -5.3f), DarkSteel, "freezer_door");
+        // (2) walk-in: back-RIGHT corner, 10% larger; the door visual is passable.
+        Station(w, L, "cooler", new Vector3(15.1f, 1.43f, -8.85f), new Vector3(3.3f, 2.86f, 3.3f), new Color(0.8f, 0.84f, 0.88f), "WALK-IN", yaw: 270f);
+        Box(w, new Vector3(0.16f, 2.05f, 1.45f), new Vector3(13.35f, 1.12f, -8.85f), DarkSteel, "freezer_door");
 
         // (2) office: back-LEFT corner (room walls in BuildExtras); desk sits against the back wall
         Station(w, L, "office", new Vector3(-10.8f, 0.5f, -6.3f), new Vector3(1.8f, 1.0f, 1.2f), new Color(0.55f, 0.45f, 0.35f), "OFFICE", yaw: 0f);
@@ -121,25 +124,23 @@ public static class WorldBuilder
         Box(w, new Vector3(1.4f, 0.75f, 0.9f), new Vector3(-6.3f, 0.40f, -6.4f), new Color(0.72f, 0.55f, 0.38f), "break_table");
         Box(w, new Vector3(1.6f, 0.45f, 0.4f), new Vector3(-6.3f, 0.23f, -5.6f), Accent, "break_bench");
 
-        // (7) red partition along the FRONT of the counter: just proud of the counter face (z=-0.5),
-        //     running the full length from the west wall to the right (staff pass-through) gap.
-        Box(w, new Vector3(18f, 1.1f, 0.3f), new Vector3(-3.0f, 0.55f, -0.5f), Accent, "wall_kitchen_lw");
+        // Red partitions close the customer side while preserving staff aisles behind the line.
+        Box(w, new Vector3(24f, 1.1f, 0.3f), new Vector3(0.0f, 0.55f, -0.5f), Accent, "wall_kitchen_lw");
+        Box(w, new Vector3(0.3f, 1.1f, 5.9f), new Vector3(5.8f, 0.55f, -4.1f), Accent, "wall_kitchen_right_partition");
 
         // ---------- dining room ----------
         // booths along the front wall (non-obstacle name so guests can path to a seat); avoid the center door (x -1..1)
         foreach (var (x, z) in new[] { (-8f,6.2f), (-5f,6.2f), (-2.5f,6.2f), (2.5f,6.2f), (5f,6.2f), (8f,6.2f) })
         {
-            Box(w, new Vector3(1.3f, 0.45f, 1.0f), new Vector3(x, 0.225f, z), Accent, "booth");
-            Box(w, new Vector3(1.3f, 0.7f, 0.12f), new Vector3(x, 0.80f, z + 0.44f), new Color(0.72f,0.55f,0.38f), "booth_back");
+            Decor(w, "booth", new Vector3(x, 0.225f, z), new Vector3(1.3f, 0.45f, 1.0f), Accent, yaw: 180f);
             L.Tables.Add(new Vector3(x, 0, z - 0.8f));
         }
         // free-standing tables + chairs, spaced with room to walk between
         foreach (var (x, z) in new[] { (-8f,2.6f), (-4.5f,3.4f), (-8f,4.6f), (3.5f,1.2f), (7.0f,4.8f), (3.8f,4.4f) })
         {
-            Box(w, new Vector3(1.2f, 0.08f, 1.2f), new Vector3(x, 0.78f, z), new Color(0.72f,0.55f,0.38f), "table");
-            Box(w, new Vector3(0.14f, 0.74f, 0.14f), new Vector3(x, 0.37f, z), DarkSteel, "table_leg");
-            Box(w, new Vector3(0.45f, 0.5f, 0.45f), new Vector3(x, 0.25f, z + 0.85f), Steel, "chair");
-            Box(w, new Vector3(0.45f, 0.5f, 0.45f), new Vector3(x, 0.25f, z - 0.85f), Steel, "chair");
+            Decor(w, "table", new Vector3(x, 0.78f, z), new Vector3(1.2f, 0.08f, 1.2f), new Color(0.72f,0.55f,0.38f));
+            Decor(w, "chair", new Vector3(x, 0.25f, z + 0.85f), new Vector3(0.45f, 0.5f, 0.45f), Steel, yaw: 180f);
+            Decor(w, "chair", new Vector3(x, 0.25f, z - 0.85f), new Vector3(0.45f, 0.5f, 0.45f), Steel, yaw: 0f);
             L.Tables.Add(new Vector3(x, 0, z + 0.85f));
         }
         Box(w, new Vector3(0.6f, 1.0f, 0.6f), new Vector3(-11.3f, 0.5f, 6.4f), DarkSteel, "trash");
@@ -166,7 +167,7 @@ public static class WorldBuilder
             Box(w, new Vector3(0.14f, 0.13f, 5.0f), new Vector3(x, 0.0f, 13.5f), new Color(0.92f, 0.92f, 0.92f), "stripe");
         }
         L.Anchor["parking_row"] = new Vector3(-9, 0, 13.5f);
-        Box(w, new Vector3(24f, 0.14f, 1.4f), new Vector3(0f, -0.016f, 12.1f), new Color(0.7f, 0.7f, 0.7f), "sidewalk");
+        Box(w, new Vector3(30f, 0.14f, 1.4f), new Vector3(3f, -0.016f, 12.1f), new Color(0.7f, 0.7f, 0.7f), "sidewalk");
         Box(w, new Vector3(2.2f, 0.14f, 4.4f), new Vector3(0f, -0.018f, 11.4f), new Color(0.7f, 0.7f, 0.7f), "sidewalk");
         for (int i = 0; i < 7; i++)
         {
@@ -174,7 +175,7 @@ public static class WorldBuilder
             L.ParkingSpots.Add(new Vector3(x, 0, 12.1f));
         }
         // sidewalk outside the second (east) entrance so the doorway connects to walkable nav
-        Box(w, new Vector3(1.8f, 0.14f, 6f), new Vector3(13.1f, -0.02f, 4.8f), new Color(0.7f, 0.7f, 0.7f), "sidewalk");
+        Box(w, new Vector3(1.8f, 0.14f, 6f), new Vector3(19.1f, -0.02f, 4.8f), new Color(0.7f, 0.7f, 0.7f), "sidewalk");
         Pole(w, new Vector3(20, 0, 18), "pole_sign", topSign: true);
         Pole(w, new Vector3(-19, 0, 8), "light_1");
         Pole(w, new Vector3(13, 0, 19), "light_2");
@@ -184,8 +185,8 @@ public static class WorldBuilder
         // ---------- shared anchors ----------
         L.Anchor["door"] = new Vector3(0, 0, 6.8f);
         L.Anchor["door_out"] = new Vector3(0, 0, 9.0f);
-        L.Anchor["pickup"] = new Vector3(3.0f, 0, -0.2f);          // collect on the lobby side of the counter
-        L.Anchor["freezer_door"] = new Vector3(5.6f, 0, -5.3f);    // kitchen side of the walk-in door
+        L.Anchor["pickup"] = new Vector3(-5.8f, 0, 0.25f);         // collect on the lobby side of the counter
+        L.Anchor["freezer_door"] = new Vector3(13.05f, 0, -8.85f); // kitchen side of the walk-in door
         L.Anchor["work_counter2"] = new Vector3(2.0f, 0, -1.8f);   // cashier behind POS 2
         L.Anchor["mobile_wait"] = new Vector3(-5.5f, 0, 0.0f);     // in front of the mobile rack, lobby side
         L.Anchor["break_room"] = new Vector3(-6.3f, 0, -5.4f);     // crew sit at the break bench (open kitchen, back-left)
@@ -197,12 +198,12 @@ public static class WorldBuilder
         L.KioskSpots.Add(new Vector3(-1.25f, 0, 2.5f));
         L.KioskSpots.Add(new Vector3(1.25f, 0, 2.5f));
         // Employee work spots (sim station id -> world position, crew side of fixtures)
-        L.Anchor["work_grill"] = new Vector3(2.0f, 0, -4.2f);
-        L.Anchor["work_fryer"] = new Vector3(-1.0f, 0, -5.4f);
-        L.Anchor["work_prep"] = new Vector3(4.8f, 0, -5.1f);
-        L.Anchor["work_assembly"] = new Vector3(-3.5f, 0, -4.2f);
+        L.Anchor["work_grill"] = new Vector3(-2.0f, 0, -8.15f);
+        L.Anchor["work_fryer"] = new Vector3(-3.55f, 0, -7.55f);
+        L.Anchor["work_prep"] = new Vector3(10.4f, 0, -8.25f);
+        L.Anchor["work_assembly"] = new Vector3(-2.0f, 0, -3.75f);
         L.Anchor["work_beverage"] = new Vector3(-10.2f, 0, -2.2f);
-        L.Anchor["work_expo"] = new Vector3(-0.7f, 0, -1.7f);
+        L.Anchor["work_expo"] = new Vector3(-6.35f, 0, -1.65f);
         L.Anchor["work_counter"] = new Vector3(-2.0f, 0, -1.8f);
         L.Anchor["work_dt"] = new Vector3(-10.2f, 0, -3.0f);       // at the drive-thru window, inside
         L.Anchor["work_office"] = new Vector3(-10.8f, 0, -4.9f);   // manager stands in front of the desk
@@ -211,7 +212,8 @@ public static class WorldBuilder
         // RS-VS-001: interior ceiling lights — dim by day, carry the room at night.
         foreach (var at in new[]{ new Vector3(-5f,3.9f,-4f), new Vector3(0f,3.9f,-4f), new Vector3(5f,3.9f,-4f),
                                   new Vector3(-5f,3.9f,3f), new Vector3(5f,3.9f,3f), new Vector3(0f,3.9f,5.5f),
-                                  new Vector3(-10.5f,3.6f,-5.8f), new Vector3(9f,3.6f,-5f) })   // kitchen, dining, office, walk-in
+                                  new Vector3(-10.5f,3.6f,-5.8f), new Vector3(9f,3.6f,-5f),
+                                  new Vector3(11f,3.6f,-8.8f), new Vector3(15f,3.6f,-8.8f) })   // kitchen, dining, office, prep room, walk-in
         {
             var li = new OmniLight3D { Position = at, OmniRange = 9, LightEnergy = 0.25f, LightColor = new Color(1f,0.96f,0.9f) };
             w.AddChild(li);
@@ -372,6 +374,14 @@ public static class WorldBuilder
         if (LoadEquip(w, cands, pos, "equip_" + id, yaw, baseY, modelScale) != null) mi.Visible = false;
     }
 
+    // Dining furniture is visual decor, not a kitchen obstacle. Keep the
+    // placeholder non-obstacle names so seat targets remain reachable.
+    static void Decor(Node3D w, string model, Vector3 pos, Vector3 size, Color color, float yaw = 0f, Vector3? modelScale = null)
+    {
+        var mi = Box(w, size, pos, color, model);
+        if (LoadEquip(w, new[] { model }, pos, "equip_" + model, yaw, modelScale: modelScale) != null) mi.Visible = false;
+    }
+
     // Beverage machines, self-serve fountains, kiosks, and the enclosed office + restroom rooms.
     static void BuildExtras(Node3D w, WorldLayout L)
     {
@@ -396,6 +406,7 @@ public static class WorldBuilder
 
         // --- Restroom room: RIGHT side, directly in front of the walk-in (east wall x=12 is the back) ---
         WallAlongZ(w, 9.5f, -0.5f, 2.5f, "wall_bath_w", openAt: 1.0f, openW: 1.0f);   // door to the dining room
+        WallAlongZ(w, 12.0f, -0.5f, 2.5f, "wall_bath_e");
         WallAlongX(w, -0.5f, 9.5f, 12.0f, "wall_bath_s", openAt: 0f, openW: 0f);
         WallAlongX(w, 2.5f, 9.5f, 12.0f, "wall_bath_n", openAt: 0f, openW: 0f);
         Label(w, "RESTROOMS", new Vector3(10.7f, 2.6f, 1.0f));

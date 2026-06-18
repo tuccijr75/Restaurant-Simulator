@@ -134,6 +134,7 @@ public partial class EmployeeAgent : CharacterRig
         Vector3 home = (IsCashier && stationBusy) ? ServeSpot : HomeSpot;
         if (!StepToward(home, delta)) { Task = "Walking to station"; return; }
         Working = stationBusy;
+        HoldWithPersonalSpace(delta);
         if (HasFace) FaceToward(FaceTarget, delta);   // turn to face the equipment / customer while on station
         if (IsCashier) { Task = stationBusy ? "Serving register" : "At register"; return; }
         Task = stationBusy ? Assigned : "At station";

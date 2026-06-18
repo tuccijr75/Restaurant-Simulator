@@ -492,10 +492,40 @@ public partial class CharacterRig : Node3D
         }
         var step = heading * Mathf.Min(WalkSpeed * delta, dist);
         Position += step;
+        ResolveCharacterOverlap(delta);
         float targetYaw = Mathf.Atan2(step.X, step.Z);
         // frame-rate-independent smooth turn toward heading
         Rotation = new Vector3(0, Mathf.LerpAngle(Rotation.Y, targetYaw, 1f - Mathf.Exp(-TurnRate * delta)), 0);
         return false;
+    }
+
+    void ResolveCharacterOverlap(float delta)
+    {
+        const float minGap = 0.72f;
+        var pos = Position; pos.Y = 0f;
+        var push = Vector3.Zero;
+        for (int i = 0; i < ActiveRigs.Count; i++)
+        {
+            var other = ActiveRigs[i];
+            if (other == this || other == null || !IsInstanceValid(other)) continue;
+            var otherPos = other.Position; otherPos.Y = 0f;
+            var away = pos - otherPos;
+            float distSq = away.LengthSquared();
+            if (distSq >= minGap * minGap) continue;
+
+            if (distSq < 0.0001f)
+            {
+                float side = ((GetInstanceId() + other.GetInstanceId()) & 1UL) == 0 ? 1f : -1f;
+                push += new Vector3(side, 0f, -side);
+                continue;
+            }
+
+            float dist = Mathf.Sqrt(distSq);
+            push += (away / dist) * (minGap - dist);
+        }
+
+        if (push.LengthSquared() < 0.0001f) return;
+        Position += push.Normalized() * Mathf.Min(push.Length(), WalkSpeed * 0.45f * delta + 0.015f);
     }
 
     Vector3 AvoidedHeading(Vector3 pos, Vector3 desired)
