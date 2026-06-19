@@ -10,6 +10,7 @@ public partial class AgentManager : Node3D
 {
     SimRunState _sim = null!;
     WorldLayout _world = null!;
+    CrowdCoordinator _crowd = null!;
     readonly System.Random _vis = new(424242);   // visual-only variety
 
     readonly List<CustomerAgent> _walkins = new();
@@ -61,6 +62,7 @@ public partial class AgentManager : Node3D
     {
         _sim = sim;
         _world = world;
+        _crowd = new CrowdCoordinator(world);
         _sim.OrderCreatedEvt += OnOrder;
         _sim.TicketCompletedEvt += OnTicketDone;
         _sim.TicketAbandonedEvt += OnTicketDone;   // RS-HQ-001: guest gives up and leaves (same release path)
@@ -149,7 +151,7 @@ public partial class AgentManager : Node3D
     CustomerAgent? SpawnWalkin(string orderId, string channel, bool fromDoor, bool courier = false)
     {
         if (_walkins.Count >= MaxWalkins) return null;
-        var a = new CustomerAgent { OrderId = orderId, Channel = channel, Courier = courier };
+        var a = new CustomerAgent { OrderId = orderId, Channel = channel, Courier = courier, TicketNumber = TicketNumberFrom(orderId), Crowd = _crowd };
         var shirt = courier ? new Color(0.9f, 0.45f, 0.1f) : Shirts[_vis.Next(Shirts.Length)];
         float scale = CustomerModelScale * (0.95f + (float)_vis.NextDouble() * 0.12f);   // RS-VS-001 height variance
         string custFile = (_vis.Next(2) == 0 ? "customer_m.glb" : "customer_f.glb");
@@ -177,6 +179,9 @@ public partial class AgentManager : Node3D
         a.QueueSpot = channel == "lobby"
             ? (useKiosk ? _world.KioskSpots[k] + new Vector3(0, 0, (CountKioskQueued() / System.Math.Max(1, _world.KioskSpots.Count)) * 0.55f) : _world.QueueSpots[q])
             : _world.Anchor["mobile_wait"] + new Vector3(pickupLane * 0.45f, 0, 0.25f + (pickupIdx / 5) * 0.55f);
+        a.WaitSpot = channel == "lobby"
+            ? _world.Anchor["pickup"] + new Vector3(0, 0, 1.25f)
+            : _world.Anchor["mobile_wait"] + new Vector3(pickupLane * 0.45f, 0, 1.0f + (pickupIdx / 5) * 0.55f);
         a.PickupSpot = channel == "lobby"
             ? _world.Anchor["pickup"]
             : _world.Anchor["mobile_shelf"] + new Vector3(pickupLane * 0.36f, 0, 0.85f + (pickupIdx / 5) * 0.35f);
@@ -186,9 +191,18 @@ public partial class AgentManager : Node3D
         a.ExitSpot = parkingSpot ?? _world.Anchor["door_out"] + new Vector3((float)(_vis.NextDouble() * 2 - 1), 0, -0.8f);  // reachable point so they actually despawn
         a.Configure(orderPause: channel == "lobby" ? (useKiosk ? 8f : 6f) : 0f, dineSeconds: dines ? 25f + _vis.Next(40) : 0f);
         AddChild(a);
+        if (channel != "lobby") a.ShowTicket();
         _walkins.Add(a);
         _byOrder[orderId] = a;
         return a;
+    }
+
+    static int TicketNumberFrom(string orderId)
+    {
+        int n = 0;
+        for (int i = 0; i < orderId.Length; i++)
+            if (char.IsDigit(orderId[i])) n = n * 10 + (orderId[i] - '0');
+        return n % 1000;
     }
 
     Vector3? SelectParkingSpot(string channel, bool courier)
@@ -265,6 +279,9 @@ public partial class AgentManager : Node3D
     public override void _Process(double delta)
     {
         float d = (float)delta;
+
+        _crowd.UpdateCustomers(_walkins);
+        _crowd.UpdateEmployees(_staff);
 
         for (int i = _walkins.Count - 1; i >= 0; i--)
             if (_walkins[i].Drive(d)) Free(_walkins[i], i);
@@ -349,6 +366,7 @@ public partial class AgentManager : Node3D
                 {
                     StationKey = key, Role = role,
                     EmpId = empId, EmpName = name, Assigned = StationLabel(key),
+                    Crowd = _crowd,
                 };
                 // RS-VS-002 role -> model. crew + team leaders share employee_m/f
                 // (stable pick per slot); managers each get their own model.

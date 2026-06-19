@@ -14,13 +14,17 @@ public partial class CustomerAgent : CharacterRig
     public string Channel = "lobby";
     public bool TicketDone;
     public bool UsesKiosk;
-    public Vector3 QueueSpot, PickupSpot, TableSpot, ExitSpot, BusSpot;
+    public int TicketNumber;
+    public Vector3 QueueSpot, WaitSpot, PickupSpot, TableSpot, ExitSpot, BusSpot;
+    public CrowdCoordinator? Crowd;
     public bool Courier;
     float _pause;
     float _dine;
     bool _carrying;
     bool _seatedAtTable;
+    float _leaveSeconds;
     MeshInstance3D? _tray, _cup, _bag;
+    Label3D? _ticketLabel;
 
     // RS-VS-001: dine-in guests carry a tray (and must bus it); to-go carries a bag.
     // CarryHeight tunes where the tray rides on the model — raise/lower if it floats.
@@ -30,6 +34,29 @@ public partial class CustomerAgent : CharacterRig
 
     // Dine-in only when this guest was given dine time and isn't a courier.
     bool DineIn => _dine > 0 && !Courier;
+
+    public void ShowTicket()
+    {
+        if (TicketNumber <= 0 || _ticketLabel != null) return;
+        _ticketLabel = new Label3D
+        {
+            Text = $"#{TicketNumber:000}",
+            FontSize = 36,
+            Position = new Vector3(0, 2.05f, 0),
+            Billboard = BaseMaterial3D.BillboardModeEnum.Enabled,
+            Modulate = new Color(1f, 0.95f, 0.75f),
+            OutlineSize = 8,
+            Name = "ticket_label"
+        };
+        AddChild(_ticketLabel);
+    }
+
+    void ClearTicket()
+    {
+        if (_ticketLabel == null) return;
+        _ticketLabel.QueueFree();
+        _ticketLabel = null;
+    }
 
     void AttachCarry()
     {
@@ -81,22 +108,25 @@ public partial class CustomerAgent : CharacterRig
         switch (State)
         {
             case Phase.Enter:
-                if (StepToward(QueueSpot, delta)) State = Channel == "lobby" ? Phase.Ordering : Phase.Waiting;
+                if (StepToward(TargetFor(Phase.Enter), delta)) State = Channel == "lobby" ? Phase.Ordering : Phase.Waiting;
                 break;
             case Phase.Ordering:
+                if (!StepToward(TargetFor(Phase.Ordering), delta)) break;
                 Working = false; Moving = false;
-                HoldWithPersonalSpace(delta);
                 _pause -= delta;
-                if (_pause <= 0) State = Phase.Waiting;
+                HoldWithPersonalSpace(delta);
+                if (_pause <= 0) { ShowTicket(); State = Phase.Waiting; }
                 break;
             case Phase.Waiting:
+                if (!StepToward(TargetFor(Phase.Waiting), delta)) break;
                 Moving = false;
                 HoldWithPersonalSpace(delta);
                 if (TicketDone) State = Phase.ToPickup;
                 break;
             case Phase.ToPickup:
-                if (StepToward(PickupSpot, delta))
+                if (StepToward(TargetFor(Phase.ToPickup), delta))
                 {
+                    ClearTicket();
                     AttachCarry();
                     State = DineIn ? Phase.Dining : Phase.Leave;   // to-go leaves with the bag
                 }
@@ -104,7 +134,7 @@ public partial class CustomerAgent : CharacterRig
             case Phase.Dining:
                 if (!_seatedAtTable)
                 {
-                    if (!StepToward(TableSpot, delta)) break;
+                    if (!StepToward(TargetFor(Phase.Dining), delta)) break;
                     _seatedAtTable = true;
                     RequestSeated(true);                 // actually sit at the table
                     TrayToTable();                       // tray goes down on the table
@@ -117,14 +147,31 @@ public partial class CustomerAgent : CharacterRig
                 break;
             case Phase.Busing:
                 if (Seated) { RequestSeated(false); break; }                 // stand up first
-                if (StepToward(BusSpot, delta)) { DropTray(); State = Phase.Leave; }   // return tray to the counter
+                if (StepToward(TargetFor(Phase.Busing), delta)) { DropTray(); State = Phase.Leave; }   // return tray to the counter
                 break;
             case Phase.Leave:
-                if (StepToward(ExitSpot, delta)) { State = Phase.Done; return true; }
+                _leaveSeconds += delta;
+                if (_carrying && (Position.Z > 7.15f || _leaveSeconds > 8f))
+                {
+                    State = Phase.Done;
+                    return true;
+                }
+                if (StepToward(TargetFor(Phase.Leave), delta)) { State = Phase.Done; return true; }
                 break;
             case Phase.Done:
                 return true;
         }
         return false;
     }
+
+    Vector3 TargetFor(Phase phase) => Crowd?.CustomerTarget(this, phase) ?? phase switch
+    {
+        Phase.Enter or Phase.Ordering => QueueSpot,
+        Phase.Waiting => WaitSpot,
+        Phase.ToPickup => PickupSpot,
+        Phase.Dining => TableSpot,
+        Phase.Busing => BusSpot,
+        Phase.Leave => ExitSpot,
+        _ => Position,
+    };
 }

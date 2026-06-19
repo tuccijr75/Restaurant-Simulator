@@ -14,6 +14,8 @@ public partial class EmployeeAgent : CharacterRig
     public string EmpName = "";
     public string Assigned = "";
     public string Task = "On station";
+    public CrowdCoordinator? Crowd;
+    public int CrowdSlot;
     public Vector3 FaceTarget;
     public bool HasFace;
     public bool IsCashier;
@@ -88,7 +90,7 @@ public partial class EmployeeAgent : CharacterRig
             Working = false;
             _onSupplyRun = _sweeping = _greeting = false;
             ActionAnim = "";
-            if (StepToward(HomeSpot, delta) && HasFace) FaceToward(FaceTarget, delta);
+            if (StepToward(Crowd?.EmployeeHome(this) ?? HomeSpot, delta) && HasFace) FaceToward(FaceTarget, delta);
             Task = "Returning to station";
             return;
         }
@@ -131,7 +133,7 @@ public partial class EmployeeAgent : CharacterRig
             return;
         }
         // Cashiers step up to the register when a customer is ordering, otherwise stand back.
-        Vector3 home = (IsCashier && stationBusy) ? ServeSpot : HomeSpot;
+        Vector3 home = Crowd?.EmployeeTarget(this, stationBusy) ?? ((IsCashier && stationBusy) ? ServeSpot : HomeSpot);
         if (!StepToward(home, delta)) { Task = "Walking to station"; return; }
         Working = stationBusy;
         HoldWithPersonalSpace(delta);

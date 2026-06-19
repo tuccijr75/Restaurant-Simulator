@@ -1,8 +1,9 @@
 extends SceneTree
 
-const OUT_DIR := "E:/GitHub Projects/Restaurant Simulator/Restaurant Simulator/test-artifacts/visual-smoke/2026-06-18-kitchen-layout"
+const OUT_DIR := "E:/GitHub Projects/Restaurant Simulator/Restaurant Simulator/test-artifacts/visual-smoke/2026-06-19-crowd-coordinator"
 
 var scene: Node
+var smoke_camera: Camera3D
 
 func _initialize() -> void:
 	root.size = Vector2i(1600, 900)
@@ -15,22 +16,24 @@ func _initialize() -> void:
 func _run() -> void:
 	await _frames(120)
 	_hide_node_named(scene, "RoofGroup")
-	var cam := Camera3D.new()
-	cam.name = "WideKitchenSmokeCamera"
-	cam.fov = 72.0
-	cam.position = Vector3(-6.8, 11.8, 1.4)
-	scene.add_child(cam)
-	cam.look_at(Vector3(2.6, 0.4, -6.15), Vector3.UP)
-	cam.current = true
-	await _frames(30)
-	_capture("01_wide_kitchen_layout.png")
+	_install_overhead_camera()
 	_key(KEY_SPACE)
-	await _frames(420)
-	_capture("02_wide_kitchen_running.png")
-	_key(KEY_O)
+	_key(KEY_R)
 	await _frames(120)
-	_capture("03_overhead.png")
+	_capture("00_overhead_start.png")
+	for i in range(1, 5):
+		await _frames(1200)
+		_capture("%02d_overhead.png" % i)
 	quit()
+
+func _install_overhead_camera() -> void:
+	smoke_camera = Camera3D.new()
+	smoke_camera.name = "VisualSmokeOverheadCamera"
+	smoke_camera.position = Vector3(3.5, 31.0, -1.5)
+	smoke_camera.rotation_degrees = Vector3(-90, 0, 0)
+	smoke_camera.fov = 62.0
+	scene.add_child(smoke_camera)
+	smoke_camera.current = true
 
 func _frames(count: int) -> void:
 	for i in count:

@@ -99,15 +99,18 @@ public static class WorldBuilder
         Station(w, L, "grill", new Vector3(-2.0f, 0.5f, -9.35f), new Vector3(3.4f, 1.0f, 1.15f), DarkSteel, "GRILL", glow: new Color(1f, 0.35f, 0.1f), yaw: 0f);
         // Hot-holding unit sits centered on the doubled assembly board.
         Prop(w, "holding_unit", new Vector3(-2.0f, 0.94f, -4.95f), new Vector3(1.0f, 0.32f, 0.44f), new Color(0.86f, 0.7f, 0.4f), yaw: 90f, baseY: 0.92f, modelScale: new Vector3(0.50f, 0.50f, 0.50f));
-        // Open prep/storage room: open toward the kitchen, no door.
-        WallAlongZ(w, 8.0f, -10.5f, -7.2f, "wall_prep_room_w");
-        WallAlongZ(w, 13.1f, -10.5f, -7.2f, "wall_prep_room_e");
-        WallAlongX(w, -10.5f, 8.0f, 13.1f, "wall_prep_room_n");
+        // Staff-only support room: prep, storage, crew belongings, and break area.
+        // The west wall has a triple-wide opening into the kitchen. The lobby-side
+        // access panel is visible but blocked by the customer partition/navmesh.
+        WallAlongZ(w, 6.1f, -10.5f, -0.5f, "wall_support_room_w", openAt: -5.9f, openW: 3.0f, thick: 0.3f);
+        Box(w, new Vector3(1.2f, 2.2f, 0.12f), new Vector3(10.6f, 1.1f, -0.62f), DarkSteel, "wall_support_lobby_locked_door");
         Station(w, L, "prep", new Vector3(10.4f, 0.5f, -9.35f), new Vector3(2.2f, 0.95f, 1.0f), Steel, "PREP", yaw: 0f);
-        Box(w, new Vector3(0.48f, 1.8f, 2.4f), new Vector3(8.45f, 0.9f, -9.25f), new Color(0.54f, 0.56f, 0.58f), "st_fry_shelves");
-        Box(w, new Vector3(1.8f, 1.8f, 0.48f), new Vector3(10.6f, 0.9f, -10.05f), new Color(0.54f, 0.56f, 0.58f), "st_dry_shelves");
-        Box(w, new Vector3(1.0f, 0.28f, 0.72f), new Vector3(8.65f, 0.24f, -7.75f), new Color(0.70f, 0.72f, 0.74f), "mop_sink");
-        Box(w, new Vector3(0.08f, 0.82f, 0.08f), new Vector3(8.65f, 0.82f, -8.08f), DarkSteel, "mop_sink_faucet");
+        Box(w, new Vector3(0.48f, 1.8f, 2.4f), new Vector3(6.85f, 0.9f, -9.2f), new Color(0.54f, 0.56f, 0.58f), "st_fry_shelves");
+        Box(w, new Vector3(1.0f, 0.28f, 0.72f), new Vector3(7.0f, 0.24f, -7.75f), new Color(0.70f, 0.72f, 0.74f), "mop_sink");
+        Box(w, new Vector3(0.08f, 0.82f, 0.08f), new Vector3(7.0f, 0.82f, -8.08f), DarkSteel, "mop_sink_faucet");
+        Box(w, new Vector3(2.0f, 1.2f, 0.42f), new Vector3(12.6f, 0.6f, -7.05f), new Color(0.38f, 0.40f, 0.44f), "st_crew_lockers");
+        Box(w, new Vector3(1.4f, 0.75f, 0.9f), new Vector3(9.0f, 0.40f, -6.85f), new Color(0.72f, 0.55f, 0.38f), "break_table");
+        Box(w, new Vector3(1.6f, 0.45f, 0.4f), new Vector3(9.0f, 0.23f, -6.05f), Accent, "break_bench");
         // Drinks are fulfilled from lobby self-serve fountains or the drive-thru soda machine.
         L.Anchor["beverage"] = new Vector3(-10.8f, 0.7f, -1.6f);
 
@@ -115,18 +118,13 @@ public static class WorldBuilder
         Station(w, L, "dt_window", new Vector3(-11.6f, 0.6f, -3.0f), new Vector3(0.6f, 1.1f, 1.4f), Steel, "DT WINDOW", yaw: 90f);
 
         // (2) walk-in: back-RIGHT corner, 10% larger; the door visual is passable.
-        Station(w, L, "cooler", new Vector3(15.1f, 1.43f, -8.85f), new Vector3(3.3f, 2.86f, 3.3f), new Color(0.8f, 0.84f, 0.88f), "WALK-IN", yaw: 270f);
-        Box(w, new Vector3(0.16f, 2.05f, 1.45f), new Vector3(13.35f, 1.12f, -8.85f), DarkSteel, "freezer_door");
+        Station(w, L, "cooler", new Vector3(16.25f, 1.43f, -8.85f), new Vector3(3.3f, 2.86f, 3.3f), new Color(0.8f, 0.84f, 0.88f), "WALK-IN", yaw: 270f);
 
         // (2) office: back-LEFT corner (room walls in BuildExtras); desk sits against the back wall
         Station(w, L, "office", new Vector3(-10.8f, 0.5f, -6.3f), new Vector3(1.8f, 1.0f, 1.2f), new Color(0.55f, 0.45f, 0.35f), "OFFICE", yaw: 0f);
-        // break area in the open back-left of the kitchen (kept clear of the office room)
-        Box(w, new Vector3(1.4f, 0.75f, 0.9f), new Vector3(-6.3f, 0.40f, -6.4f), new Color(0.72f, 0.55f, 0.38f), "break_table");
-        Box(w, new Vector3(1.6f, 0.45f, 0.4f), new Vector3(-6.3f, 0.23f, -5.6f), Accent, "break_bench");
-
         // Red partitions close the customer side while preserving staff aisles behind the line.
         Box(w, new Vector3(24f, 1.1f, 0.3f), new Vector3(0.0f, 0.55f, -0.5f), Accent, "wall_kitchen_lw");
-        Box(w, new Vector3(0.3f, 1.1f, 5.9f), new Vector3(5.8f, 0.55f, -4.1f), Accent, "wall_kitchen_right_partition");
+        Box(w, new Vector3(1.4f, 1.12f, 0.12f), new Vector3(10.6f, 0.6f, -0.35f), Accent, "wall_support_lobby_access_blocked");
 
         // ---------- dining room ----------
         // booths along the front wall (non-obstacle name so guests can path to a seat); avoid the center door (x -1..1)
@@ -186,15 +184,15 @@ public static class WorldBuilder
         L.Anchor["door"] = new Vector3(0, 0, 6.8f);
         L.Anchor["door_out"] = new Vector3(0, 0, 9.0f);
         L.Anchor["pickup"] = new Vector3(-5.8f, 0, 0.25f);         // collect on the lobby side of the counter
-        L.Anchor["freezer_door"] = new Vector3(13.05f, 0, -8.85f); // kitchen side of the walk-in door
+        L.Anchor["freezer_door"] = new Vector3(14.55f, 0, -8.85f); // kitchen side of the walk-in model door
         L.Anchor["work_counter2"] = new Vector3(2.0f, 0, -1.8f);   // cashier behind POS 2
         L.Anchor["mobile_wait"] = new Vector3(-5.5f, 0, 0.0f);     // in front of the mobile rack, lobby side
-        L.Anchor["break_room"] = new Vector3(-6.3f, 0, -5.4f);     // crew sit at the break bench (open kitchen, back-left)
-        L.QueueSpots.Add(new Vector3(-2.0f, 0, 0.3f));
-        L.QueueSpots.Add(new Vector3(-2.0f, 0, 1.3f));
-        L.QueueSpots.Add(new Vector3(-2.0f, 0, 2.3f));
-        L.QueueSpots.Add(new Vector3(-1.2f, 0, 3.3f));
-        L.QueueSpots.Add(new Vector3(-1.2f, 0, 4.3f));
+        L.Anchor["break_room"] = new Vector3(9.0f, 0, -6.05f);     // crew break area in the support room
+        L.QueueSpots.Add(new Vector3(-2.0f, 0, 0.85f));
+        L.QueueSpots.Add(new Vector3(-2.0f, 0, 1.65f));
+        L.QueueSpots.Add(new Vector3(-2.0f, 0, 2.45f));
+        L.QueueSpots.Add(new Vector3(-1.2f, 0, 3.25f));
+        L.QueueSpots.Add(new Vector3(-1.2f, 0, 4.05f));
         L.KioskSpots.Add(new Vector3(-1.25f, 0, 2.5f));
         L.KioskSpots.Add(new Vector3(1.25f, 0, 2.5f));
         // Employee work spots (sim station id -> world position, crew side of fixtures)
