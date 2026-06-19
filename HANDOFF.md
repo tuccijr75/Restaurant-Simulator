@@ -10,7 +10,7 @@ Current HEAD: `9128fd706a7022ebd52a59dd72208eef0a4434dc`
 Task ID: `movement-runtime-authority-followup`
 Task Name: Fix visual movement stalls, POS service choreography, and deprecated movement interference
 Status: `AWAITING_MICHAEL_APPROVAL`
-Handoff Version: 3.0
+Handoff Version: 3.1
 Last Updated: 2026-06-19
 Updated By: Claude Opus
 
@@ -27,7 +27,7 @@ HANDOFF.md is the permanent, revolving coordination channel between Claude Opus 
 
 ## Current Task
 
-The first movement-authority pass (a `CrowdCoordinator`, reservation slots, movement telemetry, and an automated smoke parser) landed at HEAD and passed the parser. While the smoke test was open, Michael observed runtime failures the parser and screenshots missed: customers/employees twitch in place, the first customer in line did not move, two employees stuck at the walk-in corner, the counter employee looked idle, and POS/drink service choreography is not explicit. This follow-up makes movement and service choreography robust and adds telemetry that catches these runtime failures.
+The first movement-authority pass (a `CrowdCoordinator`, reservation slots, movement telemetry, and an automated smoke parser) landed at HEAD and passed the parser. While the smoke test was open, Michael observed runtime failures the parser and screenshots missed: customers/employees twitch in place, the first customer in line did not move, two employees stuck at the walk-in corner, the counter employee looked idle, and POS service choreography is not explicit. This follow-up makes movement and service choreography robust and adds telemetry that catches these runtime failures. (The lobby-drink stop is part of the original intent but is blocked on a data decision — see D1; it is deferred from the active packet.)
 
 ## Confirmed Root Causes (Codex telemetry, folder `test-artifacts/movement-smoke/20260619_132902`)
 
@@ -60,13 +60,11 @@ POS service (presentation-only):
 - The serve trigger is the coordinator reservation + `Phase.Ordering`, NOT `_sim.Tickets`; no write-back to `SimRunState`.
 - Requires a presentation-only counter-vs-kiosk designation for lobby customers; kiosk customers self-order with no employee required.
 
-Drink stop (CONDITIONAL — see Decision D1):
-- Add a lobby soda-machine stop before waiting ONLY if a drink indicator is already readable read-only from existing order/ticket data with no sim or export contract change. If unavailable, EXCLUDE from this task and raise to Michael.
-- If implemented, presentation-only subphases `ToDrink`/`GettingDrink` are acceptable; do not add `ToWait` (redundant with the Waiting reservation).
-
 Sequencing / determinism:
 - Reduce conflicting local steering for reserved/holding agents ONLY after telemetry proves the coordinator owns the target; one mechanism at a time, re-validating after each.
 - Engine self-test deterministic replay (canonical event export for a fixed config/scenario/seed) must be byte-identical to Base SHA, not merely a passing suite. Codex confirms the comparison method.
+
+Drink stop: DEFERRED from this packet pending Decision D1. Do not implement `ToDrink`/`GettingDrink` or any soda-machine choreography unless Michael approves D1 Option A.
 
 ## Acceptance Criteria
 
@@ -90,7 +88,7 @@ Real seconds: `Enter` > 20; `Ordering` > 12 counter / 18 kiosk; `Waiting` > 180 
 ## Prohibited Changes / Non-Goals
 
 - No deterministic event schema, export ledger, or ASC-contract change; movement telemetry stays diagnostic-only.
-- No write-back to `SimRunState`; no new sim-facing order-item state without Michael approval (gates the drink stop).
+- No write-back to `SimRunState`; no new sim-facing order-item state without Michael approval (gates the drink stop — see D1).
 - No deterministic sim-core change unless Claude confirms it is required and Michael approves.
 - No ingredient/catalog/vendor/back-office changes; no layout, equipment, wall, navmesh, or aesthetic changes.
 - No destructive Git operations; no scope expansion; do not commit generated caches, build outputs, timestamped smoke screenshots, or telemetry folders.
@@ -109,47 +107,45 @@ Real seconds: `Enter` > 20; `Ordering` > 12 counter / 18 kiosk; `Waiting` > 180 
 - Tight arrival thresholds can create false stuck even when an agent is visually close enough — practical radii required.
 - Local `HoldWithPersonalSpace`/overlap correction can fight reservation slots and cause twitch — reduce only after proof.
 - POS choreography needs a presentation-only assignment layer so it never alters the deterministic sim.
-- Drink stop may need item-level order visibility; gated on D1.
 - Walk-in contention is part reservation, part local steering.
 - Parser must catch human-visible jitter, not only large stuck distances.
 
 ## Decisions Reserved for Michael
 
-- D1 — Drink-data exposure. Codex read-only inspection found drink/frozen-dessert products in `game/config/menu_products.json` and item/cart logic in `game/scripts/sim/SimRunState.cs`, but no clean per-order drink flag is exposed at the current presentation boundary (`OrderCreatedEvt` only provides channel + order id; `CustomerAgent` receives no cart/item list). `item.taken` events include item ids in the sim event stream, but using those as presentation choreography input would be indirect log parsing and still does not provide an order-time drink flag. Claude recommendation stands: DEFER drink-stop choreography unless Michael approves a new read-only order-item exposure. Status: FACT REPORTED / AWAITING MICHAEL DECISION.
+- D1 — Drink-stop data exposure. Codex read-only inspection (evidence below) confirms there is NO clean per-order drink flag at the presentation boundary: `OrderCreatedEvt` carries only `(channel, order_id)` and `CustomerAgent` receives no cart/item list. Drink data exists deterministically in the sim (`game/config/menu_products.json`, `SimRunState.BuildCart()`); item ids appear in the `item.taken` export, but driving choreography from the exported log inverts the presentation→sim dependency and is rejected. Options:
+  - A) Approve a minimal in-process read-only drink signal (e.g. a `hasDrink` bool on the `OrderCreatedEvt` payload, or a read-only `SimRunState.OrderHasDrink(orderId)` query) derived from the already-deterministic cart. Constraint: in-process only; must NOT alter the exported event schema, ASC contract, or any deterministic output; the byte-identical gate still applies. Unblocks the drink stop.
+  - B) Defer the drink stop entirely; ship the movement/POS/walk-in/mobile fixes now and revisit drinks as a separate small task.
+  - Claude recommendation: B for this task — the runtime failures Michael flagged are the priority and should not wait on a data-exposure decision; the drink stop is a clean fast-follow. A is acceptable and low-risk if Michael wants drinks in scope now, provided it stays in-process read-only.
+  - Status: AWAITING MICHAEL DECISION.
 - D2 — Ratify the proposed phase-timeout thresholds. Status: OPEN.
-- D3 — Any product-visible pacing introduced by the drink detour. Status: OPEN.
+- D3 — Product-visible pacing introduced by the drink detour. Contingent on D1 = A; N/A if D1 = B. Status: OPEN.
 
 ## Claude Review
 
 Verdict: `APPROVED_WITH_CORRECTIONS`
 
-Corrections (byte-identical determinism gate; jitter assertion; conditional drink-data gating; presentation-only POS boundary with counter/kiosk designation; walk-in standoff; minimal subphases; removal sequencing; phase timeouts) are folded into Requirements and Acceptance above. Basis: the packet is evidence-driven, parser-first, and scope-disciplined; the gaps were the missing jitter assertion, the under-specified determinism gate, and the unconfirmed drink-data assumption — all now constrained. Implementation may proceed on everything EXCEPT the drink stop once Michael approves the specification; the drink stop waits on D1.
+Corrections (byte-identical determinism gate; jitter assertion; conditional drink-data gating; presentation-only POS boundary with counter/kiosk designation; walk-in standoff; minimal subphases; removal sequencing; phase timeouts) are folded into Requirements and Acceptance above. Basis: the packet is evidence-driven, parser-first, and scope-disciplined. D1 is now fact-reported — no clean presentation drink flag exists — and Codex correctly deferred rather than improvising; the drink stop is the only blocked item and should not hold up the movement fixes. Everything except the drink stop may proceed once Michael approves the specification.
 
 Reviewed By: Claude Opus — 2026-06-19.
 
 ## Codex Implementation Notes
 
-No source edits until Michael approves the specification (and D1 for drink scope). Codex MAY now perform the read-only drink-signal inspection to resolve D1 — inspection only, no edits. Once approved, implement in order:
+No source edits until Michael approves the specification (and D1 for drink scope). D1 read-only inspection is complete. Once approved, implement in order:
 1. Update parser + telemetry so the current data fails (including jitter); confirm red.
 2. Customer arrival radii + mobile distinct-slot reservations.
 3. Walk-in supply-run reservation + standoff + active-target telemetry.
 4. POS service choreography (presentation-only) + counter/kiosk designation.
-5. (Only if D1 = available) drink-stop choreography.
-6. Reduce conflicting local steering for reserved/holding agents, one at a time.
-7. Re-run build, self-test (byte-identical), smoke, parser (green), visual review; record evidence below.
+5. Reduce conflicting local steering for reserved/holding agents, one at a time.
+6. Re-run build, self-test (byte-identical), smoke, parser (green), visual review; record evidence below.
+7. Drink stop only if Michael approves D1 Option A — then add the in-process read-only signal and `ToDrink`/`GettingDrink`, re-validating the byte-identical gate.
 
 ## Validation Evidence
 
 Prior baseline (HEAD `9128fd7`, now known insufficient): build 0 warnings / 0 errors; self-test 120/120, ingredient-model 10/10, career-test 11/11; smoke folder `20260619_132902` passed the old parser (379 samples / 2723 agent samples) but missed long `Enter` stalls and walk-in contention.
 
-New evidence: PENDING — Codex to populate (commands run, parser red→green, byte-identical replay result, runtime notes).
+D1 read-only evidence (Codex, inspection only): `OrderCreatedEvt` is `(channel, order_id)` and `AgentManager` cannot know whether a spawned visual customer ordered a drink; `SimRunState.BuildCart()` selects drink items deterministically; `item.taken` emits `item_id` and `ItemLedger`/`AllJsonl` carry item info, but none is a clean typed presentation API for order-time drink choreography. Conclusion: no drink-stop implementation without Michael approving a read-only order-item exposure (D1 Option A).
 
-Read-only D1 evidence:
-
-- `rg` over `game/scripts`, `game/config`, and `tools` found beverage/frozen-dessert catalog entries and `SimRunState.BuildCart()` drink item selection.
-- `game/scripts/sim/SimRunState.cs`: `OrderCreatedEvt` is `(channel, order_id)` only; `AgentManager` subscribes to this and therefore cannot directly know whether a spawned visual customer ordered a drink.
-- `game/scripts/sim/SimRunState.cs`: `item.taken` emits `item_id`, and `ItemLedger`/`AllJsonl` contain item information, but this is not a clean typed presentation API for order-time drink choreography.
-- Conclusion: no source edits should implement drink-stop choreography under the current packet unless Michael approves exposing read-only order item data.
+New movement evidence: PENDING — Codex to populate after approval (commands run, parser red→green, byte-identical replay result, runtime notes).
 
 ## Michael Approval
 
@@ -163,4 +159,4 @@ Working tree is clean at Base SHA `9128fd7`. Safest rollback is a revert commit 
 
 ## Next Authorized Action
 
-Michael reviews and approves the specification and Decisions D1–D3. Codex may perform the read-only drink-signal inspection now to resolve D1 but must not make source edits until Michael approves. After approval, Codex implements in the order above and updates this file with evidence.
+Michael: (1) approve or amend the specification; (2) decide D1 (A = approve in-process read-only drink signal, B = defer drink stop); (3) ratify D2 thresholds; (4) decide D3 only if D1 = A. Codex must not make source edits until specification approval. After approval, Codex implements steps 1–6 in the order above (step 7 only if D1 = A) and updates this file with evidence.
