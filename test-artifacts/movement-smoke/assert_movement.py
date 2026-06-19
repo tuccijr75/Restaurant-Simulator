@@ -163,6 +163,28 @@ def main():
                     if path >= JITTER_MIN_PATH_M and net <= JITTER_MAX_NET_M:
                         fail_key(failures, seen_failures, ("jitter", agent_id, slot_id, phase), "jitter", f"{agent_id} jitter near {slot_id}: path {path:.2f}m net {net:.2f}m")
 
+        supply_targets = {}
+        for agent in row.get("agents", []):
+            if agent.get("agent_type") != "employee":
+                continue
+            if agent.get("phase") != "Walk-in supply run":
+                continue
+            target = agent.get("target") or {}
+            key = (
+                round(float(target.get("x", 0.0)), 2),
+                round(float(target.get("z", 0.0)), 2),
+            )
+            if key in supply_targets:
+                fail_key(
+                    failures,
+                    seen_failures,
+                    ("supply_run_conflict", key),
+                    "supply_run_conflict",
+                    f"{agent['agent_id']} and {supply_targets[key]} share walk-in supply target {key}",
+                )
+            else:
+                supply_targets[key] = agent["agent_id"]
+
         for pair in row.get("pairs", []):
             key = tuple(sorted((pair["a"], pair["b"])))
             if pair.get("exempt", False):

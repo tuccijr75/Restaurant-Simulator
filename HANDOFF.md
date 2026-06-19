@@ -9,10 +9,10 @@ Base SHA: `9128fd706a7022ebd52a59dd72208eef0a4434dc`
 Current HEAD: `2d07332b88cf823d3d6fbbca9af9daadab6fc5d5`
 Task ID: `movement-runtime-authority-followup`
 Task Name: Fix visual movement stalls, POS service choreography, and deprecated movement interference
-Status: `AWAITING_CODEX_CORRECTIONS`
-Handoff Version: 4.0
+Status: `CORRECTIONS_COMPLETE_AWAITING_CLAUDE_REVIEW`
+Handoff Version: 4.1
 Last Updated: 2026-06-19
-Updated By: Claude Opus
+Updated By: Codex
 
 ## Workflow Contract
 
@@ -61,9 +61,9 @@ Drink stop: DEFERRED (D1=B) — separate future task; not in this packet.
 ## Acceptance Criteria (verification state from Claude review)
 
 - [x] Build passes with zero errors.
-- [x] Engine self-test deterministic replay byte-identical to Base SHA — PASS (confirm compared artifact, Correction 3).
-- [~] Parser FAILS the old data on every new rule — only `enter_timeout`, `complete_ticket_before_pickup`, `walkin_proximity` proven; JITTER, supply-run-conflict, duplicate-reservation NOT proven (Corrections 1–2).
-- [x] After fixes, parser passes with zero failures (379 samples / 2157 agent samples) — meaningful only once detectors are proven.
+- [x] Engine self-test deterministic replay byte-identical to Base SHA — PASS; comparison diffed canonical `SimRunState.AllJsonl` event stream output for fixed `normal_day` / seed `12345`.
+- [x] Parser FAILS known-violation data/fixtures on every new rule class required by Claude: old data for `enter_timeout`, `complete_ticket_before_pickup`, `walkin_proximity`; synthetic fixtures for `jitter`, `supply_run_conflict`, and `duplicate_reserved_slot`.
+- [x] After fixes, parser passes with zero failures (379 samples / 2157 agent samples) with proven detectors.
 - [x] Telemetry includes each employee's actual active target.
 - [~] Counter/kiosk choreography — reservation mechanism implemented; visual sequence not yet confirmed (Correction 4).
 - [x] Walk-in supply runs never share a corner target — proximity rule green.
@@ -126,7 +126,7 @@ Reviewed By: Claude Opus — 2026-06-19.
 
 ## Codex Implementation Notes
 
-Address Corrections 1–3, then re-run the full validation set and update the evidence below. Make no other source changes; do not reduce CharacterRig local steering this pass unless the jitter proof shows it is still firing harmfully (then one mechanism at a time, re-validated).
+Corrections 1–3 are complete. No gameplay source was changed for the correction pass; only `assert_movement.py` was updated to make active walk-in supply target conflicts an explicit parser failure. CharacterRig local steering remains untouched.
 
 ## Validation Evidence
 
@@ -141,7 +141,15 @@ Implementation evidence (Codex, 2026-06-19):
 
 D1 read-only basis (settled, B): no clean per-order drink flag at the presentation boundary; `OrderCreatedEvt` is `(channel, order_id)`.
 
-Correction evidence: PENDING — Codex to add (jitter/supply-run/duplicate red proofs; byte-identical artifact confirmation).
+Correction evidence (Codex, 2026-06-19):
+- Correction 1 — JITTER proof: temp fixture `%TEMP%\rs_movement_fixtures\jitter` produced expected parser red result, exit 1, `{"code":"jitter","message":"cust_jitter jitter near lobby_wait_0: path 1.60m net 0.00m"}`.
+- Correction 2 — supply-run-conflict proof: temp fixture `%TEMP%\rs_movement_fixtures\supply_conflict` produced expected parser red result, exit 1, `{"code":"supply_run_conflict","message":"emp_b and emp_a share walk-in supply target (14.23, -8.5)"}`.
+- Correction 2 — duplicate-reservation proof: temp fixture `%TEMP%\rs_movement_fixtures\duplicate_reservation` produced expected parser red result, exit 1, `{"code":"duplicate_reserved_slot","message":"lobby_wait_0 reserved by cust_a and cust_b at 0.00s"}`.
+- Correction 3 — canonical deterministic artifact confirmed: inspected `SelfTest.cs` and `SimRunState.cs`; the canonical event stream is `SimRunState.AllJsonl`. Baseline source was extracted from Base SHA `9128fd706a7022ebd52a59dd72208eef0a4434dc` via `git archive`, then a temp extractor compared baseline vs current `AllJsonl` raw contents for fixed `normal_day` / seed `12345`: `CANONICAL_EVENT_STREAM_BYTE_IDENTICAL: PASS`.
+- Post-correction clean smoke parser: `python test-artifacts\movement-smoke\assert_movement.py test-artifacts\movement-smoke\20260619_151950` -> PASS, 379 samples / 2157 agent samples / 0 failures.
+- Build: `dotnet build game\RestaurantSimulator.csproj --nologo` -> PASS, 0 warnings / 0 errors.
+- Engine self-test: `dotnet run --project tools\engine-selftest\harness.csproj` -> PASS; `SELF-TEST TOTAL: 120/120`, `INGREDIENT-MODEL TOTAL: 10/10`, `CAREER-TEST TOTAL: 11/11`, `RESULT: PASS`.
+- Temporary fixture/extractor/archive folders were removed from `%TEMP%`. Smoke evidence folder `test-artifacts/movement-smoke/20260619_151950/` remains an untracked/ignored local artifact and should not be committed unless Michael requests evidence artifacts in repo.
 
 ## Michael Approval
 
@@ -156,4 +164,4 @@ Working tree clean at Base SHA `9128fd7`. Safest rollback is a revert commit of 
 
 ## Next Authorized Action
 
-Codex addresses Corrections 1–3 (prove the jitter, supply-run-conflict, and duplicate-reservation rules go red on known-violation fixtures; confirm the byte-identical artifact), re-runs the full validation set, and updates the evidence above — no other source edits. Michael performs the human visual smoke (Correction 4). No merge until corrections close and Claude returns `APPROVED_TO_CONTINUE`.
+Claude reviews Codex correction evidence for Corrections 1–3 and either returns `APPROVED_TO_CONTINUE` or requests narrowly scoped follow-up. Michael performs the human visual smoke (Correction 4). No merge until corrections close and Claude returns approval.
