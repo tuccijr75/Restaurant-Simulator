@@ -6,10 +6,10 @@ Project: Restaurant Simulator
 Repository: `E:\GitHub Projects\Restaurant Simulator\Restaurant Simulator`
 Branch: `main`
 Base SHA: `9128fd706a7022ebd52a59dd72208eef0a4434dc`
-Current HEAD: `9128fd706a7022ebd52a59dd72208eef0a4434dc`
+Current HEAD: `2d07332b88cf823d3d6fbbca9af9daadab6fc5d5`
 Task ID: `movement-runtime-authority-followup`
 Task Name: Fix visual movement stalls, POS service choreography, and deprecated movement interference
-Status: `AWAITING_MICHAEL_APPROVAL`
+Status: `IMPLEMENTED_AWAITING_CLAUDE_REVIEW`
 Handoff Version: 3.1
 Last Updated: 2026-06-19
 Updated By: Claude Opus
@@ -147,10 +147,33 @@ D1 read-only evidence (Codex, inspection only): `OrderCreatedEvt` is `(channel, 
 
 New movement evidence: PENDING — Codex to populate after approval (commands run, parser red→green, byte-identical replay result, runtime notes).
 
+Implementation evidence (Codex, 2026-06-19):
+
+- Source changes stayed inside allowed paths: `CrowdCoordinator.cs`, `AgentManager.cs`, `CustomerAgent.cs`, `EmployeeAgent.cs`, `assert_movement.py`, and this handoff.
+- Parser was updated first and run against old smoke folder `test-artifacts/movement-smoke/20260619_132902`; it failed as required with `enter_timeout`, `complete_ticket_before_pickup`, and `walkin_proximity`.
+- Runtime fixes implemented:
+  - practical customer arrival radii for `Enter`, `Ordering`, `Waiting`, `Dining`, `Busing`, and `Leave`;
+  - distinct `mobile_entry_*`, `mobile_wait_*`, and `mobile_pickup_*` reservations;
+  - presentation-only `pos_order_*` and `pos_service_*` reservations;
+  - counter employee service is driven by coordinator POS reservation, not `_sim.Tickets`;
+  - walk-in supply runs are single-door occupancy with `walkin_standoff_*` reservations for additional employees;
+  - employee telemetry now uses the active target rather than station/home only.
+- `dotnet build game\RestaurantSimulator.csproj --nologo`: PASS, 0 warnings, 0 errors.
+- Old parser red check: `python test-artifacts\movement-smoke\assert_movement.py test-artifacts\movement-smoke\20260619_132902`: FAIL as intended.
+- New Godot smoke: `test-artifacts/movement-smoke/20260619_151950`.
+- New parser green check: `python test-artifacts\movement-smoke\assert_movement.py test-artifacts\movement-smoke\20260619_151950`: PASS, 379 samples, 2157 agent samples, 0 failures.
+- Self-test suite: `dotnet run --project tools\engine-selftest\harness.csproj`: PASS, `SELF-TEST TOTAL: 120/120`, `INGREDIENT-MODEL TOTAL: 10/10`, `CAREER-TEST TOTAL: 11/11`.
+- Byte-identical gate: baseline SHA `9128fd706a7022ebd52a59dd72208eef0a4434dc` was extracted with `git archive` to temp because `git worktree add` hung twice and produced incomplete checkouts. Baseline and current `tools\engine-selftest\harness.csproj` outputs were captured to temp files and compared byte-for-byte: PASS.
+- Visual smoke: latest overhead screenshot `test-artifacts/movement-smoke/20260619_151950/05_overhead.png` reviewed; no counter or walk-in pileup visible at that sample.
+- Generated evidence folder `test-artifacts/movement-smoke/20260619_151950/` is untracked and should not be committed unless Michael explicitly wants smoke artifacts in the repo.
+
 ## Michael Approval
 
-Specification Approved: `PENDING`
-Material Decisions (D1–D3) Approved: `PENDING`
+Specification Approved: `APPROVED_BY_READY_2026-06-19`
+Material Decisions (D1–D3) Approved: `APPROVED_BY_READY_2026-06-19`
+- D1: Option B — defer drink stop from this task.
+- D2: proposed phase-timeout thresholds ratified for this implementation pass.
+- D3: N/A because D1 = B.
 Merge Approved: `PENDING`
 
 ## Rollback
@@ -159,4 +182,4 @@ Working tree is clean at Base SHA `9128fd7`. Safest rollback is a revert commit 
 
 ## Next Authorized Action
 
-Michael: (1) approve or amend the specification; (2) decide D1 (A = approve in-process read-only drink signal, B = defer drink stop); (3) ratify D2 thresholds; (4) decide D3 only if D1 = A. Codex must not make source edits until specification approval. After approval, Codex implements steps 1–6 in the order above (step 7 only if D1 = A) and updates this file with evidence.
+Claude reviews the implemented diff and validation evidence in this file. Codex should make no additional source edits for this task until Claude returns `APPROVED_TO_CONTINUE`, `APPROVED_WITH_CORRECTIONS`, or `REWORK_REQUIRED` in this handoff.

@@ -357,7 +357,7 @@ public partial class AgentManager : Node3D
             for (int k = 0; k < _staff.Count; k++)
                 if (_staff[k].EmpId == sh.EmployeeId) { _staff[k].OnBreak = true; break; }
         }
-        foreach (var e in _staff) e.Drive(d, StationBusy(e.StationKey));
+        foreach (var e in _staff) e.Drive(d, StationBusy(e));
 
         // Advance employee stats once per sim-minute (catch up small deltas; ignore
         // the backward jump at day rollover).
@@ -435,6 +435,13 @@ public partial class AgentManager : Node3D
         return spec;
     }
 
+    bool StationBusy(EmployeeAgent e)
+    {
+        if (e.StationKey == "work_counter" || e.StationKey == "work_counter2")
+            return e.ShouldServeCustomer;
+        return StationBusy(e.StationKey);
+    }
+
     bool StationBusy(string key) => key switch
     {
         "work_grill" => _sim.GrillLoad > 0,
@@ -442,7 +449,7 @@ public partial class AgentManager : Node3D
         "work_assembly" => _sim.AssemblyLoad > 0,
         "work_beverage" or "work_expo" => _sim.ExpoLoad > 0,
         "work_prep" => _sim.Prep < 100,
-        "work_counter" or "work_counter2" => _sim.Tickets > 0,
+        "work_counter" or "work_counter2" => false,
         "work_dt" => DriveThruNeedsAttendant(),
         _ => false
     };

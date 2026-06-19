@@ -14,6 +14,7 @@ public partial class CustomerAgent : CharacterRig
     public string Channel = "lobby";
     public bool TicketDone;
     public bool UsesKiosk;
+    public bool CanOrderNow = true;
     public int TicketNumber;
     public Vector3 QueueSpot, WaitSpot, PickupSpot, TableSpot, ExitSpot, BusSpot;
     public CrowdCoordinator? Crowd;
@@ -40,6 +41,7 @@ public partial class CustomerAgent : CharacterRig
     public string AgentId => "cust_" + OrderId;
     public bool CarryingFood => _carrying;
     public bool OutsideStore => Position.Z > 7.15f;
+    public bool IsCounterOrder => Channel == "lobby" && !UsesKiosk;
 
     public void ShowTicket()
     {
@@ -121,17 +123,22 @@ public partial class CustomerAgent : CharacterRig
         switch (State)
         {
             case Phase.Enter:
-                if (StepToward(TargetFor(Phase.Enter), delta)) State = Channel == "lobby" ? Phase.Ordering : Phase.Waiting;
+                if (Reached(TargetFor(Phase.Enter), delta, 0.55f))
+                {
+                    if (IsCounterOrder && !CanOrderNow) { Moving = false; HoldWithPersonalSpace(delta); break; }
+                    State = Channel == "lobby" ? Phase.Ordering : Phase.Waiting;
+                }
                 break;
             case Phase.Ordering:
-                if (!StepToward(TargetFor(Phase.Ordering), delta)) break;
+                if (IsCounterOrder && !CanOrderNow) { State = Phase.Enter; break; }
+                if (!Reached(TargetFor(Phase.Ordering), delta, 0.45f)) break;
                 Working = false; Moving = false;
                 _pause -= delta;
                 HoldWithPersonalSpace(delta);
                 if (_pause <= 0) { ShowTicket(); State = Phase.Waiting; }
                 break;
             case Phase.Waiting:
-                if (!StepToward(TargetFor(Phase.Waiting), delta)) break;
+                if (!Reached(TargetFor(Phase.Waiting), delta, 0.55f)) break;
                 Moving = false;
                 HoldWithPersonalSpace(delta);
                 if (TicketDone) State = Phase.ToPickup;
@@ -148,7 +155,7 @@ public partial class CustomerAgent : CharacterRig
             case Phase.Dining:
                 if (!_seatedAtTable)
                 {
-                    if (!StepToward(TargetFor(Phase.Dining), delta)) break;
+                    if (!Reached(TargetFor(Phase.Dining), delta, 0.55f)) break;
                     _seatedAtTable = true;
                     RequestSeated(true);                 // actually sit at the table
                     TrayToTable();                       // tray goes down on the table
@@ -161,7 +168,7 @@ public partial class CustomerAgent : CharacterRig
                 break;
             case Phase.Busing:
                 if (Seated) { RequestSeated(false); break; }                 // stand up first
-                if (StepToward(TargetFor(Phase.Busing), delta)) { DropTray(); State = Phase.Leave; }   // return tray to the counter
+                if (Reached(TargetFor(Phase.Busing), delta, 0.55f)) { DropTray(); State = Phase.Leave; }   // return tray to the counter
                 break;
             case Phase.Leave:
                 _leaveSeconds += delta;
@@ -170,7 +177,7 @@ public partial class CustomerAgent : CharacterRig
                     State = Phase.Done;
                     return true;
                 }
-                if (StepToward(TargetFor(Phase.Leave), delta)) { State = Phase.Done; return true; }
+                if (Reached(TargetFor(Phase.Leave), delta, 0.65f)) { State = Phase.Done; return true; }
                 break;
             case Phase.Done:
                 return true;
@@ -182,6 +189,11 @@ public partial class CustomerAgent : CharacterRig
     {
         var here = Position; here.Y = 0f; target.Y = 0f;
         return (here - target).LengthSquared() <= radius * radius;
+    }
+
+    bool Reached(Vector3 target, float delta, float radius)
+    {
+        return ArrivedNear(target, radius) || StepToward(target, delta);
     }
 
     Vector3 TargetFor(Phase phase) => Crowd?.CustomerTarget(this, phase) ?? phase switch

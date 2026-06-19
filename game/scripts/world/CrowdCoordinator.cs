@@ -113,7 +113,7 @@ public sealed class CrowdCoordinator
 
     public Vector3 EmployeeTarget(EmployeeAgent employee, bool stationBusy)
     {
-        if (employee.IsCashier && stationBusy) return employee.ServeSpot;
+        if (employee.IsCashier && (stationBusy || employee.ShouldServeCustomer)) return employee.ServeSpot;
         return employee.HomeSpot;
     }
 
@@ -128,11 +128,17 @@ public sealed class CrowdCoordinator
 
         for (int i = 0; i < Math.Max(1, _world.KioskSpots.Count) * 4; i++)
             Add("kiosk_" + i, "KioskQueue", "lobby", KioskQueueSpot(i), 0.55f, i);
+        Add("pos_order_0", "PosOrder", "lobby", CounterPosOrderSpot(0), 0.6f, 0);
+        Add("pos_order_1", "PosOrder", "lobby", CounterPosOrderSpot(1), 0.6f, 1);
+        Add("pos_service_0", "PosService", "staff", CounterPosServiceSpot(0), 0.65f, 0);
+        Add("pos_service_1", "PosService", "staff", CounterPosServiceSpot(1), 0.65f, 1);
 
         for (int i = 0; i < 12; i++)
             Add("lobby_wait_" + i, "LobbyWait", "lobby", LobbyWaitSpot(i), 0.55f, i);
         for (int i = 0; i < 8; i++)
             Add("lobby_pickup_" + i, "LobbyPickup", "lobby", LobbyPickupSpot(i), 0.55f, i);
+        for (int i = 0; i < 10; i++)
+            Add("mobile_entry_" + i, "MobileEntry", "mobile", MobileEntrySpot(i), 0.55f, i);
         for (int i = 0; i < 10; i++)
             Add("mobile_wait_" + i, "MobileWait", "mobile", MobileWaitSpot(i), 0.55f, i);
         for (int i = 0; i < 10; i++)
@@ -156,6 +162,8 @@ public sealed class CrowdCoordinator
             Add("break_" + i, "Break", "staff", _world.Anchor["break_room"] + new Vector3((i % 3) * 0.65f - 0.65f, 0f, (i / 3) * 0.45f), 0.65f, i);
         for (int i = 0; i < 4; i++)
             Add("walkin_door_" + i, "WalkInDoor", "staff", _world.Anchor["freezer_door"] + new Vector3((i % 2) * 0.65f - 0.32f, 0f, 0.35f + (i / 2) * 0.45f), 0.65f, i);
+        for (int i = 0; i < 6; i++)
+            Add("walkin_standoff_" + i, "WalkInStandoff", "staff", _world.Anchor["freezer_door"] + new Vector3((i % 3 - 1) * 0.85f, 0f, 1.35f + (i / 3) * 0.65f), 0.65f, i);
     }
 
     void AddEmployeeSlots(string stationKey, int count)
@@ -182,23 +190,36 @@ public sealed class CrowdCoordinator
 
     void AssignCustomers(IReadOnlyList<CustomerAgent> customers)
     {
-        var counter = 0;
         var kiosk = 0;
         var lobbyWait = 0;
         var lobbyPickup = 0;
         var mobileWait = 0;
         var mobilePickup = 0;
+        var mobileEntry = 0;
         var dining = 0;
         var trayReturn = 0;
+        var posOrder = 0;
+        var counterLine = 0;
 
         for (int i = 0; i < customers.Count; i++)
         {
             var c = customers[i];
             if (c == null || !GodotObject.IsInstanceValid(c)) continue;
             c.SlotId = "";
+            c.CanOrderNow = !c.IsCounterOrder;
 
             if (c.Channel == "lobby" && (c.State == CustomerAgent.Phase.Enter || c.State == CustomerAgent.Phase.Ordering))
-                Reserve(c.AgentId, c.UsesKiosk ? "kiosk_" + kiosk++ : "counter_" + counter++, p => c.QueueSpot = p, c);
+            {
+                if (c.UsesKiosk)
+                    Reserve(c.AgentId, "kiosk_" + kiosk++, p => c.QueueSpot = p, c);
+                else if (posOrder < 2)
+                {
+                    c.CanOrderNow = true;
+                    Reserve(c.AgentId, "pos_order_" + posOrder++, p => c.QueueSpot = p, c);
+                }
+                else
+                    Reserve(c.AgentId, "counter_" + counterLine++, p => c.QueueSpot = p, c);
+            }
             else if (c.Channel == "lobby" && c.State == CustomerAgent.Phase.Waiting)
                 Reserve(c.AgentId, "lobby_wait_" + lobbyWait++, p => c.WaitSpot = p, c);
             else if (c.Channel == "lobby" && c.State == CustomerAgent.Phase.ToPickup)
@@ -207,6 +228,8 @@ public sealed class CrowdCoordinator
                 Reserve(c.AgentId, "dining_" + dining++, p => c.TableSpot = p, c);
             else if (c.Channel == "lobby" && c.State == CustomerAgent.Phase.Busing)
                 Reserve(c.AgentId, "tray_return_" + trayReturn++, p => c.BusSpot = p, c);
+            else if ((c.Channel == "mobile" || c.Channel == "delivery") && c.State == CustomerAgent.Phase.Enter)
+                Reserve(c.AgentId, "mobile_entry_" + mobileEntry++, p => c.QueueSpot = p, c);
             else if ((c.Channel == "mobile" || c.Channel == "delivery") && c.State == CustomerAgent.Phase.Waiting)
                 Reserve(c.AgentId, "mobile_wait_" + mobileWait++, p => c.WaitSpot = p, c);
             else if ((c.Channel == "mobile" || c.Channel == "delivery") && c.State == CustomerAgent.Phase.ToPickup)
@@ -219,24 +242,66 @@ public sealed class CrowdCoordinator
         var counts = new Dictionary<string, int>();
         int walkin = 0;
         int breaks = 0;
+        int walkinStandoff = 0;
         for (int i = 0; i < staff.Count; i++)
         {
             var e = staff[i];
             if (e == null || !GodotObject.IsInstanceValid(e)) continue;
             e.SlotId = "";
+            e.ActiveSlotId = "";
+            e.ShouldServeCustomer = false;
+            e.SupplyRunAllowed = false;
             int slot = counts.TryGetValue(e.StationKey, out var count) ? count : 0;
             counts[e.StationKey] = slot + 1;
             e.CrowdSlot = slot;
 
-            Reserve(e.AgentId, e.StationKey + "_" + slot, p => e.HomeSpot = p, e);
-            Reserve(e.AgentId, "walkin_door_" + (walkin++ % 4), p => e.CoolerSpot = p, (EmployeeAgent?)null);
-            Reserve(e.AgentId, "break_" + (breaks++ % 6), p => e.BreakSpot = p, (EmployeeAgent?)null);
+            e.HomeSpot = SlotPosition(e.StationKey + "_" + slot);
+            e.CoolerSpot = SlotPosition("walkin_door_0");
+            e.BreakSpot = SlotPosition("break_" + (breaks++ % 6));
 
             if (e.IsCashier)
                 e.ServeSpot = e.StationKey == "work_dt"
                     ? _world.Anchor["dt_window"] + new Vector3(0.75f, 0f, 0f)
                     : e.HomeSpot + new Vector3(0f, 0f, 0.55f);
+
+            if (e.OnBreak)
+                Reserve(e.AgentId, "break_" + ((breaks - 1) % 6), p => e.BreakSpot = p, e);
+            else if (e.WantsSupplyRun)
+            {
+                if (walkin == 0)
+                {
+                    e.SupplyRunAllowed = true;
+                    Reserve(e.AgentId, "walkin_door_0", p => e.CoolerSpot = p, e);
+                    walkin++;
+                }
+                else
+                {
+                    e.SupplyRunAllowed = false;
+                    Reserve(e.AgentId, "walkin_standoff_" + walkinStandoff++, p => e.CoolerSpot = p, e);
+                }
+            }
+            else if (e.IsCashier && TryCounterPosIndex(e.StationKey, out var posIdx) && PosNeedsService(posIdx))
+            {
+                e.ShouldServeCustomer = true;
+                Reserve(e.AgentId, "pos_service_" + posIdx, p => e.ServeSpot = p, e);
+            }
+            else
+                Reserve(e.AgentId, e.StationKey + "_" + slot, p => e.HomeSpot = p, e);
         }
+    }
+
+    bool PosNeedsService(int posIndex)
+    {
+        var id = "pos_order_" + posIndex;
+        return _slots.TryGetValue(id, out var slot) && slot.ReservedBy != null;
+    }
+
+    static bool TryCounterPosIndex(string stationKey, out int posIndex)
+    {
+        if (stationKey == "work_counter") { posIndex = 0; return true; }
+        if (stationKey == "work_counter2") { posIndex = 1; return true; }
+        posIndex = -1;
+        return false;
     }
 
     void Reserve(string agentId, string preferredSlotId, Action<Vector3> assign, CustomerAgent? customer)
@@ -270,6 +335,22 @@ public sealed class CrowdCoordinator
         return _ordered[0];
     }
 
+    Vector3 SlotPosition(string slotId) => SlotOrFallback(slotId).Position;
+
+    Vector3 CounterPosOrderSpot(int idx)
+    {
+        var key = idx == 0 ? "pos_register_1" : "pos_register_2";
+        if (_world.Anchor.TryGetValue(key, out var p)) return new Vector3(p.X, 0f, 0.85f);
+        return new Vector3(idx == 0 ? -2f : 2f, 0f, 0.85f);
+    }
+
+    Vector3 CounterPosServiceSpot(int idx)
+    {
+        var key = idx == 0 ? "work_counter" : "work_counter2";
+        if (_world.Anchor.TryGetValue(key, out var p)) return p + new Vector3(0f, 0f, 0.55f);
+        return new Vector3(idx == 0 ? -2f : 2f, 0f, -1.25f);
+    }
+
     Vector3 CounterOverflowSpot(int idx)
     {
         if (_world.QueueSpots.Count == 0) return _world.Anchor["pickup"] + new Vector3(2.8f, 0f, 1.2f);
@@ -301,6 +382,12 @@ public sealed class CrowdCoordinator
     {
         float lane = (idx % 5) - 2f;
         return _world.Anchor["mobile_wait"] + new Vector3(lane * 0.55f, 0f, 0.9f + (idx / 5) * 0.72f);
+    }
+
+    Vector3 MobileEntrySpot(int idx)
+    {
+        float lane = (idx % 5) - 2f;
+        return _world.Anchor["mobile_wait"] + new Vector3(lane * 0.55f, 0f, 0.15f + (idx / 5) * 0.72f);
     }
 
     Vector3 MobilePickupSpot(int idx)
@@ -343,7 +430,8 @@ public sealed class CrowdCoordinator
 
     void AppendEmployee(StringBuilder sb, EmployeeAgent e)
     {
-        AppendAgentCommon(sb, e.AgentId, "employee", "staff", e.Task, e.Position, EmployeeTarget(e, false), e.SlotId, e.MovementStuckSeconds);
+        var target = e.ActiveTarget == Vector3.Zero ? EmployeeTarget(e, e.ShouldServeCustomer) : e.ActiveTarget;
+        AppendAgentCommon(sb, e.AgentId, "employee", "staff", e.Task, e.Position, target, e.SlotId, e.MovementStuckSeconds);
         sb.Append(",\"ticket_id\":null,\"ticket_complete\":false,\"carrying_food\":false,\"outside_store\":false,\"phase_seconds\":0}");
     }
 

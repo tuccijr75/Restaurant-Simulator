@@ -20,6 +20,7 @@ public partial class EmployeeAgent : CharacterRig
     public Vector3 FaceTarget;
     public bool HasFace;
     public bool IsCashier;
+    public bool ShouldServeCustomer;
     public Vector3 ServeSpot;
     public Vector3 HomeSpot, CoolerSpot;
     public bool OnBreak;
@@ -41,6 +42,10 @@ public partial class EmployeeAgent : CharacterRig
     System.Random _vis = new(7);
     public string AgentId => "emp_" + EmpId;
     public bool IsRoaming => Patrols && (_greeting || Task == "Walking the floor");
+    public bool WantsSupplyRun => _onSupplyRun;
+    public bool SupplyRunAllowed;
+    public Vector3 ActiveTarget = Vector3.Zero;
+    public string ActiveSlotId = "";
 
     /// Manager interrupts patrol to greet a newly arrived customer (approach if far, then face + wave).
     public void GoGreet(Node3D customer)
@@ -93,7 +98,8 @@ public partial class EmployeeAgent : CharacterRig
             Working = false;
             _onSupplyRun = _sweeping = _greeting = false;
             ActionAnim = "";
-            if (StepToward(Crowd?.EmployeeHome(this) ?? HomeSpot, delta) && HasFace) FaceToward(FaceTarget, delta);
+            ActiveTarget = Crowd?.EmployeeHome(this) ?? HomeSpot;
+            if (StepToward(ActiveTarget, delta) && HasFace) FaceToward(FaceTarget, delta);
             Task = "Returning to station";
             return;
         }
@@ -103,6 +109,7 @@ public partial class EmployeeAgent : CharacterRig
         if (OnBreak)
         {
             Task = "On break";
+            ActiveTarget = BreakSpot;
             if (Seated) return;                                   // sitting / mid-transition: hold
             if (StepToward(BreakSpot, delta)) { Working = false; RequestSeated(true); }  // arrived -> sit down
             else ActionAnim = "";                                 // still walking -> walk
@@ -115,17 +122,27 @@ public partial class EmployeeAgent : CharacterRig
             Working = false;
             ActionAnim = "sweeping";   // ping-pong loop is set on the clip itself
             Task = "Sweeping the lobby";
+            ActiveTarget = Position;
             _sweepTimer -= delta;
             if (_sweepTimer <= 0) { _sweeping = false; ActionAnim = ""; _supplyTimer = 45 + _vis.Next(90); }
             return;
         }
         if (_onSupplyRun)
         {
-            Task = "Walk-in supply run";
+            Task = SupplyRunAllowed ? "Walk-in supply run" : "Waiting for walk-in";
+            ActiveTarget = CoolerSpot;
             if (StepToward(CoolerSpot, delta))
             {
-                _onSupplyRun = false;
-                _supplyTimer = 45 + _vis.Next(90);
+                if (SupplyRunAllowed)
+                {
+                    _onSupplyRun = false;
+                    _supplyTimer = 45 + _vis.Next(90);
+                }
+                else
+                {
+                    Moving = false;
+                    HoldWithPersonalSpace(delta);
+                }
             }
             else if (DestinationBlockedSeconds > 2.0f)
             {
@@ -137,6 +154,7 @@ public partial class EmployeeAgent : CharacterRig
         }
         // Cashiers step up to the register when a customer is ordering, otherwise stand back.
         Vector3 home = Crowd?.EmployeeTarget(this, stationBusy) ?? ((IsCashier && stationBusy) ? ServeSpot : HomeSpot);
+        ActiveTarget = home;
         if (!StepToward(home, delta)) { Task = "Walking to station"; return; }
         Working = stationBusy;
         HoldWithPersonalSpace(delta);
@@ -162,6 +180,7 @@ public partial class EmployeeAgent : CharacterRig
             Task = "Greeting a guest";
             if (_greetTarget == null || !IsInstanceValid(_greetTarget)) { _greeting = false; return; }  // guest already left
             Vector3 cpos = _greetTarget.Position; cpos.Y = 0;
+            ActiveTarget = cpos;
             if (FlatDist(Position, cpos) > GreetRange)
             {
                 if (!StepToward(cpos, delta) && DestinationBlockedSeconds > 2.0f) _greeting = false;
@@ -176,6 +195,7 @@ public partial class EmployeeAgent : CharacterRig
         }
         if (PatrolRoute.Count == 0) { Moving = false; return; }
         Task = "Walking the floor";
+        ActiveTarget = PatrolRoute[_patrolIdx % PatrolRoute.Count];
         if (StepToward(PatrolRoute[_patrolIdx % PatrolRoute.Count], delta))  // arrived at a stop
         {
             Moving = false;
