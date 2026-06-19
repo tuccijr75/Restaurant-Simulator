@@ -3,226 +3,218 @@
 ## Control
 
 Project: Restaurant Simulator
-Task ID: movement-avoidance-authority
-Task Name: Movement, Reservation, and Telemetry Authority Layer
-Status: AWAITING_CODEX_SYNC
-Handoff Version: 1.0
-Specification Version: 1.0
-Repository: PENDING_CODEX_VERIFICATION
-Branch: PENDING_CODEX_VERIFICATION
-Base SHA: PENDING_CODEX_VERIFICATION
-Current SHA: PENDING_CODEX_VERIFICATION
+Repository: `E:\GitHub Projects\Restaurant Simulator\Restaurant Simulator`
+Branch: `main`
+Current HEAD: `9128fd706a7022ebd52a59dd72208eef0a4434dc`
+Task ID: `movement-runtime-authority-followup`
+Task Name: Fix remaining visual movement stalls, POS service choreography, and deprecated movement interference
+Status: `AWAITING_CLAUDE_REVIEW`
+Handoff Version: 2.0
 Last Updated: 2026-06-19
-Updated By: Claude Opus
+Updated By: Codex
 
-## Role Authority
+## Workflow Contract
 
-### Michael
-* Product intent; material decisions; customer-visible decisions
-* Contract and schema approval; architecture approval where required
-* Merge and release approval
+This file is now the permanent coordination channel between Claude Opus and Codex for this project.
 
-### Claude Opus
-* Task specification; architecture and contract analysis
-* Acceptance criteria; edge cases and risk analysis
-* Read-only implementation review; rework specification
+- Michael owns product intent, material decisions, merge/release approval, and final acceptance.
+- Claude Opus owns task definition, architecture review, risk review, acceptance criteria, and approval of implementation packets.
+- Codex owns repository inspection, source implementation, test execution, and implementation evidence.
+- Codex must not make code edits until Claude has reviewed and approved the implementation packet in this file.
+- Claude and Codex may both read and update this file.
+- Repository files are the source of truth. Model memory is secondary.
+- Neither model may merge, discard, reset, rebase, or delete work without Michael approval.
 
-### Codex
-* Repository inspection; source implementation
-* Build and test execution; validation evidence
-* Commits and implementation receipts
+## Current Context
 
-### Shared Rules
-* Repository files outrank model recollection.
-* Codex is the sole implementation writer.
-* Claude does not produce an alternate implementation.
-* Neither model may approve a merge.
-* Material uncertainty must be escalated to Michael.
-* Existing work must not be discarded during migration.
+The first movement authority pass added a `CrowdCoordinator`, reservation slots, movement telemetry, and an automated movement smoke parser. The latest validated smoke run passed the parser, but Michael observed runtime behavior while the smoke test was open that the parser and screenshots did not catch:
 
-## Source of Truth
+- Customer and employee groups can still twitch in place.
+- The first customer in line appeared not to move.
+- Two employees twitched/stuck in the right corner near the walk-in.
+- The employee standing in front of the counter appeared idle/unhelpful.
+- Front counter behavior should be explicit: customer walks to a POS, a counter employee approaches the matching POS and takes the order, then returns to assigned work.
+- After ordering, a customer should get their drink from the lobby soda machine if applicable, then wait for food.
+- Deprecated movement/path/collision data may still be interfering.
 
-* Original task spec: `movement-avoidance-authority` (cites `starting_sha 4a29f4bc03df89aae98b28c179145feb76342b35`, clean worktree). VERIFY — see Assumption A4.
-* Resolved Gates A–E (Michael-approved slot model, thresholds, telemetry format/location/commit policy, ASC scope, layout latitude).
-* Project doctrine: deterministic pure-C# sim core + Godot presentation layer; the sim event stream is never written from the presentation layer; synthetic-only; deterministic seeded replay. Doctrine file path: `PENDING_CODEX_VERIFICATION`.
-* Engine self-test / determinism gate: `tools/engine-selftest` (project + invocation). `PENDING_CODEX_VERIFICATION`.
-* ASC compatibility profile: `profiles/compatibility.json`, `tests/test_compatibility.py`. `PENDING_CODEX_VERIFICATION`.
-* Governance: control-pack packets and build-workflows directories. `PENDING_CODEX_VERIFICATION`.
-* Allowed source files under `game/scripts/world/` and smoke harness under `test-artifacts/`. See Allowed Paths.
+## Investigation Findings
+
+Telemetry from `test-artifacts/movement-smoke/20260619_132902/movement_samples.jsonl` confirms important issues not covered by the current parser:
+
+- Several mobile customers remained in `Enter` for 54-162 seconds.
+- Some of those mobile customers had completed tickets but did not advance because `CustomerAgent.Enter` still required exact `StepToward()` arrival at a shared target.
+- Example: `cust_ord_000002` was in `Enter` for 162.5 seconds, ticket complete, 0.193m from target, but did not transition because the exact arrival threshold is about 0.12m.
+- The parser did not fail long `Enter` phases, so the smoke result was falsely green for this class of runtime failure.
+- `emp_9` and `emp_28` were near each other at the walk-in for 217 telemetry samples while both were on walk-in supply runs.
+- Employee telemetry currently reports station/home target instead of the active supply-run/break/serve target, which hides the real walk-in target conflict.
+- Front counter service is too generic: `StationBusy("work_counter")` uses `_sim.Tickets > 0`, so employees respond to any open ticket instead of an actual lobby customer currently ordering at a POS.
+- The old manager-level `Separate()` and old `ResolveOccupiedTarget()` appear removed. Remaining local movement rules are `AvoidedHeading`, `ResolveCharacterOverlap`, `HoldWithPersonalSpace`, and stuck lateral/reverse recovery. These may still fight coordinator reservations when characters hold close to a target.
 
 ## Objective
 
-Over a Godot movement smoke run, machine-checked telemetry shows zero reservation duplications and zero overlap, stuck, lingering, or outside-with-food violations above the Gate B thresholds, while the engine self-test deterministic replay output remains byte-identical to the Base SHA.
+Create a robust, testable movement and service-choreography system where:
 
-## Current Known State
+- No customer remains indefinitely in `Enter`, `Ordering`, `Waiting`, `ToPickup`, `Dining`, `Busing`, or `Leave`.
+- Mobile/delivery customers use distinct entry/wait/pickup reservations from the first frame.
+- Walk-in supply runs do not send multiple employees into the same walk-in doorway at the same time.
+- Front counter customers reserve a specific POS.
+- The matching counter employee walks to the service side of that POS, serves only that ordering customer, then returns to their assigned task.
+- Customers who order drinks use a lobby soda-machine stop when appropriate before waiting for food.
+- Automated telemetry detects the runtime issues Michael saw, not just screenshot-visible overlap.
 
-* Before this task: the simulator's existing crowd behavior is committed at HEAD; avoidance relies on at least one push-apart mechanism (`AgentManager.Separate`, O(n²)) plus per-agent steering, and on queue counting in `AgentManager`. `PENDING_CODEX_VERIFICATION` (Assumption A2).
-* Recently delivered/adjacent work (roster + employee stats + staff UI + dine-in tray-bussing) and an in-progress parking-arrival feature touch the same `world/` files. Their merge status relative to the Base SHA is unknown — `PENDING_CODEX_VERIFICATION` (Assumptions A1, A5).
-* Believed completed for THIS task: none. No `CrowdCoordinator`, reservation model, telemetry, or movement harness exists yet (clean worktree).
-* In progress for THIS task: none.
-* Remaining: define/approve slot model; implement coordinator + reservations; route all customer/employee destinations through it; add telemetry + assertion harness; retire redundant avoidance last; run validation.
+## Proposed Implementation Packet
+
+task_id: `movement-runtime-authority-followup`
+
+repository: `E:\GitHub Projects\Restaurant Simulator\Restaurant Simulator`
+
+branch: `main`
+
+starting_sha: `9128fd706a7022ebd52a59dd72208eef0a4434dc`
+
+allowed_paths:
+
+- `HANDOFF.md`
+- `game/scripts/world/CrowdCoordinator.cs`
+- `game/scripts/world/AgentManager.cs`
+- `game/scripts/world/CustomerAgent.cs`
+- `game/scripts/world/EmployeeAgent.cs`
+- `game/scripts/world/CharacterRig.cs`
+- `test-artifacts/movement-smoke/assert_movement.py`
+- `test-artifacts/movement-smoke/movement_smoke_runner.gd`
+
+prohibited_paths:
+
+- Doctrine files unless Michael explicitly approves.
+- Schemas/contracts/exports unless Michael explicitly approves.
+- Deterministic sim core unless Claude explicitly confirms the change is required and Michael approves.
+- Ingredient/catalog/vendor systems.
+- Layout, equipment, walls, navmesh geometry, or aesthetics unless separately approved.
+- Generated Godot caches, build outputs, timestamped smoke screenshots, and telemetry output folders.
 
 ## Requirements
 
-* `CrowdCoordinator` owns destination reservations and line advancement; no two active agents reserve or occupy the same slot.
-* Customers acquire counter/kiosk/wait/pickup slots (and dining-table + tray-return destinations — see Decision D2) through the coordinator.
-* Employees acquire station/break/walk-in-door slots through the coordinator.
-* Add runtime movement telemetry + machine assertions before relying on screenshots.
-* Remove or simplify redundant local collision rules that conflict with coordinator authority — only after telemetry is green.
-* Preserve deterministic sim outputs (byte-identical self-test); coordinator is read-only toward `SimRunState`.
+- Add movement-smoke assertions for excessive `Enter` duration.
+- Add movement-smoke assertions for phase progress across all customer phases, including completed-ticket customers stuck before pickup.
+- Give customer phase transitions practical arrival radii instead of exact 0.12m arrival where appropriate.
+- Add distinct coordinator slots for mobile/delivery entry, mobile/delivery waiting, and mobile/delivery pickup.
+- Ensure mobile/delivery customers reserve a slot immediately instead of sharing a fallback target.
+- Add active employee target tracking for telemetry, including station, serve, break, supply-run, patrol, and return-to-station targets.
+- Prevent multiple employees from simultaneously reserving or occupying the same walk-in supply-run target.
+- If the walk-in is occupied, idle supply runs should wait briefly or skip; they must not twitch in front of the walk-in.
+- Replace generic front-counter busy logic with visual POS service choreography:
+  - customer reserves POS/order slot;
+  - counter employee reserves matching service-side POS slot;
+  - employee serves while that customer is ordering;
+  - employee returns to assigned station/task after order intake.
+- Preserve kiosk behavior as customer self-ordering; no employee should be required for kiosk ordering.
+- Add drink pickup choreography if customer order/menu data exposes a drink signal without modifying deterministic sim contracts.
+- If drink contents cannot be safely known in presentation layer, mark drink choreography as `UNKNOWN / needs Claude-Michael decision` rather than inventing sim data.
+- Reduce local twitch sources only after telemetry proves the coordinator owns the relevant target.
 
 ## Acceptance Criteria
 
-- [ ] Build passes with zero errors.
-- [ ] Engine self-test deterministic replay output is byte-identical to Base SHA.
-- [ ] Telemetry emits, per agent per sample: phase, target, reserved slot id, distance-to-target, stuck-seconds, pairwise overlap, plus linked `ticket_id`/`ticket_complete`; with a per-sample slot-occupancy snapshot.
-- [ ] No duplicate active `ReservedBy`/`OccupiedBy` for any slot at any sample (immediate-fail invariant).
-- [ ] No overlap < 0.45 m sustained > 2.0 s; no stuck (< 0.10 m moved while target > 0.75 m) > 4.0 s.
-- [ ] No outside-with-food > 5.0 s; ordering ≤ 12 s counter / 18 s kiosk; pickup ≤ 20 s when ticket complete.
-- [ ] Waiting > 180 s flagged unless the linked sim ticket is still incomplete.
-- [ ] Automated parser produces machine-readable pass/fail over the above.
-- [ ] Human visual smoke confirms queue behavior is believable.
+- Build passes with zero errors.
+- Engine self-test passes.
+- Movement smoke parser fails the current bad behavior:
+  - long `Enter` phase;
+  - completed-ticket customer stuck before pickup;
+  - duplicate active slot reservations;
+  - active employee supply-run target conflict;
+  - excessive pair proximity/twitch near walk-in.
+- After implementation, movement smoke parser passes with zero failures.
+- Telemetry includes each employee's actual active target, not just station/home target.
+- Front counter customers visibly walk to POS, order, leave POS, and wait/pick up correctly.
+- Counter employee visibly approaches the relevant POS only while needed, then returns to normal assigned work.
+- Walk-in supply runs do not send two employees into the same corner target.
+- Human visual smoke confirms no twitching groups at counter or walk-in.
 
-## Allowed Paths
+## Tests Required
 
-* `game/scripts/world/CrowdCoordinator.cs` (new)
-* `game/scripts/world/AgentManager.cs`
-* `game/scripts/world/CustomerAgent.cs`
-* `game/scripts/world/EmployeeAgent.cs`
-* `game/scripts/world/CharacterRig.cs`
-* `test-artifacts/visual-smoke/visual_smoke_runner.gd`
-* `test-artifacts/movement-smoke/` (new harness + parser) — directory existence `PENDING_CODEX_VERIFICATION`
-
-## Prohibited Changes
-
-* Project doctrine without Michael approval.
-* Schemas, contracts, or exports without Michael approval.
-* Ingredient/catalog systems; deterministic sim logic.
-* Unrelated systems; production integrations.
-* Generated caches and editor artifacts.
-* Layout changes (equipment, walls/partitions/counters, navmesh geometry, physical access routes, aesthetics) without separate approval (Gate E).
-* Destructive Git operations (reset/rebase/discard) without approval.
-* Silent architecture changes; scope expansion beyond this task.
+- `dotnet build game\RestaurantSimulator.csproj --nologo`
+- `dotnet run --project tools\engine-selftest\harness.csproj`
+- Godot movement smoke via `test-artifacts/movement-smoke/movement_smoke_runner.gd`
+- Parser: `python test-artifacts\movement-smoke\assert_movement.py <latest movement smoke folder>`
+- Manual visual smoke while Godot is running, with special attention to:
+  - first counter customer;
+  - kiosk customers;
+  - mobile/delivery pickup customers;
+  - walk-in corner;
+  - counter employee POS service;
+  - customers after receiving food.
 
 ## Non-Goals
 
-* No event-schema, export, ledger, receipt, or ASC-contract changes; movement telemetry stays diagnostic and isolated from all of them.
-* No write-back to `SimRunState`; no influence on deterministic order production.
-* No layout changes by default (debug-only/invisible slot positions and telemetry markers are allowed).
-* No parking-arrival feature work under this task.
+- Do not change deterministic event schemas.
+- Do not change export ledgers or ASC compatibility.
+- Do not redesign restaurant layout in this task.
+- Do not change sellable catalog, ingredients, vendor systems, or back-office systems.
+- Do not use screenshots alone as proof of movement correctness.
+- Do not remove remaining local steering until the telemetry proves it is redundant.
 
-## Assumptions
+## Known Risks
 
-* A1 — Live `CustomerAgent` phases include Dining and Busing (tray return). Confidence: Medium. Verify: inspect `game/scripts/world/CustomerAgent.cs` at Base SHA. If false: Decision D2 may be moot or the baseline differs.
-* A2 — `AgentManager.Separate` (push-apart) and `CountQueued` are the redundant mechanisms to retire. Confidence: Medium. Verify: inspect `AgentManager.cs`. If false: removal targets change.
-* A3 — Engine self-test lives at `tools/engine-selftest` and is byte-stable per (config, scenario, seed). Confidence: High (doctrine). Verify: run it. If false: byte-identical gate needs a different harness path.
-* A4 — Base SHA `4a29f4b` has a genuinely clean worktree. Confidence: Low/Conflicting (recent delivered `world/` work). Verify: `git status` / `git log`. If false: merge collisions; reconcile before branching.
-* A5 — Delivered roster/stats/staff-UI/tray work and in-progress parking are either merged at Base or on a separate branch. Confidence: Unknown. Verify: Codex locates. If unmerged: this task collides on `CustomerAgent`, `AgentManager`, `CharacterRig`, `WorldLayout`.
+- Tight arrival thresholds can create false stuck behavior even when an agent is visually close enough.
+- Local `HoldWithPersonalSpace` and overlap correction can fight reservation slots and create twitching.
+- POS choreography may need a presentation-only order assignment layer so it does not alter the deterministic sim.
+- Drink choreography may require item-level order visibility; if unavailable, it needs separate approval.
+- Walk-in target contention is partly a reservation issue and partly a local steering issue.
+- Parser thresholds must catch human-visible jitter, not just large stuck distances.
 
-## Decisions Requiring Michael
+## Open Questions For Claude
 
-* D1 — Baseline reconciliation. Options: (a) Base includes delivered tray/roster work; (b) Base excludes it (separate branch); (c) merge/abandon parking first. Recommendation: confirm Base includes the tray/roster work and explicitly pause parking under Gate E. Consequence: wrong baseline → incomplete slot coverage or merge conflicts. Status: OPEN (blocking).
-* D2 — Add dining table/seat and tray-return slot types to the Gate A model. Recommendation: yes — tables and the tray-return counter are top clipping/lingering spots and core to the objective. Consequence: omission leaves the worst offenders un-reserved. Status: OPEN.
-* D3 — Kiosk vs counter. Options: add a counter/kiosk attribute at spawn, or collapse the two ordering thresholds. Recommendation: add the attribute (keeps Gates A/B as written). Consequence: otherwise the kiosk threshold is unreachable. Status: OPEN.
-* D4 — `EmployeeStation` sub-slot capacity sized to roster max concurrency (expo: crew + lead; office: MOD + patrolling managers); patrol/greet roaming exempt from stuck/overlap assertions. Recommendation: size from roster; exempt roaming. Consequence: under-sizing reproduces the pile-ups being fixed. Status: OPEN.
-* D5 — Unspecified parameters: `ExpiresAfterSeconds` default; telemetry sampling cadence; outside-storefront threshold line; `carrying_food` semantics (bag counts; cleared when tray is bussed); employee `agent_id` scheme. Recommendation: Codex proposes; Michael ratifies. Status: OPEN.
-
-## Claude Specification
-
-### Intended Behavior
-All customer and employee destinations are assigned by `CrowdCoordinator` as reservations: an agent requests a slot, reserves it, occupies it on arrival within radius, and releases on phase change, completion, abandonment, or despawn. Queue advancement is coordinator-driven. Movement telemetry is recorded for machine assertion. Customer-visible queueing becomes orderly.
-
-### Architecture and Boundaries
-`CrowdCoordinator` is presentation-layer only. It may read sim ticket state to gate departures; it must never write `SimRunState` or influence deterministic order production. `CharacterRig` is reduced to local steering. `AgentManager` loses redundant queue counting and `Separate` — only after telemetry is green. Telemetry is a diagnostic artifact isolated from event/export/ledger/receipt/ASC contracts.
-
-### Contracts and Invariants
-* Single-occupancy: no slot has two active `ReservedBy`/`OccupiedBy` (immediate-fail).
-* Determinism: engine self-test output byte-identical to Base SHA.
-* Read-only sim boundary: no `world/`-layer write to `SimRunState`.
-* Telemetry isolation: movement output never enters the deterministic stream, exports, ledgers, receipts, or ASC contract.
-
-### Edge Cases
-Abandonment releases reservation; despawn without release reclaimed via `ExpiresAfterSeconds`; Dining/Busing destinations need slots (D2); expo/office multi-occupancy (D4); patrol/greet roaming exempt from stuck/overlap; to-go bag vs dine-in tray for `carrying_food` (D5); legitimately-incomplete tickets exempt from the waiting violation.
-
-### Tests Required
-* Build (`dotnet build`, zero errors).
-* Engine self-test — byte-identical deterministic replay vs Base SHA.
-* Godot movement smoke with telemetry enabled.
-* Automated parser/assertions over telemetry (Gate B + reservation-uniqueness).
-* Manual visual smoke screenshots for human review.
-
-### Known Risks
-* Removing `Separate`/`CharacterRig` avoidance before telemetry is green can regress movement — sequence: coordinator + telemetry + green assertions first; remove one mechanism at a time, re-validating after each.
-* Baseline mismatch → merge collisions on `world/` files (D1).
-* Slot-coverage gaps (Dining/Busing) leave the worst clipping spots un-reserved (D2).
-* Telemetry artifact bloat if sampling cadence is unbounded (D5).
-* O(n²) cost if `Separate` is retained alongside the coordinator.
-
-## Codex Sync
-
-### Verified Repository State
-Repository:
-Branch:
-HEAD SHA:
-Upstream:
-Working Tree:
-
-### Current Task Reconciliation
-
-### Existing Changed Files
-
-### Differences From Claude Handoff
-
-### Codex Questions or Blockers
-
-## Codex Implementation
-
-### Starting State
-
-### Implementation Plan
-
-### Changed Files
-
-### Scope Deviations
-
-### Remaining Work
-
-## Validation Evidence
-
-### Commands Run
-
-### Test Results
-
-### Acceptance Criteria Results
-
-### Failed or Missing Checks
-
-### Runtime Evidence
+- Should POS service be modeled as presentation-only reservations tied to `CustomerAgent.Phase.Ordering`, or should Codex expose additional read-only sim task state for `order_intake`?
+- Is it acceptable to add presentation-only customer subphases such as `ToDrink`, `GettingDrink`, `ToWait`, or should this remain inside existing `CustomerAgent.Phase` values?
+- Can presentation safely infer drink orders from current catalog/order data, or should drink pickup wait for a separate sim-facing order-item view?
+- Should local `HoldWithPersonalSpace` be reduced immediately for reserved/holding agents, or only after the new telemetry catches and proves the walk-in/counter twitch is gone?
+- What are the exact phase timeout thresholds Claude wants for `Enter`, `Dining`, `Busing`, and `Leave`?
 
 ## Claude Review
 
-Verdict: PENDING
+Verdict: `PENDING`
 
-Allowed verdicts: APPROVED_TO_CONTINUE, APPROVED_WITH_CORRECTIONS, REWORK_REQUIRED, HUMAN_DECISION_REQUIRED
+Allowed verdicts:
 
-### Findings
+- `APPROVED_TO_IMPLEMENT`
+- `APPROVED_WITH_CORRECTIONS`
+- `REWORK_REQUIRED`
+- `HUMAN_DECISION_REQUIRED`
+
+Claude should update this section before Codex makes source code changes.
+
+### Claude Notes
+
+PENDING
 
 ### Required Corrections
 
-### Scope Compliance
+PENDING
 
-### Risk Assessment
+## Codex Implementation Notes
+
+No source implementation should proceed until Claude approves this packet.
+
+Once approved, Codex should:
+
+1. Update the parser first so current bad behavior fails.
+2. Fix customer arrival/slot behavior.
+3. Fix walk-in supply-run reservation/telemetry behavior.
+4. Fix POS service choreography.
+5. Re-run build, engine self-test, movement smoke, parser, and visual review.
+6. Update this file with implementation evidence.
+
+## Validation Evidence
+
+Most recent known evidence before this handoff replacement:
+
+- `dotnet build game\RestaurantSimulator.csproj --nologo`: passed with 0 warnings and 0 errors.
+- `dotnet run --project tools\engine-selftest\harness.csproj`: passed with `SELF-TEST TOTAL: 120/120`, `INGREDIENT-MODEL TOTAL: 10/10`, `CAREER-TEST TOTAL: 11/11`.
+- Movement smoke folder: `test-artifacts/movement-smoke/20260619_132902`
+- Existing parser result on that folder: passed with 379 samples and 2723 agent samples, but this is now known insufficient because it missed long `Enter` stalls and walk-in target contention.
 
 ## Michael Approval
 
-Specification Approved: PENDING
-Material Decisions Approved: PENDING
-Merge Approved: PENDING
+Specification Approved: `PENDING`
+Implementation Approved: `PENDING_CLAUDE_REVIEW`
+Merge Approved: `PENDING`
 
-## Rollback
-
-Working tree is believed clean at Base SHA (`PENDING_CODEX_VERIFICATION`, Assumption A4). Safest rollback is a new revert commit of the single feature commit/branch, or a targeted follow-up commit restoring prior behavior. Do not reset, rebase, or discard without explicit approval. Exact Git commands: `PENDING_CODEX_VERIFICATION`.
-
-## Next Authorized Action
-
-Codex must reconcile this handoff with the actual repository and current task. Codex must not continue implementation until synchronization is complete and the status is reviewed.
