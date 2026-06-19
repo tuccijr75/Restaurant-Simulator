@@ -1,77 +1,115 @@
 using Godot;
+using System;
 using System.Collections.Generic;
+using System.Globalization;
+using System.IO;
+using System.Text;
 
 namespace RestaurantSimulator;
 
-/// Central reservation/slot coordinator for visual agents. It does not change
-/// simulation state; it only assigns believable destinations so characters line
-/// up, wait, and work from distinct positions instead of converging on one point.
+/// Presentation-layer crowd authority. It owns visual destination slots,
+/// reservations, and movement telemetry only; it never writes back to SimRunState.
 public sealed class CrowdCoordinator
 {
+    sealed class Slot
+    {
+        public string Id = "";
+        public string Type = "";
+        public string Channel = "";
+        public Vector3 Position;
+        public float Radius;
+        public int QueueIndex;
+        public string? ReservedBy;
+        public string? OccupiedBy;
+    }
+
     readonly WorldLayout _world;
+    readonly Dictionary<string, Slot> _slots = new();
+    readonly List<Slot> _ordered = new();
+    readonly string? _telemetryDir;
+    readonly string? _samplePath;
+    double _elapsed;
+    double _nextSample;
+
+    const double SampleCadenceSeconds = 0.5;
+
+    public bool TelemetryEnabled => _samplePath != null;
 
     public CrowdCoordinator(WorldLayout world)
     {
         _world = world;
+        BuildSlots();
+        _telemetryDir = System.Environment.GetEnvironmentVariable("RS_MOVEMENT_TELEMETRY_DIR");
+        if (!string.IsNullOrWhiteSpace(_telemetryDir))
+        {
+            Directory.CreateDirectory(_telemetryDir);
+            _samplePath = Path.Combine(_telemetryDir, "movement_samples.jsonl");
+            File.WriteAllText(_samplePath, "");
+        }
     }
 
-    public void UpdateCustomers(IReadOnlyList<CustomerAgent> customers)
+    public void Update(IReadOnlyList<CustomerAgent> customers, IReadOnlyList<EmployeeAgent> staff)
     {
-        int counter = 0, kiosk = 0, lobbyWait = 0, lobbyPickup = 0, mobileWait = 0, mobilePickup = 0;
-        for (int i = 0; i < customers.Count; i++)
+        ClearReservations();
+        AssignCustomers(customers);
+        AssignEmployees(staff);
+    }
+
+    public void RecordTelemetry(double delta, IReadOnlyList<CustomerAgent> customers, IReadOnlyList<EmployeeAgent> staff, SimRunState sim)
+    {
+        if (_samplePath == null) return;
+        _elapsed += delta;
+        if (_elapsed + 0.0001 < _nextSample) return;
+        _nextSample = _elapsed + SampleCadenceSeconds;
+
+        var sb = new StringBuilder(8192);
+        sb.Append("{\"type\":\"movement_sample\",\"time_sec\":").Append(Num(_elapsed))
+          .Append(",\"sim_minute\":").Append(Num(sim.Minute)).Append(",\"agents\":[");
+
+        bool first = true;
+        foreach (var c in customers)
         {
-            var c = customers[i];
             if (c == null || !GodotObject.IsInstanceValid(c)) continue;
-
-            if (c.Channel == "lobby" && (c.State == CustomerAgent.Phase.Enter || c.State == CustomerAgent.Phase.Ordering))
-            {
-                c.QueueSpot = c.UsesKiosk ? KioskQueueSpot(kiosk++) : CounterQueueSpot(counter++);
-            }
-
-            if (c.Channel == "lobby" && c.State == CustomerAgent.Phase.Waiting)
-                c.WaitSpot = LobbyWaitSpot(lobbyWait++);
-            else if (c.Channel == "lobby" && c.State == CustomerAgent.Phase.ToPickup)
-                c.PickupSpot = LobbyPickupSpot(lobbyPickup++);
-            else if ((c.Channel == "mobile" || c.Channel == "delivery") && c.State == CustomerAgent.Phase.Waiting)
-                c.WaitSpot = MobileWaitSpot(mobileWait++);
-            else if ((c.Channel == "mobile" || c.Channel == "delivery") && c.State == CustomerAgent.Phase.ToPickup)
-                c.PickupSpot = MobilePickupSpot(mobilePickup++);
+            if (!first) sb.Append(',');
+            first = false;
+            AppendCustomer(sb, c);
         }
-    }
-
-    public void UpdateEmployees(IReadOnlyList<EmployeeAgent> staff)
-    {
-        var stationCounts = new Dictionary<string, int>();
-        for (int i = 0; i < staff.Count; i++)
+        foreach (var e in staff)
         {
-            var e = staff[i];
             if (e == null || !GodotObject.IsInstanceValid(e)) continue;
-            int slot = stationCounts.TryGetValue(e.StationKey, out var count) ? count : 0;
-            stationCounts[e.StationKey] = slot + 1;
-
-            e.CrowdSlot = slot;
-            e.HomeSpot = EmployeeHomeSpot(e.StationKey, slot);
-            if (e.IsCashier)
-            {
-                e.ServeSpot = e.StationKey == "work_dt"
-                    ? _world.Anchor["dt_window"] + new Vector3(0.75f, 0f, 0f)
-                    : e.HomeSpot + new Vector3(0f, 0f, 0.55f);
-            }
-            e.CoolerSpot = _world.Anchor["freezer_door"] + new Vector3((slot % 3) * 0.55f - 0.55f, 0f, 0.35f + (slot / 3) * 0.35f);
-            e.BreakSpot = _world.Anchor["break_room"] + new Vector3((slot % 3) * 0.65f - 0.65f, 0f, (slot / 3) * 0.45f);
+            if (!first) sb.Append(',');
+            first = false;
+            AppendEmployee(sb, e);
         }
+
+        sb.Append("],\"slots\":[");
+        for (int i = 0; i < _ordered.Count; i++)
+        {
+            if (i > 0) sb.Append(',');
+            var s = _ordered[i];
+            sb.Append("{\"slot_id\":\"").Append(Json(s.Id)).Append("\",\"slot_type\":\"").Append(Json(s.Type))
+              .Append("\",\"reserved_by\":").Append(JsonOrNull(s.ReservedBy))
+              .Append(",\"occupied_by\":").Append(JsonOrNull(s.OccupiedBy)).Append('}');
+        }
+        sb.Append("],\"pairs\":[");
+        AppendPairs(sb, customers, staff);
+        sb.Append("]}");
+        File.AppendAllText(_samplePath, sb.ToString() + "\n");
     }
 
-    public Vector3 CustomerTarget(CustomerAgent customer, CustomerAgent.Phase phase) => phase switch
+    public Vector3 CustomerTarget(CustomerAgent customer, CustomerAgent.Phase phase)
     {
-        CustomerAgent.Phase.Enter or CustomerAgent.Phase.Ordering => customer.QueueSpot,
-        CustomerAgent.Phase.Waiting => customer.WaitSpot,
-        CustomerAgent.Phase.ToPickup => customer.PickupSpot,
-        CustomerAgent.Phase.Dining => customer.TableSpot,
-        CustomerAgent.Phase.Busing => customer.BusSpot,
-        CustomerAgent.Phase.Leave => customer.ExitSpot,
-        _ => customer.Position,
-    };
+        return phase switch
+        {
+            CustomerAgent.Phase.Enter or CustomerAgent.Phase.Ordering => customer.QueueSpot,
+            CustomerAgent.Phase.Waiting => customer.WaitSpot,
+            CustomerAgent.Phase.ToPickup => customer.PickupSpot,
+            CustomerAgent.Phase.Dining => customer.TableSpot,
+            CustomerAgent.Phase.Busing => customer.BusSpot,
+            CustomerAgent.Phase.Leave => customer.ExitSpot,
+            _ => customer.Position,
+        };
+    }
 
     public Vector3 EmployeeTarget(EmployeeAgent employee, bool stationBusy)
     {
@@ -81,18 +119,166 @@ public sealed class CrowdCoordinator
 
     public Vector3 EmployeeHome(EmployeeAgent employee) => employee.HomeSpot;
 
-    Vector3 CounterQueueSpot(int idx)
+    void BuildSlots()
+    {
+        for (int i = 0; i < _world.QueueSpots.Count; i++)
+            Add("counter_" + i, "CounterQueue", "lobby", _world.QueueSpots[i], 0.55f, i);
+        for (int i = 0; i < 8; i++)
+            Add("counter_overflow_" + i, "CounterQueue", "lobby", CounterOverflowSpot(i), 0.55f, _world.QueueSpots.Count + i);
+
+        for (int i = 0; i < Math.Max(1, _world.KioskSpots.Count) * 4; i++)
+            Add("kiosk_" + i, "KioskQueue", "lobby", KioskQueueSpot(i), 0.55f, i);
+
+        for (int i = 0; i < 12; i++)
+            Add("lobby_wait_" + i, "LobbyWait", "lobby", LobbyWaitSpot(i), 0.55f, i);
+        for (int i = 0; i < 8; i++)
+            Add("lobby_pickup_" + i, "LobbyPickup", "lobby", LobbyPickupSpot(i), 0.55f, i);
+        for (int i = 0; i < 10; i++)
+            Add("mobile_wait_" + i, "MobileWait", "mobile", MobileWaitSpot(i), 0.55f, i);
+        for (int i = 0; i < 10; i++)
+            Add("mobile_pickup_" + i, "MobilePickup", "mobile", MobilePickupSpot(i), 0.55f, i);
+
+        for (int i = 0; i < _world.Tables.Count; i++)
+            Add("dining_" + i, "Dining", "lobby", _world.Tables[i], 0.6f, i);
+        for (int i = 0; i < 6; i++)
+            Add("tray_return_" + i, "TrayReturn", "lobby", _world.Anchor["pickup"] + new Vector3((i % 3 - 1) * 0.5f, 0f, 0.55f + (i / 3) * 0.45f), 0.55f, i);
+
+        AddEmployeeSlots("work_grill", 3);
+        AddEmployeeSlots("work_fryer", 3);
+        AddEmployeeSlots("work_assembly", 4);
+        AddEmployeeSlots("work_expo", 3);
+        AddEmployeeSlots("work_prep", 2);
+        AddEmployeeSlots("work_counter", 2);
+        AddEmployeeSlots("work_counter2", 2);
+        AddEmployeeSlots("work_dt", 2);
+        AddEmployeeSlots("work_office", 3);
+        for (int i = 0; i < 6; i++)
+            Add("break_" + i, "Break", "staff", _world.Anchor["break_room"] + new Vector3((i % 3) * 0.65f - 0.65f, 0f, (i / 3) * 0.45f), 0.65f, i);
+        for (int i = 0; i < 4; i++)
+            Add("walkin_door_" + i, "WalkInDoor", "staff", _world.Anchor["freezer_door"] + new Vector3((i % 2) * 0.65f - 0.32f, 0f, 0.35f + (i / 2) * 0.45f), 0.65f, i);
+    }
+
+    void AddEmployeeSlots(string stationKey, int count)
+    {
+        for (int i = 0; i < count; i++)
+            Add(stationKey + "_" + i, "EmployeeStation", "staff", EmployeeHomeSpot(stationKey, i), 0.65f, i);
+    }
+
+    void Add(string id, string type, string channel, Vector3 pos, float radius, int index)
+    {
+        var slot = new Slot { Id = id, Type = type, Channel = channel, Position = pos, Radius = radius, QueueIndex = index };
+        _slots[id] = slot;
+        _ordered.Add(slot);
+    }
+
+    void ClearReservations()
+    {
+        foreach (var s in _ordered)
+        {
+            s.ReservedBy = null;
+            s.OccupiedBy = null;
+        }
+    }
+
+    void AssignCustomers(IReadOnlyList<CustomerAgent> customers)
+    {
+        var counter = 0;
+        var kiosk = 0;
+        var lobbyWait = 0;
+        var lobbyPickup = 0;
+        var mobileWait = 0;
+        var mobilePickup = 0;
+        var dining = 0;
+        var trayReturn = 0;
+
+        for (int i = 0; i < customers.Count; i++)
+        {
+            var c = customers[i];
+            if (c == null || !GodotObject.IsInstanceValid(c)) continue;
+            c.SlotId = "";
+
+            if (c.Channel == "lobby" && (c.State == CustomerAgent.Phase.Enter || c.State == CustomerAgent.Phase.Ordering))
+                Reserve(c.AgentId, c.UsesKiosk ? "kiosk_" + kiosk++ : "counter_" + counter++, p => c.QueueSpot = p, c);
+            else if (c.Channel == "lobby" && c.State == CustomerAgent.Phase.Waiting)
+                Reserve(c.AgentId, "lobby_wait_" + lobbyWait++, p => c.WaitSpot = p, c);
+            else if (c.Channel == "lobby" && c.State == CustomerAgent.Phase.ToPickup)
+                Reserve(c.AgentId, "lobby_pickup_" + lobbyPickup++, p => c.PickupSpot = p, c);
+            else if (c.Channel == "lobby" && c.State == CustomerAgent.Phase.Dining)
+                Reserve(c.AgentId, "dining_" + dining++, p => c.TableSpot = p, c);
+            else if (c.Channel == "lobby" && c.State == CustomerAgent.Phase.Busing)
+                Reserve(c.AgentId, "tray_return_" + trayReturn++, p => c.BusSpot = p, c);
+            else if ((c.Channel == "mobile" || c.Channel == "delivery") && c.State == CustomerAgent.Phase.Waiting)
+                Reserve(c.AgentId, "mobile_wait_" + mobileWait++, p => c.WaitSpot = p, c);
+            else if ((c.Channel == "mobile" || c.Channel == "delivery") && c.State == CustomerAgent.Phase.ToPickup)
+                Reserve(c.AgentId, "mobile_pickup_" + mobilePickup++, p => c.PickupSpot = p, c);
+        }
+    }
+
+    void AssignEmployees(IReadOnlyList<EmployeeAgent> staff)
+    {
+        var counts = new Dictionary<string, int>();
+        int walkin = 0;
+        int breaks = 0;
+        for (int i = 0; i < staff.Count; i++)
+        {
+            var e = staff[i];
+            if (e == null || !GodotObject.IsInstanceValid(e)) continue;
+            e.SlotId = "";
+            int slot = counts.TryGetValue(e.StationKey, out var count) ? count : 0;
+            counts[e.StationKey] = slot + 1;
+            e.CrowdSlot = slot;
+
+            Reserve(e.AgentId, e.StationKey + "_" + slot, p => e.HomeSpot = p, e);
+            Reserve(e.AgentId, "walkin_door_" + (walkin++ % 4), p => e.CoolerSpot = p, (EmployeeAgent?)null);
+            Reserve(e.AgentId, "break_" + (breaks++ % 6), p => e.BreakSpot = p, (EmployeeAgent?)null);
+
+            if (e.IsCashier)
+                e.ServeSpot = e.StationKey == "work_dt"
+                    ? _world.Anchor["dt_window"] + new Vector3(0.75f, 0f, 0f)
+                    : e.HomeSpot + new Vector3(0f, 0f, 0.55f);
+        }
+    }
+
+    void Reserve(string agentId, string preferredSlotId, Action<Vector3> assign, CustomerAgent? customer)
+    {
+        var slot = SlotOrFallback(preferredSlotId);
+        slot.ReservedBy = agentId;
+        if (FlatDistance(customer?.Position ?? slot.Position, slot.Position) <= slot.Radius)
+            slot.OccupiedBy = agentId;
+        assign(slot.Position);
+        if (customer != null) customer.SlotId = slot.Id;
+    }
+
+    void Reserve(string agentId, string preferredSlotId, Action<Vector3> assign, EmployeeAgent? employee)
+    {
+        var slot = SlotOrFallback(preferredSlotId);
+        slot.ReservedBy = agentId;
+        if (employee != null && FlatDistance(employee.Position, slot.Position) <= slot.Radius)
+            slot.OccupiedBy = agentId;
+        assign(slot.Position);
+        if (employee != null) employee.SlotId = slot.Id;
+    }
+
+    Slot SlotOrFallback(string slotId)
+    {
+        if (_slots.TryGetValue(slotId, out var slot)) return slot;
+        var prefix = slotId;
+        int cut = slotId.LastIndexOf('_');
+        if (cut > 0) prefix = slotId[..cut];
+        for (int i = _ordered.Count - 1; i >= 0; i--)
+            if (_ordered[i].Id.StartsWith(prefix, StringComparison.Ordinal)) return _ordered[i];
+        return _ordered[0];
+    }
+
+    Vector3 CounterOverflowSpot(int idx)
     {
         if (_world.QueueSpots.Count == 0) return _world.Anchor["pickup"] + new Vector3(2.8f, 0f, 1.2f);
-        if (idx < _world.QueueSpots.Count) return _world.QueueSpots[idx];
-
-        int overflow = idx - _world.QueueSpots.Count;
-        return _world.QueueSpots[^1] + new Vector3((overflow % 2) * 0.85f, 0f, 0.85f + (overflow / 2) * 0.85f);
+        return _world.QueueSpots[^1] + new Vector3((idx % 2) * 0.85f, 0f, 0.85f + (idx / 2) * 0.85f);
     }
 
     Vector3 KioskQueueSpot(int idx)
     {
-        if (_world.KioskSpots.Count == 0) return CounterQueueSpot(idx);
+        if (_world.KioskSpots.Count == 0) return CounterOverflowSpot(idx);
         int kioskCount = _world.KioskSpots.Count;
         return _world.KioskSpots[idx % kioskCount] + new Vector3(0f, 0f, (idx / kioskCount) * 0.78f);
     }
@@ -139,4 +325,63 @@ public sealed class CrowdCoordinator
             _ => baseSpot + new Vector3((slot % 3) * 0.55f - 0.55f, 0f, (slot / 3) * 0.45f),
         };
     }
+
+    static float FlatDistance(Vector3 a, Vector3 b)
+    {
+        a.Y = 0f; b.Y = 0f;
+        return (a - b).Length();
+    }
+
+    void AppendCustomer(StringBuilder sb, CustomerAgent c)
+    {
+        AppendAgentCommon(sb, c.AgentId, "customer", c.Channel, c.State.ToString(), c.Position, CustomerTarget(c, c.State), c.SlotId, c.MovementStuckSeconds);
+        sb.Append(",\"ticket_id\":\"").Append(Json(c.OrderId)).Append("\",\"ticket_complete\":").Append(c.TicketDone ? "true" : "false")
+          .Append(",\"carrying_food\":").Append(c.CarryingFood ? "true" : "false")
+          .Append(",\"outside_store\":").Append(c.OutsideStore ? "true" : "false")
+          .Append(",\"phase_seconds\":").Append(Num(c.PhaseSeconds)).Append('}');
+    }
+
+    void AppendEmployee(StringBuilder sb, EmployeeAgent e)
+    {
+        AppendAgentCommon(sb, e.AgentId, "employee", "staff", e.Task, e.Position, EmployeeTarget(e, false), e.SlotId, e.MovementStuckSeconds);
+        sb.Append(",\"ticket_id\":null,\"ticket_complete\":false,\"carrying_food\":false,\"outside_store\":false,\"phase_seconds\":0}");
+    }
+
+    void AppendAgentCommon(StringBuilder sb, string id, string type, string channel, string phase, Vector3 pos, Vector3 target, string slotId, float stuck)
+    {
+        sb.Append("{\"agent_id\":\"").Append(Json(id)).Append("\",\"agent_type\":\"").Append(type)
+          .Append("\",\"channel\":\"").Append(Json(channel)).Append("\",\"phase\":\"").Append(Json(phase))
+          .Append("\",\"position\":").Append(Vec(pos)).Append(",\"target\":").Append(Vec(target))
+          .Append(",\"slot_id\":\"").Append(Json(slotId)).Append("\",\"distance_to_target_m\":").Append(Num(FlatDistance(pos, target)))
+          .Append(",\"stuck_seconds\":").Append(Num(stuck));
+    }
+
+    void AppendPairs(StringBuilder sb, IReadOnlyList<CustomerAgent> customers, IReadOnlyList<EmployeeAgent> staff)
+    {
+        var agents = new List<(string Id, Vector3 Pos, bool Exempt)>();
+        foreach (var c in customers)
+            if (c != null && GodotObject.IsInstanceValid(c)) agents.Add((c.AgentId, c.Position, false));
+        foreach (var e in staff)
+            if (e != null && GodotObject.IsInstanceValid(e)) agents.Add((e.AgentId, e.Position, e.IsRoaming));
+
+        bool first = true;
+        for (int i = 0; i < agents.Count; i++)
+        {
+            for (int j = i + 1; j < agents.Count; j++)
+            {
+                float d = FlatDistance(agents[i].Pos, agents[j].Pos);
+                if (d >= 0.8f) continue;
+                if (!first) sb.Append(',');
+                first = false;
+                sb.Append("{\"a\":\"").Append(Json(agents[i].Id)).Append("\",\"b\":\"").Append(Json(agents[j].Id))
+                  .Append("\",\"distance_m\":").Append(Num(d))
+                  .Append(",\"exempt\":").Append((agents[i].Exempt || agents[j].Exempt) ? "true" : "false").Append('}');
+            }
+        }
+    }
+
+    static string Vec(Vector3 v) => "{\"x\":" + Num(v.X) + ",\"y\":" + Num(v.Y) + ",\"z\":" + Num(v.Z) + "}";
+    static string Num(double n) => n.ToString("0.###", CultureInfo.InvariantCulture);
+    static string JsonOrNull(string? s) => s == null ? "null" : "\"" + Json(s) + "\"";
+    static string Json(string s) => s.Replace("\\", "\\\\").Replace("\"", "\\\"");
 }

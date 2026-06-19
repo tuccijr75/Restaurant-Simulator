@@ -1,0 +1,838 @@
+{
+  "status": "fail",
+  "samples": 379,
+  "agents_seen": 2954,
+  "failures": [
+    {
+      "code": "pickup_timeout",
+      "message": "cust_ord_000004 pickup 20.33s after ticket complete"
+    },
+    {
+      "code": "pickup_timeout",
+      "message": "cust_ord_000004 pickup 20.83s after ticket complete"
+    },
+    {
+      "code": "pickup_timeout",
+      "message": "cust_ord_000004 pickup 21.33s after ticket complete"
+    },
+    {
+      "code": "pickup_timeout",
+      "message": "cust_ord_000004 pickup 21.83s after ticket complete"
+    },
+    {
+      "code": "pickup_timeout",
+      "message": "cust_ord_000004 pickup 22.33s after ticket complete"
+    },
+    {
+      "code": "pickup_timeout",
+      "message": "cust_ord_000004 pickup 22.83s after ticket complete"
+    },
+    {
+      "code": "pickup_timeout",
+      "message": "cust_ord_000004 pickup 23.33s after ticket complete"
+    },
+    {
+      "code": "pickup_timeout",
+      "message": "cust_ord_000004 pickup 23.83s after ticket complete"
+    },
+    {
+      "code": "pickup_timeout",
+      "message": "cust_ord_000004 pickup 24.33s after ticket complete"
+    },
+    {
+      "code": "pickup_timeout",
+      "message": "cust_ord_000004 pickup 24.83s after ticket complete"
+    },
+    {
+      "code": "pickup_timeout",
+      "message": "cust_ord_000004 pickup 25.33s after ticket complete"
+    },
+    {
+      "code": "pickup_timeout",
+      "message": "cust_ord_000004 pickup 25.83s after ticket complete"
+    },
+    {
+      "code": "pickup_timeout",
+      "message": "cust_ord_000004 pickup 26.33s after ticket complete"
+    },
+    {
+      "code": "pickup_timeout",
+      "message": "cust_ord_000004 pickup 26.83s after ticket complete"
+    },
+    {
+      "code": "pickup_timeout",
+      "message": "cust_ord_000004 pickup 27.33s after ticket complete"
+    },
+    {
+      "code": "pickup_timeout",
+      "message": "cust_ord_000004 pickup 27.83s after ticket complete"
+    },
+    {
+      "code": "pickup_timeout",
+      "message": "cust_ord_000004 pickup 28.33s after ticket complete"
+    },
+    {
+      "code": "pickup_timeout",
+      "message": "cust_ord_000004 pickup 28.83s after ticket complete"
+    },
+    {
+      "code": "pickup_timeout",
+      "message": "cust_ord_000004 pickup 29.33s after ticket complete"
+    },
+    {
+      "code": "pickup_timeout",
+      "message": "cust_ord_000004 pickup 29.83s after ticket complete"
+    },
+    {
+      "code": "pickup_timeout",
+      "message": "cust_ord_000004 pickup 30.33s after ticket complete"
+    },
+    {
+      "code": "pickup_timeout",
+      "message": "cust_ord_000004 pickup 30.83s after ticket complete"
+    },
+    {
+      "code": "pickup_timeout",
+      "message": "cust_ord_000004 pickup 31.33s after ticket complete"
+    },
+    {
+      "code": "pickup_timeout",
+      "message": "cust_ord_000004 pickup 31.83s after ticket complete"
+    },
+    {
+      "code": "pickup_timeout",
+      "message": "cust_ord_000004 pickup 32.36s after ticket complete"
+    },
+    {
+      "code": "pickup_timeout",
+      "message": "cust_ord_000004 pickup 32.86s after ticket complete"
+    },
+    {
+      "code": "pickup_timeout",
+      "message": "cust_ord_000004 pickup 33.36s after ticket complete"
+    },
+    {
+      "code": "pickup_timeout",
+      "message": "cust_ord_000004 pickup 33.86s after ticket complete"
+    },
+    {
+      "code": "pickup_timeout",
+      "message": "cust_ord_000004 pickup 34.36s after ticket complete"
+    },
+    {
+      "code": "pickup_timeout",
+      "message": "cust_ord_000004 pickup 34.86s after ticket complete"
+    },
+    {
+      "code": "pickup_timeout",
+      "message": "cust_ord_000004 pickup 35.36s after ticket complete"
+    },
+    {
+      "code": "pickup_timeout",
+      "message": "cust_ord_000004 pickup 35.86s after ticket complete"
+    },
+    {
+      "code": "pickup_timeout",
+      "message": "cust_ord_000004 pickup 36.36s after ticket complete"
+    },
+    {
+      "code": "pickup_timeout",
+      "message": "cust_ord_000004 pickup 36.91s after ticket complete"
+    },
+    {
+      "code": "pickup_timeout",
+      "message": "cust_ord_000004 pickup 37.41s after ticket complete"
+    },
+    {
+      "code": "pickup_timeout",
+      "message": "cust_ord_000004 pickup 37.91s after ticket complete"
+    },
+    {
+      "code": "pickup_timeout",
+      "message": "cust_ord_000004 pickup 38.41s after ticket complete"
+    },
+    {
+      "code": "pickup_timeout",
+      "message": "cust_ord_000004 pickup 38.91s after ticket complete"
+    },
+    {
+      "code": "pickup_timeout",
+      "message": "cust_ord_000004 pickup 39.41s after ticket complete"
+    },
+    {
+      "code": "pickup_timeout",
+      "message": "cust_ord_000004 pickup 39.91s after ticket complete"
+    },
+    {
+      "code": "pickup_timeout",
+      "message": "cust_ord_000004 pickup 40.41s after ticket complete"
+    },
+    {
+      "code": "pickup_timeout",
+      "message": "cust_ord_000004 pickup 40.91s after ticket complete"
+    },
+    {
+      "code": "pickup_timeout",
+      "message": "cust_ord_000004 pickup 41.41s after ticket complete"
+    },
+    {
+      "code": "pickup_timeout",
+      "message": "cust_ord_000004 pickup 41.91s after ticket complete"
+    },
+    {
+      "code": "pickup_timeout",
+      "message": "cust_ord_000004 pickup 42.41s after ticket complete"
+    },
+    {
+      "code": "pickup_timeout",
+      "message": "cust_ord_000004 pickup 42.91s after ticket complete"
+    },
+    {
+      "code": "pickup_timeout",
+      "message": "cust_ord_000004 pickup 43.41s after ticket complete"
+    },
+    {
+      "code": "pickup_timeout",
+      "message": "cust_ord_000004 pickup 43.91s after ticket complete"
+    },
+    {
+      "code": "pickup_timeout",
+      "message": "cust_ord_000004 pickup 44.41s after ticket complete"
+    },
+    {
+      "code": "pickup_timeout",
+      "message": "cust_ord_000004 pickup 44.91s after ticket complete"
+    },
+    {
+      "code": "pickup_timeout",
+      "message": "cust_ord_000004 pickup 45.41s after ticket complete"
+    },
+    {
+      "code": "pickup_timeout",
+      "message": "cust_ord_000004 pickup 45.91s after ticket complete"
+    },
+    {
+      "code": "pickup_timeout",
+      "message": "cust_ord_000004 pickup 46.41s after ticket complete"
+    },
+    {
+      "code": "pickup_timeout",
+      "message": "cust_ord_000004 pickup 46.91s after ticket complete"
+    },
+    {
+      "code": "pickup_timeout",
+      "message": "cust_ord_000004 pickup 47.41s after ticket complete"
+    },
+    {
+      "code": "pickup_timeout",
+      "message": "cust_ord_000004 pickup 47.91s after ticket complete"
+    },
+    {
+      "code": "pickup_timeout",
+      "message": "cust_ord_000004 pickup 48.41s after ticket complete"
+    },
+    {
+      "code": "pickup_timeout",
+      "message": "cust_ord_000004 pickup 48.91s after ticket complete"
+    },
+    {
+      "code": "pickup_timeout",
+      "message": "cust_ord_000004 pickup 49.41s after ticket complete"
+    },
+    {
+      "code": "pickup_timeout",
+      "message": "cust_ord_000004 pickup 49.91s after ticket complete"
+    },
+    {
+      "code": "pickup_timeout",
+      "message": "cust_ord_000004 pickup 50.41s after ticket complete"
+    },
+    {
+      "code": "pickup_timeout",
+      "message": "cust_ord_000004 pickup 50.91s after ticket complete"
+    },
+    {
+      "code": "pickup_timeout",
+      "message": "cust_ord_000004 pickup 51.41s after ticket complete"
+    },
+    {
+      "code": "pickup_timeout",
+      "message": "cust_ord_000004 pickup 51.91s after ticket complete"
+    },
+    {
+      "code": "pickup_timeout",
+      "message": "cust_ord_000004 pickup 52.41s after ticket complete"
+    },
+    {
+      "code": "pickup_timeout",
+      "message": "cust_ord_000004 pickup 52.91s after ticket complete"
+    },
+    {
+      "code": "pickup_timeout",
+      "message": "cust_ord_000004 pickup 53.41s after ticket complete"
+    },
+    {
+      "code": "pickup_timeout",
+      "message": "cust_ord_000004 pickup 53.91s after ticket complete"
+    },
+    {
+      "code": "pickup_timeout",
+      "message": "cust_ord_000004 pickup 54.41s after ticket complete"
+    },
+    {
+      "code": "pickup_timeout",
+      "message": "cust_ord_000004 pickup 54.91s after ticket complete"
+    },
+    {
+      "code": "pickup_timeout",
+      "message": "cust_ord_000004 pickup 55.41s after ticket complete"
+    },
+    {
+      "code": "pickup_timeout",
+      "message": "cust_ord_000004 pickup 55.91s after ticket complete"
+    },
+    {
+      "code": "pickup_timeout",
+      "message": "cust_ord_000004 pickup 56.41s after ticket complete"
+    },
+    {
+      "code": "pickup_timeout",
+      "message": "cust_ord_000004 pickup 56.91s after ticket complete"
+    },
+    {
+      "code": "pickup_timeout",
+      "message": "cust_ord_000004 pickup 57.41s after ticket complete"
+    },
+    {
+      "code": "pickup_timeout",
+      "message": "cust_ord_000004 pickup 57.91s after ticket complete"
+    },
+    {
+      "code": "pickup_timeout",
+      "message": "cust_ord_000004 pickup 58.41s after ticket complete"
+    },
+    {
+      "code": "pickup_timeout",
+      "message": "cust_ord_000004 pickup 58.91s after ticket complete"
+    },
+    {
+      "code": "pickup_timeout",
+      "message": "cust_ord_000004 pickup 59.41s after ticket complete"
+    },
+    {
+      "code": "pickup_timeout",
+      "message": "cust_ord_000004 pickup 59.91s after ticket complete"
+    },
+    {
+      "code": "pickup_timeout",
+      "message": "cust_ord_000004 pickup 60.41s after ticket complete"
+    },
+    {
+      "code": "pickup_timeout",
+      "message": "cust_ord_000004 pickup 60.91s after ticket complete"
+    },
+    {
+      "code": "pickup_timeout",
+      "message": "cust_ord_000004 pickup 61.41s after ticket complete"
+    },
+    {
+      "code": "pickup_timeout",
+      "message": "cust_ord_000004 pickup 61.91s after ticket complete"
+    },
+    {
+      "code": "pickup_timeout",
+      "message": "cust_ord_000004 pickup 62.45s after ticket complete"
+    },
+    {
+      "code": "pickup_timeout",
+      "message": "cust_ord_000004 pickup 62.95s after ticket complete"
+    },
+    {
+      "code": "pickup_timeout",
+      "message": "cust_ord_000004 pickup 63.45s after ticket complete"
+    },
+    {
+      "code": "pickup_timeout",
+      "message": "cust_ord_000004 pickup 63.95s after ticket complete"
+    },
+    {
+      "code": "pickup_timeout",
+      "message": "cust_ord_000004 pickup 64.45s after ticket complete"
+    },
+    {
+      "code": "pickup_timeout",
+      "message": "cust_ord_000004 pickup 64.95s after ticket complete"
+    },
+    {
+      "code": "pickup_timeout",
+      "message": "cust_ord_000004 pickup 65.45s after ticket complete"
+    },
+    {
+      "code": "pickup_timeout",
+      "message": "cust_ord_000004 pickup 65.95s after ticket complete"
+    },
+    {
+      "code": "pickup_timeout",
+      "message": "cust_ord_000004 pickup 66.45s after ticket complete"
+    },
+    {
+      "code": "pickup_timeout",
+      "message": "cust_ord_000004 pickup 66.95s after ticket complete"
+    },
+    {
+      "code": "pickup_timeout",
+      "message": "cust_ord_000004 pickup 67.45s after ticket complete"
+    },
+    {
+      "code": "pickup_timeout",
+      "message": "cust_ord_000004 pickup 67.95s after ticket complete"
+    },
+    {
+      "code": "pickup_timeout",
+      "message": "cust_ord_000004 pickup 68.45s after ticket complete"
+    },
+    {
+      "code": "pickup_timeout",
+      "message": "cust_ord_000004 pickup 68.95s after ticket complete"
+    },
+    {
+      "code": "pickup_timeout",
+      "message": "cust_ord_000004 pickup 69.45s after ticket complete"
+    },
+    {
+      "code": "pickup_timeout",
+      "message": "cust_ord_000004 pickup 69.95s after ticket complete"
+    },
+    {
+      "code": "pickup_timeout",
+      "message": "cust_ord_000004 pickup 70.45s after ticket complete"
+    },
+    {
+      "code": "pickup_timeout",
+      "message": "cust_ord_000004 pickup 70.95s after ticket complete"
+    },
+    {
+      "code": "pickup_timeout",
+      "message": "cust_ord_000004 pickup 71.45s after ticket complete"
+    },
+    {
+      "code": "pickup_timeout",
+      "message": "cust_ord_000004 pickup 71.95s after ticket complete"
+    },
+    {
+      "code": "pickup_timeout",
+      "message": "cust_ord_000004 pickup 72.45s after ticket complete"
+    },
+    {
+      "code": "pickup_timeout",
+      "message": "cust_ord_000004 pickup 72.95s after ticket complete"
+    },
+    {
+      "code": "pickup_timeout",
+      "message": "cust_ord_000004 pickup 73.45s after ticket complete"
+    },
+    {
+      "code": "pickup_timeout",
+      "message": "cust_ord_000004 pickup 73.95s after ticket complete"
+    },
+    {
+      "code": "pickup_timeout",
+      "message": "cust_ord_000004 pickup 74.45s after ticket complete"
+    },
+    {
+      "code": "pickup_timeout",
+      "message": "cust_ord_000004 pickup 74.95s after ticket complete"
+    },
+    {
+      "code": "pickup_timeout",
+      "message": "cust_ord_000004 pickup 75.47s after ticket complete"
+    },
+    {
+      "code": "pickup_timeout",
+      "message": "cust_ord_000004 pickup 75.97s after ticket complete"
+    },
+    {
+      "code": "pickup_timeout",
+      "message": "cust_ord_000004 pickup 76.47s after ticket complete"
+    },
+    {
+      "code": "pickup_timeout",
+      "message": "cust_ord_000004 pickup 76.97s after ticket complete"
+    },
+    {
+      "code": "pickup_timeout",
+      "message": "cust_ord_000004 pickup 77.47s after ticket complete"
+    },
+    {
+      "code": "pickup_timeout",
+      "message": "cust_ord_000004 pickup 77.97s after ticket complete"
+    },
+    {
+      "code": "pickup_timeout",
+      "message": "cust_ord_000004 pickup 78.47s after ticket complete"
+    },
+    {
+      "code": "pickup_timeout",
+      "message": "cust_ord_000004 pickup 78.97s after ticket complete"
+    },
+    {
+      "code": "pickup_timeout",
+      "message": "cust_ord_000004 pickup 79.47s after ticket complete"
+    },
+    {
+      "code": "pickup_timeout",
+      "message": "cust_ord_000004 pickup 79.97s after ticket complete"
+    },
+    {
+      "code": "pickup_timeout",
+      "message": "cust_ord_000004 pickup 80.47s after ticket complete"
+    },
+    {
+      "code": "pickup_timeout",
+      "message": "cust_ord_000004 pickup 80.97s after ticket complete"
+    },
+    {
+      "code": "pickup_timeout",
+      "message": "cust_ord_000004 pickup 81.47s after ticket complete"
+    },
+    {
+      "code": "pickup_timeout",
+      "message": "cust_ord_000004 pickup 81.97s after ticket complete"
+    },
+    {
+      "code": "pickup_timeout",
+      "message": "cust_ord_000004 pickup 82.47s after ticket complete"
+    },
+    {
+      "code": "pickup_timeout",
+      "message": "cust_ord_000004 pickup 82.97s after ticket complete"
+    },
+    {
+      "code": "pickup_timeout",
+      "message": "cust_ord_000004 pickup 83.47s after ticket complete"
+    },
+    {
+      "code": "pickup_timeout",
+      "message": "cust_ord_000004 pickup 83.97s after ticket complete"
+    },
+    {
+      "code": "pickup_timeout",
+      "message": "cust_ord_000004 pickup 84.47s after ticket complete"
+    },
+    {
+      "code": "pickup_timeout",
+      "message": "cust_ord_000004 pickup 84.97s after ticket complete"
+    },
+    {
+      "code": "pickup_timeout",
+      "message": "cust_ord_000004 pickup 85.47s after ticket complete"
+    },
+    {
+      "code": "pickup_timeout",
+      "message": "cust_ord_000004 pickup 85.97s after ticket complete"
+    },
+    {
+      "code": "pickup_timeout",
+      "message": "cust_ord_000004 pickup 86.47s after ticket complete"
+    },
+    {
+      "code": "pickup_timeout",
+      "message": "cust_ord_000004 pickup 86.97s after ticket complete"
+    },
+    {
+      "code": "pickup_timeout",
+      "message": "cust_ord_000004 pickup 87.47s after ticket complete"
+    },
+    {
+      "code": "pickup_timeout",
+      "message": "cust_ord_000004 pickup 87.97s after ticket complete"
+    },
+    {
+      "code": "pickup_timeout",
+      "message": "cust_ord_000004 pickup 88.47s after ticket complete"
+    },
+    {
+      "code": "pickup_timeout",
+      "message": "cust_ord_000004 pickup 88.97s after ticket complete"
+    },
+    {
+      "code": "pickup_timeout",
+      "message": "cust_ord_000004 pickup 89.47s after ticket complete"
+    },
+    {
+      "code": "pickup_timeout",
+      "message": "cust_ord_000004 pickup 89.97s after ticket complete"
+    },
+    {
+      "code": "pickup_timeout",
+      "message": "cust_ord_000004 pickup 90.47s after ticket complete"
+    },
+    {
+      "code": "pickup_timeout",
+      "message": "cust_ord_000004 pickup 90.97s after ticket complete"
+    },
+    {
+      "code": "pickup_timeout",
+      "message": "cust_ord_000004 pickup 91.47s after ticket complete"
+    },
+    {
+      "code": "pickup_timeout",
+      "message": "cust_ord_000004 pickup 91.97s after ticket complete"
+    },
+    {
+      "code": "pickup_timeout",
+      "message": "cust_ord_000004 pickup 92.48s after ticket complete"
+    },
+    {
+      "code": "pickup_timeout",
+      "message": "cust_ord_000004 pickup 92.99s after ticket complete"
+    },
+    {
+      "code": "pickup_timeout",
+      "message": "cust_ord_000004 pickup 93.49s after ticket complete"
+    },
+    {
+      "code": "pickup_timeout",
+      "message": "cust_ord_000004 pickup 93.99s after ticket complete"
+    },
+    {
+      "code": "pickup_timeout",
+      "message": "cust_ord_000004 pickup 94.49s after ticket complete"
+    },
+    {
+      "code": "pickup_timeout",
+      "message": "cust_ord_000004 pickup 94.99s after ticket complete"
+    },
+    {
+      "code": "pickup_timeout",
+      "message": "cust_ord_000004 pickup 95.49s after ticket complete"
+    },
+    {
+      "code": "pickup_timeout",
+      "message": "cust_ord_000004 pickup 95.99s after ticket complete"
+    },
+    {
+      "code": "pickup_timeout",
+      "message": "cust_ord_000004 pickup 96.49s after ticket complete"
+    },
+    {
+      "code": "pickup_timeout",
+      "message": "cust_ord_000004 pickup 96.99s after ticket complete"
+    },
+    {
+      "code": "pickup_timeout",
+      "message": "cust_ord_000004 pickup 97.49s after ticket complete"
+    },
+    {
+      "code": "pickup_timeout",
+      "message": "cust_ord_000004 pickup 97.99s after ticket complete"
+    },
+    {
+      "code": "pickup_timeout",
+      "message": "cust_ord_000004 pickup 98.49s after ticket complete"
+    },
+    {
+      "code": "pickup_timeout",
+      "message": "cust_ord_000004 pickup 98.99s after ticket complete"
+    },
+    {
+      "code": "pickup_timeout",
+      "message": "cust_ord_000004 pickup 99.49s after ticket complete"
+    },
+    {
+      "code": "pickup_timeout",
+      "message": "cust_ord_000004 pickup 99.99s after ticket complete"
+    },
+    {
+      "code": "pickup_timeout",
+      "message": "cust_ord_000004 pickup 100.49s after ticket complete"
+    },
+    {
+      "code": "pickup_timeout",
+      "message": "cust_ord_000004 pickup 100.99s after ticket complete"
+    },
+    {
+      "code": "pickup_timeout",
+      "message": "cust_ord_000004 pickup 101.49s after ticket complete"
+    },
+    {
+      "code": "pickup_timeout",
+      "message": "cust_ord_000004 pickup 101.99s after ticket complete"
+    },
+    {
+      "code": "pickup_timeout",
+      "message": "cust_ord_000004 pickup 102.49s after ticket complete"
+    },
+    {
+      "code": "pickup_timeout",
+      "message": "cust_ord_000004 pickup 102.99s after ticket complete"
+    },
+    {
+      "code": "pickup_timeout",
+      "message": "cust_ord_000004 pickup 103.49s after ticket complete"
+    },
+    {
+      "code": "pickup_timeout",
+      "message": "cust_ord_000004 pickup 103.99s after ticket complete"
+    },
+    {
+      "code": "pickup_timeout",
+      "message": "cust_ord_000004 pickup 104.49s after ticket complete"
+    },
+    {
+      "code": "pickup_timeout",
+      "message": "cust_ord_000004 pickup 104.99s after ticket complete"
+    },
+    {
+      "code": "pickup_timeout",
+      "message": "cust_ord_000004 pickup 105.49s after ticket complete"
+    },
+    {
+      "code": "pickup_timeout",
+      "message": "cust_ord_000004 pickup 105.99s after ticket complete"
+    },
+    {
+      "code": "pickup_timeout",
+      "message": "cust_ord_000004 pickup 106.49s after ticket complete"
+    },
+    {
+      "code": "pickup_timeout",
+      "message": "cust_ord_000004 pickup 106.99s after ticket complete"
+    },
+    {
+      "code": "pickup_timeout",
+      "message": "cust_ord_000004 pickup 107.49s after ticket complete"
+    },
+    {
+      "code": "pickup_timeout",
+      "message": "cust_ord_000004 pickup 107.99s after ticket complete"
+    },
+    {
+      "code": "pickup_timeout",
+      "message": "cust_ord_000004 pickup 108.49s after ticket complete"
+    },
+    {
+      "code": "pickup_timeout",
+      "message": "cust_ord_000004 pickup 108.99s after ticket complete"
+    },
+    {
+      "code": "pickup_timeout",
+      "message": "cust_ord_000004 pickup 109.49s after ticket complete"
+    },
+    {
+      "code": "pickup_timeout",
+      "message": "cust_ord_000004 pickup 109.99s after ticket complete"
+    },
+    {
+      "code": "pickup_timeout",
+      "message": "cust_ord_000004 pickup 110.49s after ticket complete"
+    },
+    {
+      "code": "pickup_timeout",
+      "message": "cust_ord_000004 pickup 111.00s after ticket complete"
+    },
+    {
+      "code": "pickup_timeout",
+      "message": "cust_ord_000004 pickup 111.50s after ticket complete"
+    },
+    {
+      "code": "pickup_timeout",
+      "message": "cust_ord_000004 pickup 112.00s after ticket complete"
+    },
+    {
+      "code": "pickup_timeout",
+      "message": "cust_ord_000004 pickup 112.50s after ticket complete"
+    },
+    {
+      "code": "pickup_timeout",
+      "message": "cust_ord_000004 pickup 113.00s after ticket complete"
+    },
+    {
+      "code": "pickup_timeout",
+      "message": "cust_ord_000004 pickup 113.50s after ticket complete"
+    },
+    {
+      "code": "pickup_timeout",
+      "message": "cust_ord_000004 pickup 114.00s after ticket complete"
+    },
+    {
+      "code": "pickup_timeout",
+      "message": "cust_ord_000004 pickup 114.50s after ticket complete"
+    },
+    {
+      "code": "pickup_timeout",
+      "message": "cust_ord_000004 pickup 115.00s after ticket complete"
+    },
+    {
+      "code": "pickup_timeout",
+      "message": "cust_ord_000004 pickup 115.50s after ticket complete"
+    },
+    {
+      "code": "pickup_timeout",
+      "message": "cust_ord_000004 pickup 116.00s after ticket complete"
+    },
+    {
+      "code": "pickup_timeout",
+      "message": "cust_ord_000004 pickup 116.50s after ticket complete"
+    },
+    {
+      "code": "pickup_timeout",
+      "message": "cust_ord_000004 pickup 117.00s after ticket complete"
+    },
+    {
+      "code": "pickup_timeout",
+      "message": "cust_ord_000004 pickup 117.50s after ticket complete"
+    },
+    {
+      "code": "pickup_timeout",
+      "message": "cust_ord_000004 pickup 118.00s after ticket complete"
+    },
+    {
+      "code": "pickup_timeout",
+      "message": "cust_ord_000004 pickup 118.50s after ticket complete"
+    },
+    {
+      "code": "pickup_timeout",
+      "message": "cust_ord_000004 pickup 119.00s after ticket complete"
+    },
+    {
+      "code": "pickup_timeout",
+      "message": "cust_ord_000004 pickup 119.50s after ticket complete"
+    },
+    {
+      "code": "pickup_timeout",
+      "message": "cust_ord_000004 pickup 120.00s after ticket complete"
+    },
+    {
+      "code": "pickup_timeout",
+      "message": "cust_ord_000004 pickup 120.50s after ticket complete"
+    },
+    {
+      "code": "pickup_timeout",
+      "message": "cust_ord_000004 pickup 121.00s after ticket complete"
+    },
+    {
+      "code": "pickup_timeout",
+      "message": "cust_ord_000004 pickup 121.50s after ticket complete"
+    },
+    {
+      "code": "pickup_timeout",
+      "message": "cust_ord_000004 pickup 122.00s after ticket complete"
+    },
+    {
+      "code": "pickup_timeout",
+      "message": "cust_ord_000004 pickup 122.50s after ticket complete"
+    }
+  ],
+  "thresholds": {
+    "overlap_distance_m": 0.45,
+    "overlap_seconds": 2.0,
+    "stuck_seconds": 4.0,
+    "stuck_target_distance_m": 0.75,
+    "outside_food_seconds": 5.0,
+    "ordering_counter_seconds": 12.0,
+    "ordering_kiosk_seconds": 18.0,
+    "pickup_seconds": 20.0,
+    "waiting_seconds": 180.0
+  }
+}

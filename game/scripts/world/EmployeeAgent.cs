@@ -16,6 +16,7 @@ public partial class EmployeeAgent : CharacterRig
     public string Task = "On station";
     public CrowdCoordinator? Crowd;
     public int CrowdSlot;
+    public string SlotId = "";
     public Vector3 FaceTarget;
     public bool HasFace;
     public bool IsCashier;
@@ -38,6 +39,8 @@ public partial class EmployeeAgent : CharacterRig
     float _greetTimer, _greetCooldown;
     const float GreetRange = 5f;
     System.Random _vis = new(7);
+    public string AgentId => "emp_" + EmpId;
+    public bool IsRoaming => Patrols && (_greeting || Task == "Walking the floor");
 
     /// Manager interrupts patrol to greet a newly arrived customer (approach if far, then face + wave).
     public void GoGreet(Node3D customer)

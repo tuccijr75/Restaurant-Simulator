@@ -172,19 +172,15 @@ public partial class AgentManager : Node3D
         }
         bool useKiosk = channel == "lobby" && !courier && _world.KioskSpots.Count > 0 && _vis.NextDouble() < 0.35;
         a.UsesKiosk = useKiosk;
-        int q = System.Math.Min(CountCounterQueued(), _world.QueueSpots.Count - 1);
-        int k = _world.KioskSpots.Count == 0 ? 0 : CountKioskQueued() % _world.KioskSpots.Count;
-        int pickupIdx = channel == "lobby" ? 0 : CountPickupGuests();
-        float pickupLane = (pickupIdx % 5) - 2f;
         a.QueueSpot = channel == "lobby"
-            ? (useKiosk ? _world.KioskSpots[k] + new Vector3(0, 0, (CountKioskQueued() / System.Math.Max(1, _world.KioskSpots.Count)) * 0.55f) : _world.QueueSpots[q])
-            : _world.Anchor["mobile_wait"] + new Vector3(pickupLane * 0.45f, 0, 0.25f + (pickupIdx / 5) * 0.55f);
+            ? (useKiosk && _world.KioskSpots.Count > 0 ? _world.KioskSpots[0] : _world.QueueSpots[0])
+            : _world.Anchor["mobile_wait"];
         a.WaitSpot = channel == "lobby"
             ? _world.Anchor["pickup"] + new Vector3(0, 0, 1.25f)
-            : _world.Anchor["mobile_wait"] + new Vector3(pickupLane * 0.45f, 0, 1.0f + (pickupIdx / 5) * 0.55f);
+            : _world.Anchor["mobile_wait"] + new Vector3(0, 0, 1.0f);
         a.PickupSpot = channel == "lobby"
             ? _world.Anchor["pickup"]
-            : _world.Anchor["mobile_shelf"] + new Vector3(pickupLane * 0.36f, 0, 0.85f + (pickupIdx / 5) * 0.35f);
+            : _world.Anchor["mobile_shelf"] + new Vector3(0, 0, 0.85f);
         bool dines = channel == "lobby" && !courier && _vis.NextDouble() < 0.45 && _world.Tables.Count > 0;
         a.TableSpot = dines ? _world.Tables[_vis.Next(_world.Tables.Count)] : Vector3.Zero;
         a.BusSpot = _world.Anchor["pickup"] + new Vector3((float)(_vis.NextDouble() * 1.2 - 0.6), 0, 0.5f);  // #6 return the tray to the counter
@@ -241,32 +237,6 @@ public partial class AgentManager : Node3D
 
     static Vector3 CarSpotFor(Vector3 walkSpot) => walkSpot + new Vector3(0, 0, 1.7f);
 
-    int CountCounterQueued()
-    {
-        int n = 0;
-        foreach (var a in _walkins)
-            if (a.Channel == "lobby" && !a.UsesKiosk && (a.State == CustomerAgent.Phase.Enter ||
-                a.State == CustomerAgent.Phase.Ordering || a.State == CustomerAgent.Phase.Waiting)) n++;
-        return n;
-    }
-
-    int CountKioskQueued()
-    {
-        int n = 0;
-        foreach (var a in _walkins)
-            if (a.Channel == "lobby" && a.UsesKiosk && (a.State == CustomerAgent.Phase.Enter ||
-                a.State == CustomerAgent.Phase.Ordering || a.State == CustomerAgent.Phase.Waiting)) n++;
-        return n;
-    }
-
-    int CountPickupGuests()
-    {
-        int n = 0;
-        foreach (var a in _walkins)
-            if (a.Channel == "mobile" || a.Channel == "delivery") n++;
-        return n;
-    }
-
     void OnTicketDone(string channel, string orderId)
     {
         if (!_byOrder.TryGetValue(orderId, out var node)) return;
@@ -280,8 +250,7 @@ public partial class AgentManager : Node3D
     {
         float d = (float)delta;
 
-        _crowd.UpdateCustomers(_walkins);
-        _crowd.UpdateEmployees(_staff);
+        _crowd.Update(_walkins, _staff);
 
         for (int i = _walkins.Count - 1; i >= 0; i--)
             if (_walkins[i].Drive(d)) Free(_walkins[i], i);
@@ -296,38 +265,7 @@ public partial class AgentManager : Node3D
             }
 
         SyncStaff(d);
-        Separate();
-    }
-
-    // RS-VS-001 agent avoidance: nudge overlapping characters apart each frame so
-    // staff and customers stop clipping through one another. O(n^2) but n is small
-    // (~20-40 agents); a small push off the navmesh is re-pathed next frame.
-    void Separate()
-    {
-        var all = new List<Node3D>(_staff.Count + _walkins.Count);
-        all.AddRange(_staff);
-        all.AddRange(_walkins);
-        const float minGap = 0.62f;                 // personal-space radius (sum of half-widths)
-        for (int i = 0; i < all.Count; i++)
-        {
-            for (int j = i + 1; j < all.Count; j++)
-            {
-                var a = all[i]; var b = all[j];
-                var delta = a.Position - b.Position; delta.Y = 0f;
-                float dist = delta.Length();
-                if (dist > 1e-3f && dist < minGap)
-                {
-                    var push = delta / dist * ((minGap - dist) * 0.5f);   // each moves half the overlap
-                    a.Position += push;
-                    b.Position -= push;
-                }
-                else if (dist <= 1e-3f)                                    // exactly stacked: deterministic nudge
-                {
-                    var jitter = new Vector3(((i * 13 + j) % 7 - 3) * 0.05f, 0f, ((i * 7 + j) % 5 - 2) * 0.05f);
-                    a.Position += jitter;
-                }
-            }
-        }
+        _crowd.RecordTelemetry(delta, _walkins, _staff, _sim);
     }
 
     void Free(CustomerAgent a, int idx)

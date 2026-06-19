@@ -14,6 +14,7 @@ public partial class CharacterRig : Node3D
     public float WalkSpeed = 1.5f;
     public bool DestinationBlocked { get; private set; }
     public float DestinationBlockedSeconds { get; private set; }
+    public float MovementStuckSeconds => _stuckSeconds;
     static readonly List<CharacterRig> ActiveRigs = new();
 
     // RS-VS-002: optional imported GLB body (staff). When present the procedural
@@ -395,7 +396,6 @@ public partial class CharacterRig : Node3D
     public bool StepToward(Vector3 target, float delta)
     {
         target.Y = 0;
-        target = ResolveOccupiedTarget(target, delta);
         var here = new Vector3(Position.X, 0, Position.Z);
         if ((here - target).LengthSquared() < 0.0144f) { Moving = false; _path.Clear(); return true; }  // ~0.12m
 
@@ -420,52 +420,6 @@ public partial class CharacterRig : Node3D
         return MoveToward(target, delta);   // no navmesh yet -> straight line
     }
 
-    Vector3 ResolveOccupiedTarget(Vector3 target, float delta)
-    {
-        const float occupiedRadius = 0.82f;
-        const float waitRadius = 1.05f;
-        var here = new Vector3(Position.X, 0, Position.Z);
-        CharacterRig? blocker = null;
-        float bestSq = occupiedRadius * occupiedRadius;
-
-        for (int i = 0; i < ActiveRigs.Count; i++)
-        {
-            var other = ActiveRigs[i];
-            if (other == this || other == null || !IsInstanceValid(other)) continue;
-            var otherPos = other.Position; otherPos.Y = 0;
-            float dsq = (otherPos - target).LengthSquared();
-            if (dsq < bestSq)
-            {
-                bestSq = dsq;
-                blocker = other;
-            }
-        }
-
-        if (blocker == null)
-        {
-            DestinationBlocked = false;
-            DestinationBlockedSeconds = Mathf.Max(0f, DestinationBlockedSeconds - delta * 2f);
-            return target;
-        }
-
-        var fromBlocker = target - new Vector3(blocker.Position.X, 0, blocker.Position.Z);
-        if (fromBlocker.LengthSquared() < 0.01f) fromBlocker = here - target;
-        if (fromBlocker.LengthSquared() < 0.01f)
-        {
-            float side = (GetInstanceId() & 1UL) == 0 ? 1f : -1f;
-            fromBlocker = new Vector3(side, 0, -side);
-        }
-
-        DestinationBlocked = true;
-        DestinationBlockedSeconds += delta;
-        var baseDir = fromBlocker.Normalized();
-        var lateral = new Vector3(baseDir.Z, 0, -baseDir.X);
-        float lane = ((int)(GetInstanceId() % 5UL) - 2) * 0.28f;
-        var wait = target + baseDir * waitRadius + lateral * lane;
-        wait.Y = 0;
-        return wait;
-    }
-
     bool MoveToward(Vector3 target, float delta)
     {
         var pos = Position; pos.Y = 0; target.Y = 0;
@@ -479,6 +433,8 @@ public partial class CharacterRig : Node3D
             if (dist > 0.5f && movedSq < 0.0009f) _stuckSeconds += delta;
             else _stuckSeconds = Mathf.Max(0f, _stuckSeconds - delta * 2f);
         }
+        DestinationBlocked = _stuckSeconds > 0.45f;
+        DestinationBlockedSeconds = _stuckSeconds;
         _lastMovePos = pos;
 
         var desired = d.Normalized();

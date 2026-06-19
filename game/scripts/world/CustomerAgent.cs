@@ -17,9 +17,12 @@ public partial class CustomerAgent : CharacterRig
     public int TicketNumber;
     public Vector3 QueueSpot, WaitSpot, PickupSpot, TableSpot, ExitSpot, BusSpot;
     public CrowdCoordinator? Crowd;
+    public string SlotId = "";
     public bool Courier;
     float _pause;
     float _dine;
+    Phase _lastState = Phase.Enter;
+    public float PhaseSeconds { get; private set; }
     bool _carrying;
     bool _seatedAtTable;
     float _leaveSeconds;
@@ -34,6 +37,9 @@ public partial class CustomerAgent : CharacterRig
 
     // Dine-in only when this guest was given dine time and isn't a courier.
     bool DineIn => _dine > 0 && !Courier;
+    public string AgentId => "cust_" + OrderId;
+    public bool CarryingFood => _carrying;
+    public bool OutsideStore => Position.Z > 7.15f;
 
     public void ShowTicket()
     {
@@ -105,6 +111,13 @@ public partial class CustomerAgent : CharacterRig
     /// Returns true when finished and safe to free.
     public bool Drive(float delta)
     {
+        if (State != _lastState)
+        {
+            _lastState = State;
+            PhaseSeconds = 0f;
+        }
+        PhaseSeconds += delta;
+
         switch (State)
         {
             case Phase.Enter:
@@ -124,7 +137,8 @@ public partial class CustomerAgent : CharacterRig
                 if (TicketDone) State = Phase.ToPickup;
                 break;
             case Phase.ToPickup:
-                if (StepToward(TargetFor(Phase.ToPickup), delta))
+                var pickupTarget = TargetFor(Phase.ToPickup);
+                if (ArrivedNear(pickupTarget, 0.55f) || StepToward(pickupTarget, delta))
                 {
                     ClearTicket();
                     AttachCarry();
@@ -162,6 +176,12 @@ public partial class CustomerAgent : CharacterRig
                 return true;
         }
         return false;
+    }
+
+    bool ArrivedNear(Vector3 target, float radius)
+    {
+        var here = Position; here.Y = 0f; target.Y = 0f;
+        return (here - target).LengthSquared() <= radius * radius;
     }
 
     Vector3 TargetFor(Phase phase) => Crowd?.CustomerTarget(this, phase) ?? phase switch

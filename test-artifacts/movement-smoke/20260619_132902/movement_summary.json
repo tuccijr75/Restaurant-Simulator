@@ -1,0 +1,17 @@
+{
+  "status": "pass",
+  "samples": 379,
+  "agents_seen": 2723,
+  "failures": [],
+  "thresholds": {
+    "overlap_distance_m": 0.45,
+    "overlap_seconds": 2.0,
+    "stuck_seconds": 4.0,
+    "stuck_target_distance_m": 0.75,
+    "outside_food_seconds": 5.0,
+    "ordering_counter_seconds": 12.0,
+    "ordering_kiosk_seconds": 18.0,
+    "pickup_seconds": 20.0,
+    "waiting_seconds": 180.0
+  }
+}
