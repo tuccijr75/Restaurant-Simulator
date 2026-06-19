@@ -130,7 +130,10 @@ Corrections (Codex, 2026-06-19):
 - C2 duplicate: red, `{"code":"duplicate_reserved_slot","message":"lobby_wait_0 reserved by cust_a and cust_b at 0.00s"}`.
 - C3 byte-identical: canonical stream is `SimRunState.AllJsonl`; baseline via `git archive` from `9128fd7`; baseline vs current `AllJsonl` for `normal_day`/seed `12345` → `CANONICAL_EVENT_STREAM_BYTE_IDENTICAL: PASS`. Temp fixtures/extractor removed.
 
-Pending: Michael human visual smoke; recommended final-parser re-run vs `20260619_132902`.
+Recommended parser rerun (Codex, 2026-06-19):
+- `python test-artifacts\movement-smoke\assert_movement.py test-artifacts\movement-smoke\20260619_132902` -> expected red, process exit 1. Failures: `enter_timeout`, `complete_ticket_before_pickup`, `walkin_proximity`. `jitter` did NOT fire on this real capture, confirming Claude's residual risk note: synthetic jitter is proven, but real visible twitch remains gated by Michael's human visual smoke unless a parser-threshold tuning follow-up is opened.
+
+Pending: Michael human visual smoke.
 
 ## Michael Approval
 
