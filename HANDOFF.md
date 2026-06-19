@@ -9,10 +9,10 @@ Base SHA: `9128fd706a7022ebd52a59dd72208eef0a4434dc`
 Current HEAD: `2d07332b88cf823d3d6fbbca9af9daadab6fc5d5`
 Task ID: `movement-runtime-authority-followup`
 Task Name: Fix visual movement stalls, POS service choreography, and deprecated movement interference
-Status: `CORRECTIONS_COMPLETE_AWAITING_CLAUDE_REVIEW`
-Handoff Version: 4.1
+Status: `AWAITING_MICHAEL_VISUAL_SMOKE_AND_MERGE`
+Handoff Version: 5.0
 Last Updated: 2026-06-19
-Updated By: Codex
+Updated By: Claude Opus
 
 ## Workflow Contract
 
@@ -27,51 +27,49 @@ HANDOFF.md is the permanent, revolving coordination channel between Claude Opus 
 
 ## Current Task
 
-The first movement-authority pass (a `CrowdCoordinator`, reservation slots, telemetry, parser) landed and passed its parser, but Michael observed runtime failures the parser/screenshots missed: customers/employees twitch in place, the first customer in line did not move, two employees stuck at the walk-in, the counter employee looked idle, POS choreography not explicit. This follow-up makes movement and service choreography robust and adds telemetry that catches those runtime failures. The implementation is complete and under Claude review (see Claude Review). The lobby-drink stop is deferred (D1=B).
+The first movement-authority pass landed but Michael observed runtime failures the parser/screenshots missed (twitch in place, first-in-line not moving, two employees stuck at the walk-in, idle counter employee, no explicit POS choreography). This follow-up makes movement and service choreography robust and adds telemetry to catch those failures. Implementation and Corrections 1–3 are complete and Claude-reviewed; the remaining gate is Michael's human visual smoke, then merge. Drink stop deferred (D1=B).
 
-## Confirmed Root Causes (Codex telemetry, folder `test-artifacts/movement-smoke/20260619_132902`)
+## Confirmed Root Causes (folder `test-artifacts/movement-smoke/20260619_132902`)
 
-- `CustomerAgent.Enter` required exact (~0.12m) arrival; mobile customers — some ticket-complete — stalled 54–162s near target (e.g. `cust_ord_000002`: 162.5s, 0.193m away).
+- `CustomerAgent.Enter` required exact (~0.12m) arrival; mobile customers — some ticket-complete — stalled 54–162s near target (`cust_ord_000002`: 162.5s, 0.193m away).
 - Mobile/delivery customers shared a fallback target instead of reserving distinct entry/wait/pickup slots from frame 1.
 - `emp_9`/`emp_28` converged at the walk-in on simultaneous supply runs (217 samples); the supply-run target carried no reservation.
 - Employee telemetry reported station/home target, not the active supply/break/serve target, hiding the conflict.
-- Front counter used `StationBusy("work_counter") = _sim.Tickets > 0`, so employees reacted to any open ticket, not a specific lobby customer ordering at a POS.
+- Front counter used `StationBusy("work_counter") = _sim.Tickets > 0`, so employees reacted to any open ticket, not a specific POS customer.
 - Local steering (`AvoidedHeading`, `ResolveCharacterOverlap`, `HoldWithPersonalSpace`, stuck recovery) can fight coordinator reservations near a target. Old `Separate()`/`ResolveOccupiedTarget()` already removed.
 
 ## Objective
 
-Over a Godot movement smoke run, the parser fails the runtime failures above before the fix and passes after; no customer remains indefinitely in any phase; POS/walk-in/mobile choreography is correct; and the engine self-test deterministic replay stays byte-identical to Base SHA.
+Over a Godot movement smoke run, the parser fails the runtime failures above (proven via real data + fixtures) and passes after the fix; no customer remains indefinitely in any phase; POS/walk-in/mobile choreography is correct; engine self-test deterministic replay byte-identical to Base SHA.
 
-## Requirements (Claude-approved packet, corrections folded in)
+## Requirements (Claude-approved packet)
 
-Parser / telemetry:
-- Parser updated FIRST so the current `20260619_132902` data fails on: long `Enter`; completed-ticket customer stuck before pickup; duplicate active slot reservation; active employee supply-run target conflict; excessive pair proximity near the walk-in; and a phase-independent JITTER rule (agent within arrival radius of its reserved target but oscillating — near-zero net displacement with high path-length over a short window).
-- Telemetry reports each employee's ACTIVE target (station/serve/break/supply-run/patrol/return), not station/home.
+Parser / telemetry: parser detects long `Enter`; completed-ticket customer stuck before pickup; duplicate active slot reservation; active employee supply-run target conflict; excessive pair proximity at the walk-in; and a phase-independent JITTER rule (within arrival radius but oscillating — high path-length, near-zero net displacement). Telemetry reports each employee's ACTIVE target.
 
-Customer movement: practical arrival radii (completed-ticket customers must advance); mobile/delivery reserve distinct entry/wait/pickup slots immediately.
+Customer movement: practical arrival radii (completed-ticket customers advance); mobile/delivery reserve distinct entry/wait/pickup slots immediately.
 
-Walk-in: single-occupancy on the supply target; if occupied, idle supply runs wait at a reserved STANDOFF or skip — never crowd/twitch at the door.
+Walk-in: single-occupancy supply target; if occupied, idle runs wait at a reserved STANDOFF or skip — never crowd/twitch at the door.
 
-POS service (presentation-only): customer reserves a specific POS slot; the matching counter employee reserves that POS's service-side slot, serves only while that customer is in `Phase.Ordering`, then returns to assigned work; trigger is the reservation + `Phase.Ordering`, NOT `_sim.Tickets`; no `SimRunState` write-back; lobby customers carry a presentation-only counter-vs-kiosk designation; kiosk customers self-order.
+POS service (presentation-only): customer reserves a specific POS slot; the matching counter employee reserves that POS's service-side slot, serves only while that customer is in `Phase.Ordering`, then returns; trigger is reservation + `Phase.Ordering`, NOT `_sim.Tickets`; no `SimRunState` write-back; lobby customers carry a presentation-only counter-vs-kiosk designation; kiosk customers self-order.
 
-Sequencing / determinism: reduce conflicting local steering for reserved/holding agents ONLY after telemetry proves the coordinator owns the target, one mechanism at a time; engine self-test deterministic replay (canonical event export for a fixed config/scenario/seed) byte-identical to Base SHA.
+Sequencing / determinism: reduce conflicting local steering only after telemetry proves the coordinator owns the target, one mechanism at a time; engine self-test deterministic replay (canonical `AllJsonl` export, fixed config/scenario/seed) byte-identical to Base SHA.
 
-Drink stop: DEFERRED (D1=B) — separate future task; not in this packet.
+Drink stop: DEFERRED (D1=B) — separate future task.
 
-## Acceptance Criteria (verification state from Claude review)
+## Acceptance Criteria (verification state)
 
 - [x] Build passes with zero errors.
-- [x] Engine self-test deterministic replay byte-identical to Base SHA — PASS; comparison diffed canonical `SimRunState.AllJsonl` event stream output for fixed `normal_day` / seed `12345`.
-- [x] Parser FAILS known-violation data/fixtures on every new rule class required by Claude: old data for `enter_timeout`, `complete_ticket_before_pickup`, `walkin_proximity`; synthetic fixtures for `jitter`, `supply_run_conflict`, and `duplicate_reserved_slot`.
-- [x] After fixes, parser passes with zero failures (379 samples / 2157 agent samples) with proven detectors.
-- [x] Telemetry includes each employee's actual active target.
-- [~] Counter/kiosk choreography — reservation mechanism implemented; visual sequence not yet confirmed (Correction 4).
+- [x] Deterministic replay byte-identical to Base SHA — `AllJsonl` raw contents for `normal_day`/seed `12345`, baseline vs current: PASS.
+- [x] Parser fails on every required rule class — real data (`enter_timeout`, `complete_ticket_before_pickup`, `walkin_proximity`) + fixtures (`jitter`, `supply_run_conflict`, `duplicate_reserved_slot`). Residual: the jitter rule was proven on a synthetic fixture, not on the real twitch capture — see Claude Review.
+- [x] After fixes, parser passes with zero failures (379 / 2157 agent samples).
+- [x] Telemetry includes each employee's active target.
+- [~] Counter/kiosk choreography — mechanism implemented; visual sequence pending Michael's smoke.
 - [x] Walk-in supply runs never share a corner target — proximity rule green.
-- [~] Human visual smoke: no twitching, first-in-line moves — NOT proven by one overhead still (Corrections 1, 4).
+- [~] Human visual smoke: no twitching, first-in-line moves — BINDING gate, pending Michael (see Claude Review).
 
 ## Phase Timeouts (ratified — D2)
 
-Real seconds: `Enter` > 20; `Ordering` > 12 counter / 18 kiosk; `Waiting` > 180 unless linked ticket incomplete; `ToPickup` > 20 when ticket complete; `Dining` > ~2× max dine duration (Codex confirm `dineSeconds` upper bound, believed ~65s → ~130s); `Busing` > 30; `Leave` > 25; outside-with-food > 5.
+Real seconds: `Enter` > 20; `Ordering` > 12 counter / 18 kiosk; `Waiting` > 180 unless ticket incomplete; `ToPickup` > 20 when ticket complete; `Dining` > ~2× max dine duration (Codex confirm `dineSeconds` upper bound, ~65s → ~130s); `Busing` > 30; `Leave` > 25; outside-with-food > 5.
 
 ## Allowed Paths
 
@@ -79,19 +77,19 @@ Real seconds: `Enter` > 20; `Ordering` > 12 counter / 18 kiosk; `Waiting` > 180 
 
 ## Prohibited Changes / Non-Goals
 
-- No deterministic event schema, export ledger, or ASC-contract change; movement telemetry stays diagnostic-only.
-- No write-back to `SimRunState`; no new sim-facing order-item state without Michael approval.
+- No deterministic event schema, export ledger, or ASC-contract change; telemetry stays diagnostic-only.
+- No `SimRunState` write-back; no new sim-facing order-item state without Michael approval.
 - No deterministic sim-core change unless Claude confirms required and Michael approves.
 - No ingredient/catalog/vendor/back-office, layout, equipment, wall, navmesh, or aesthetic changes.
-- No destructive Git operations; no scope expansion; do not commit caches, build outputs, smoke screenshots, or telemetry folders.
+- No destructive Git ops; no scope expansion; do not commit caches, build outputs, smoke screenshots, or telemetry folders.
 - Screenshots alone are not proof; local steering not removed until telemetry proves it redundant.
 
 ## Tests Required
 
 - `dotnet build game\RestaurantSimulator.csproj --nologo`
-- `dotnet run --project tools\engine-selftest\harness.csproj` (+ byte-identical event-export comparison vs Base SHA)
+- `dotnet run --project tools\engine-selftest\harness.csproj` (+ `AllJsonl` byte-identical comparison vs Base SHA)
 - Godot movement smoke via `test-artifacts/movement-smoke/movement_smoke_runner.gd`
-- `python test-artifacts\movement-smoke\assert_movement.py <latest folder>` — must FAIL on a known-violation fixture, PASS on the clean run
+- `python test-artifacts\movement-smoke\assert_movement.py <folder>` — red on known-violation data/fixtures, green on the clean run
 - Manual visual smoke: first counter customer, kiosk customers, mobile/delivery pickup, walk-in corner, POS service, customers after receiving food
 
 ## Resolved Decisions
@@ -102,60 +100,43 @@ Real seconds: `Enter` > 20; `Ordering` > 12 counter / 18 kiosk; `Waiting` > 180 
 
 ## Known Risks
 
-- Tight arrival thresholds can create false stuck — practical radii required.
-- Local `HoldWithPersonalSpace`/overlap correction can fight reservations and cause twitch — CharacterRig steering was intentionally left in place this pass; twitch elimination therefore rests on the reservations removing contention, which the jitter detector must confirm.
-- A jitter detector that never fires reproduces the original false-green; it must be proven against known-twitch data.
+- A jitter detector tuned for idealized oscillation may miss lower-amplitude real twitch; it did not fire on the real `20260619_132902` capture. The human visual smoke is therefore the binding twitch gate; threshold tuning is a follow-up if needed.
+- CharacterRig local steering was intentionally retained; twitch elimination rests on the reservations removing contention.
 
 ## Claude Review
 
-Verdict: `APPROVED_WITH_CORRECTIONS`
+Verdict: `APPROVED_TO_CONTINUE` (Claude review gate cleared; advances to Michael's visual smoke + merge).
 
-Implementation is scope-clean and the core fixes are sound: build green, self-test 120/120, byte-identical PASS, new smoke green, active-target telemetry added, POS/mobile/walk-in reservations in place, drink stop correctly deferred. Three verification gaps must close before merge; the work itself is not in question, so these are corrections, not rework.
+Corrections 1–3 accepted:
+- C3 (byte-identical artifact): fully closed — `AllJsonl` raw compare for `normal_day`/seed `12345`, baseline vs current, PASS. Correct artifact, determinism proven.
+- C2 (supply-run-conflict, duplicate-reservation): closed — both fixtures go red with clear messages.
+- C1 (jitter): meets the bar I set (synthetic fixture acceptable) — the rule fires on path 1.60m / net 0.00m. Residual, recorded not waived: the same rule did not flag the real twitch in `20260619_132902`, so the synthetic pass proves the logic but not the threshold-vs-real-twitch sensitivity. The green run on `20260619_151950` is therefore necessary but NOT sufficient proof that twitch is gone.
 
-Required Corrections:
-1. Prove the JITTER rule fires. The old folder `20260619_132902` was captured during the session where Michael saw twitching, yet the red run flagged only `enter_timeout`, `complete_ticket_before_pickup`, `walkin_proximity` — not jitter. The detector is therefore either mis-tuned or aliasing the sample interval. Demonstrate it goes red on a known-twitch capture (pre-fix steering or a synthetic oscillation fixture) before any green run is trusted. This is Michael's headline symptom.
-2. Prove the supply-run-conflict and duplicate-reservation rules fire on a fixture containing each violation (the old data couldn't exercise supply-run-conflict — it predates active-target telemetry).
-3. Confirm the byte-identical comparison diffed the canonical event export (deterministic stream), not the harness pass/fail summary. The git-archive method is fine; just confirm the artifact.
-4. (Michael) Human visual smoke still owed: one overhead still cannot confirm "no twitching" (a motion artifact) or the POS/kiosk/post-food sequences. Watch the running sim before merge.
+Consequence: Michael's human visual smoke is the BINDING acceptance gate for "no twitching," not a formality. If twitch is visible while the parser is green, that is a jitter-threshold tuning follow-up (parser only, no gameplay change).
 
-Corroborating: agent-samples fell 2723 → 2157 at equal 379 samples, consistent with customers no longer stalling — a good sign the Enter/pickup fixes landed.
+Recommended (non-blocking) before merge: re-run the final parser against `20260619_132902`. If `jitter` now fires there, the detector catches the real phenomenon (full confidence); if not, the parser cannot gate twitch and the visual smoke stands alone.
 
-On closing 1–3 and Michael's visual smoke (4), this is `APPROVED_TO_CONTINUE` toward merge.
+Corroborating: agent-samples fell 2723 → 2157 at equal 379 samples — consistent with customers no longer stalling.
 
 Reviewed By: Claude Opus — 2026-06-19.
 
-## Codex Implementation Notes
-
-Corrections 1–3 are complete. No gameplay source was changed for the correction pass; only `assert_movement.py` was updated to make active walk-in supply target conflicts an explicit parser failure. CharacterRig local steering remains untouched.
-
 ## Validation Evidence
 
-Implementation evidence (Codex, 2026-06-19):
-- Source changes within allowed paths: `CrowdCoordinator.cs`, `AgentManager.cs`, `CustomerAgent.cs`, `EmployeeAgent.cs`, `assert_movement.py`, this handoff. (CharacterRig untouched — local steering intentionally retained this pass.)
-- Parser updated first; old folder `20260619_132902` red run flagged `enter_timeout`, `complete_ticket_before_pickup`, `walkin_proximity`. (Jitter / supply-run-conflict / duplicate-reservation NOT shown — Corrections 1–2.)
-- Fixes: practical arrival radii (Enter/Ordering/Waiting/Dining/Busing/Leave); distinct `mobile_entry/wait/pickup_*` reservations; presentation-only `pos_order_*`/`pos_service_*`; counter service driven by POS reservation not `_sim.Tickets`; walk-in single-door + `walkin_standoff_*`; employee telemetry uses active target.
-- `dotnet build`: PASS, 0/0. Self-test: PASS 120/120, 10/10, 11/11.
-- New smoke `20260619_151950`; new parser: PASS, 379 samples / 2157 agent samples / 0 failures.
-- Byte-identical: baseline `9128fd7` via `git archive` (worktree add hung); baseline vs current harness outputs compared byte-for-byte: PASS (confirm artifact — Correction 3).
-- Visual: `20260619_151950/05_overhead.png` reviewed, no pileup at that sample. Evidence folder untracked; do not commit unless Michael wants smoke artifacts in the repo.
+Implementation (Codex, 2026-06-19): source changes within allowed paths (`CrowdCoordinator`, `AgentManager`, `CustomerAgent`, `EmployeeAgent`, `assert_movement.py`, handoff; CharacterRig untouched). Fixes: practical arrival radii (Enter/Ordering/Waiting/Dining/Busing/Leave); distinct `mobile_entry/wait/pickup_*` reservations; presentation-only `pos_order_*`/`pos_service_*`; counter service via POS reservation not `_sim.Tickets`; walk-in single-door + `walkin_standoff_*`; active-target telemetry. Build PASS 0/0; self-test PASS 120/120, 10/10, 11/11. Clean smoke `20260619_151950` parser PASS 379 / 2157 / 0 failures. Smoke folder untracked — do not commit unless Michael wants artifacts in repo.
 
-D1 read-only basis (settled, B): no clean per-order drink flag at the presentation boundary; `OrderCreatedEvt` is `(channel, order_id)`.
+Corrections (Codex, 2026-06-19):
+- C1 jitter fixture: red, exit 1, `{"code":"jitter","message":"cust_jitter jitter near lobby_wait_0: path 1.60m net 0.00m"}`.
+- C2 supply-run: red, `{"code":"supply_run_conflict","message":"emp_b and emp_a share walk-in supply target (14.23,-8.5)"}`.
+- C2 duplicate: red, `{"code":"duplicate_reserved_slot","message":"lobby_wait_0 reserved by cust_a and cust_b at 0.00s"}`.
+- C3 byte-identical: canonical stream is `SimRunState.AllJsonl`; baseline via `git archive` from `9128fd7`; baseline vs current `AllJsonl` for `normal_day`/seed `12345` → `CANONICAL_EVENT_STREAM_BYTE_IDENTICAL: PASS`. Temp fixtures/extractor removed.
 
-Correction evidence (Codex, 2026-06-19):
-- Correction 1 — JITTER proof: temp fixture `%TEMP%\rs_movement_fixtures\jitter` produced expected parser red result, exit 1, `{"code":"jitter","message":"cust_jitter jitter near lobby_wait_0: path 1.60m net 0.00m"}`.
-- Correction 2 — supply-run-conflict proof: temp fixture `%TEMP%\rs_movement_fixtures\supply_conflict` produced expected parser red result, exit 1, `{"code":"supply_run_conflict","message":"emp_b and emp_a share walk-in supply target (14.23, -8.5)"}`.
-- Correction 2 — duplicate-reservation proof: temp fixture `%TEMP%\rs_movement_fixtures\duplicate_reservation` produced expected parser red result, exit 1, `{"code":"duplicate_reserved_slot","message":"lobby_wait_0 reserved by cust_a and cust_b at 0.00s"}`.
-- Correction 3 — canonical deterministic artifact confirmed: inspected `SelfTest.cs` and `SimRunState.cs`; the canonical event stream is `SimRunState.AllJsonl`. Baseline source was extracted from Base SHA `9128fd706a7022ebd52a59dd72208eef0a4434dc` via `git archive`, then a temp extractor compared baseline vs current `AllJsonl` raw contents for fixed `normal_day` / seed `12345`: `CANONICAL_EVENT_STREAM_BYTE_IDENTICAL: PASS`.
-- Post-correction clean smoke parser: `python test-artifacts\movement-smoke\assert_movement.py test-artifacts\movement-smoke\20260619_151950` -> PASS, 379 samples / 2157 agent samples / 0 failures.
-- Build: `dotnet build game\RestaurantSimulator.csproj --nologo` -> PASS, 0 warnings / 0 errors.
-- Engine self-test: `dotnet run --project tools\engine-selftest\harness.csproj` -> PASS; `SELF-TEST TOTAL: 120/120`, `INGREDIENT-MODEL TOTAL: 10/10`, `CAREER-TEST TOTAL: 11/11`, `RESULT: PASS`.
-- Temporary fixture/extractor/archive folders were removed from `%TEMP%`. Smoke evidence folder `test-artifacts/movement-smoke/20260619_151950/` remains an untracked/ignored local artifact and should not be committed unless Michael requests evidence artifacts in repo.
+Pending: Michael human visual smoke; recommended final-parser re-run vs `20260619_132902`.
 
 ## Michael Approval
 
 Specification Approved: `APPROVED 2026-06-19`
 Material Decisions (D1–D3) Approved: `APPROVED 2026-06-19` (D1=B, D2 ratified, D3 N/A)
-Human Visual Smoke: `PENDING` (Correction 4)
+Human Visual Smoke: `PENDING` (binding twitch gate)
 Merge Approved: `PENDING`
 
 ## Rollback
@@ -164,4 +145,4 @@ Working tree clean at Base SHA `9128fd7`. Safest rollback is a revert commit of 
 
 ## Next Authorized Action
 
-Claude reviews Codex correction evidence for Corrections 1–3 and either returns `APPROVED_TO_CONTINUE` or requests narrowly scoped follow-up. Michael performs the human visual smoke (Correction 4). No merge until corrections close and Claude returns approval.
+Michael performs the human visual smoke (binding gate for twitch + the counter/kiosk/post-food sequences). Recommended: Codex re-runs the final parser against `20260619_132902` and records whether `jitter` fires. If the smoke is clean, Michael grants merge approval. If twitch is visible, raise a parser-only jitter-threshold tuning follow-up — no gameplay source edits otherwise.
