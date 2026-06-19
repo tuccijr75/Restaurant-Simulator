@@ -5,216 +5,155 @@
 Project: Restaurant Simulator
 Repository: `E:\GitHub Projects\Restaurant Simulator\Restaurant Simulator`
 Branch: `main`
+Base SHA: `9128fd706a7022ebd52a59dd72208eef0a4434dc`
 Current HEAD: `9128fd706a7022ebd52a59dd72208eef0a4434dc`
 Task ID: `movement-runtime-authority-followup`
-Task Name: Fix remaining visual movement stalls, POS service choreography, and deprecated movement interference
-Status: `AWAITING_CLAUDE_REVIEW`
-Handoff Version: 2.0
+Task Name: Fix visual movement stalls, POS service choreography, and deprecated movement interference
+Status: `AWAITING_MICHAEL_APPROVAL`
+Handoff Version: 3.0
 Last Updated: 2026-06-19
-Updated By: Codex
+Updated By: Claude Opus
 
 ## Workflow Contract
 
-This file is now the permanent coordination channel between Claude Opus and Codex for this project.
+HANDOFF.md is the permanent, revolving coordination channel between Claude Opus and Codex. It describes only the current task state; stale or superseded content is removed on each update; Git history preserves prior versions.
 
-- Michael owns product intent, material decisions, merge/release approval, and final acceptance.
-- Claude Opus owns task definition, architecture review, risk review, acceptance criteria, and approval of implementation packets.
-- Codex owns repository inspection, source implementation, test execution, and implementation evidence.
-- Codex must not make code edits until Claude has reviewed and approved the implementation packet in this file.
-- Claude and Codex may both read and update this file.
-- Repository files are the source of truth. Model memory is secondary.
-- Neither model may merge, discard, reset, rebase, or delete work without Michael approval.
+- Michael owns product intent, material decisions, merge/release approval, final acceptance.
+- Claude Opus owns task definition, architecture/risk review, acceptance criteria, packet approval.
+- Codex owns repository inspection, source implementation, test execution, implementation evidence.
+- Codex must not make source edits until Claude approves the packet and Michael approves the specification.
+- Repository files are the source of truth; model memory is secondary.
+- Both models may read/update this file; neither may merge, discard, reset, rebase, or delete work without Michael approval.
 
-## Current Context
+## Current Task
 
-The first movement authority pass added a `CrowdCoordinator`, reservation slots, movement telemetry, and an automated movement smoke parser. The latest validated smoke run passed the parser, but Michael observed runtime behavior while the smoke test was open that the parser and screenshots did not catch:
+The first movement-authority pass (a `CrowdCoordinator`, reservation slots, movement telemetry, and an automated smoke parser) landed at HEAD and passed the parser. While the smoke test was open, Michael observed runtime failures the parser and screenshots missed: customers/employees twitch in place, the first customer in line did not move, two employees stuck at the walk-in corner, the counter employee looked idle, and POS/drink service choreography is not explicit. This follow-up makes movement and service choreography robust and adds telemetry that catches these runtime failures.
 
-- Customer and employee groups can still twitch in place.
-- The first customer in line appeared not to move.
-- Two employees twitched/stuck in the right corner near the walk-in.
-- The employee standing in front of the counter appeared idle/unhelpful.
-- Front counter behavior should be explicit: customer walks to a POS, a counter employee approaches the matching POS and takes the order, then returns to assigned work.
-- After ordering, a customer should get their drink from the lobby soda machine if applicable, then wait for food.
-- Deprecated movement/path/collision data may still be interfering.
+## Confirmed Root Causes (Codex telemetry, folder `test-artifacts/movement-smoke/20260619_132902`)
 
-## Investigation Findings
-
-Telemetry from `test-artifacts/movement-smoke/20260619_132902/movement_samples.jsonl` confirms important issues not covered by the current parser:
-
-- Several mobile customers remained in `Enter` for 54-162 seconds.
-- Some of those mobile customers had completed tickets but did not advance because `CustomerAgent.Enter` still required exact `StepToward()` arrival at a shared target.
-- Example: `cust_ord_000002` was in `Enter` for 162.5 seconds, ticket complete, 0.193m from target, but did not transition because the exact arrival threshold is about 0.12m.
-- The parser did not fail long `Enter` phases, so the smoke result was falsely green for this class of runtime failure.
-- `emp_9` and `emp_28` were near each other at the walk-in for 217 telemetry samples while both were on walk-in supply runs.
-- Employee telemetry currently reports station/home target instead of the active supply-run/break/serve target, which hides the real walk-in target conflict.
-- Front counter service is too generic: `StationBusy("work_counter")` uses `_sim.Tickets > 0`, so employees respond to any open ticket instead of an actual lobby customer currently ordering at a POS.
-- The old manager-level `Separate()` and old `ResolveOccupiedTarget()` appear removed. Remaining local movement rules are `AvoidedHeading`, `ResolveCharacterOverlap`, `HoldWithPersonalSpace`, and stuck lateral/reverse recovery. These may still fight coordinator reservations when characters hold close to a target.
+- `CustomerAgent.Enter` requires exact (~0.12m) arrival; mobile customers — some ticket-complete — stalled 54–162s near their target (e.g. `cust_ord_000002`: 162.5s, 0.193m away). The parser did not fail long `Enter`, so the run was falsely green.
+- Mobile/delivery customers share a fallback target instead of reserving distinct entry/wait/pickup slots from the first frame.
+- `emp_9` and `emp_28` converged at the walk-in on simultaneous supply runs (217 samples); the supply-run target carries no reservation.
+- Employee telemetry reports station/home target, not the active supply/break/serve target, hiding the real conflict.
+- Front counter uses `StationBusy("work_counter") = _sim.Tickets > 0`, so employees react to any open ticket rather than a specific lobby customer ordering at a POS.
+- Remaining local steering (`AvoidedHeading`, `ResolveCharacterOverlap`, `HoldWithPersonalSpace`, stuck lateral/reverse recovery) may fight coordinator reservations when agents hold near a target. Old `Separate()` and `ResolveOccupiedTarget()` are already removed.
 
 ## Objective
 
-Create a robust, testable movement and service-choreography system where:
+Over a Godot movement smoke run, the parser fails the runtime failures above before the fix and passes with zero failures after; no customer remains indefinitely in any phase; POS, walk-in, and mobile choreography are correct; and the engine self-test deterministic replay stays byte-identical to Base SHA.
 
-- No customer remains indefinitely in `Enter`, `Ordering`, `Waiting`, `ToPickup`, `Dining`, `Busing`, or `Leave`.
-- Mobile/delivery customers use distinct entry/wait/pickup reservations from the first frame.
-- Walk-in supply runs do not send multiple employees into the same walk-in doorway at the same time.
-- Front counter customers reserve a specific POS.
-- The matching counter employee walks to the service side of that POS, serves only that ordering customer, then returns to their assigned task.
-- Customers who order drinks use a lobby soda-machine stop when appropriate before waiting for food.
-- Automated telemetry detects the runtime issues Michael saw, not just screenshot-visible overlap.
+## Requirements (Claude-approved packet, corrections folded in)
 
-## Proposed Implementation Packet
+Parser / telemetry:
+- Update the parser FIRST so the current `20260619_132902` data fails on: long `Enter`; completed-ticket customer stuck before pickup; duplicate active slot reservation; active employee supply-run target conflict; excessive pair proximity near the walk-in; and a phase-independent JITTER rule — agent within arrival radius of its reserved target but oscillating (near-zero net displacement with high path-length over a short window).
+- Telemetry reports each employee's ACTIVE target (station / serve / break / supply-run / patrol / return), not just station/home.
 
-task_id: `movement-runtime-authority-followup`
+Customer movement:
+- Replace exact ~0.12m arrival with practical arrival radii where appropriate; completed-ticket customers must advance.
+- Mobile/delivery reserve distinct entry/wait/pickup slots immediately (no shared fallback).
 
-repository: `E:\GitHub Projects\Restaurant Simulator\Restaurant Simulator`
+Walk-in:
+- Single-occupancy on the walk-in supply target. If occupied, idle supply runs wait at a reserved STANDOFF or skip — never crowd or twitch at the door.
 
-branch: `main`
+POS service (presentation-only):
+- Customer reserves a specific POS/order slot; the matching counter employee reserves the service-side slot of THAT POS, serves only while that customer is in `Phase.Ordering`, then releases and returns to assigned work.
+- The serve trigger is the coordinator reservation + `Phase.Ordering`, NOT `_sim.Tickets`; no write-back to `SimRunState`.
+- Requires a presentation-only counter-vs-kiosk designation for lobby customers; kiosk customers self-order with no employee required.
 
-starting_sha: `9128fd706a7022ebd52a59dd72208eef0a4434dc`
+Drink stop (CONDITIONAL — see Decision D1):
+- Add a lobby soda-machine stop before waiting ONLY if a drink indicator is already readable read-only from existing order/ticket data with no sim or export contract change. If unavailable, EXCLUDE from this task and raise to Michael.
+- If implemented, presentation-only subphases `ToDrink`/`GettingDrink` are acceptable; do not add `ToWait` (redundant with the Waiting reservation).
 
-allowed_paths:
-
-- `HANDOFF.md`
-- `game/scripts/world/CrowdCoordinator.cs`
-- `game/scripts/world/AgentManager.cs`
-- `game/scripts/world/CustomerAgent.cs`
-- `game/scripts/world/EmployeeAgent.cs`
-- `game/scripts/world/CharacterRig.cs`
-- `test-artifacts/movement-smoke/assert_movement.py`
-- `test-artifacts/movement-smoke/movement_smoke_runner.gd`
-
-prohibited_paths:
-
-- Doctrine files unless Michael explicitly approves.
-- Schemas/contracts/exports unless Michael explicitly approves.
-- Deterministic sim core unless Claude explicitly confirms the change is required and Michael approves.
-- Ingredient/catalog/vendor systems.
-- Layout, equipment, walls, navmesh geometry, or aesthetics unless separately approved.
-- Generated Godot caches, build outputs, timestamped smoke screenshots, and telemetry output folders.
-
-## Requirements
-
-- Add movement-smoke assertions for excessive `Enter` duration.
-- Add movement-smoke assertions for phase progress across all customer phases, including completed-ticket customers stuck before pickup.
-- Give customer phase transitions practical arrival radii instead of exact 0.12m arrival where appropriate.
-- Add distinct coordinator slots for mobile/delivery entry, mobile/delivery waiting, and mobile/delivery pickup.
-- Ensure mobile/delivery customers reserve a slot immediately instead of sharing a fallback target.
-- Add active employee target tracking for telemetry, including station, serve, break, supply-run, patrol, and return-to-station targets.
-- Prevent multiple employees from simultaneously reserving or occupying the same walk-in supply-run target.
-- If the walk-in is occupied, idle supply runs should wait briefly or skip; they must not twitch in front of the walk-in.
-- Replace generic front-counter busy logic with visual POS service choreography:
-  - customer reserves POS/order slot;
-  - counter employee reserves matching service-side POS slot;
-  - employee serves while that customer is ordering;
-  - employee returns to assigned station/task after order intake.
-- Preserve kiosk behavior as customer self-ordering; no employee should be required for kiosk ordering.
-- Add drink pickup choreography if customer order/menu data exposes a drink signal without modifying deterministic sim contracts.
-- If drink contents cannot be safely known in presentation layer, mark drink choreography as `UNKNOWN / needs Claude-Michael decision` rather than inventing sim data.
-- Reduce local twitch sources only after telemetry proves the coordinator owns the relevant target.
+Sequencing / determinism:
+- Reduce conflicting local steering for reserved/holding agents ONLY after telemetry proves the coordinator owns the target; one mechanism at a time, re-validating after each.
+- Engine self-test deterministic replay (canonical event export for a fixed config/scenario/seed) must be byte-identical to Base SHA, not merely a passing suite. Codex confirms the comparison method.
 
 ## Acceptance Criteria
 
-- Build passes with zero errors.
-- Engine self-test passes.
-- Movement smoke parser fails the current bad behavior:
-  - long `Enter` phase;
-  - completed-ticket customer stuck before pickup;
-  - duplicate active slot reservations;
-  - active employee supply-run target conflict;
-  - excessive pair proximity/twitch near walk-in.
-- After implementation, movement smoke parser passes with zero failures.
-- Telemetry includes each employee's actual active target, not just station/home target.
-- Front counter customers visibly walk to POS, order, leave POS, and wait/pick up correctly.
-- Counter employee visibly approaches the relevant POS only while needed, then returns to normal assigned work.
-- Walk-in supply runs do not send two employees into the same corner target.
-- Human visual smoke confirms no twitching groups at counter or walk-in.
+- [ ] Build passes with zero errors.
+- [ ] Engine self-test deterministic replay byte-identical to Base SHA.
+- [ ] Parser FAILS the current `20260619_132902` data on every new rule (long `Enter`, stuck-before-pickup, duplicate reservation, supply-run conflict, walk-in proximity, jitter) — demonstrated before any fix.
+- [ ] After fixes, parser passes with zero failures.
+- [ ] Telemetry includes each employee's actual active target.
+- [ ] Counter customers visibly walk to a POS, order, leave, then wait/pick up; the counter employee approaches the POS only while needed, then returns; kiosk customers self-serve.
+- [ ] Walk-in supply runs never send two employees into the same corner target.
+- [ ] Human visual smoke: no twitching groups at counter or walk-in; first-in-line moves.
+
+## Phase Timeouts (proposed — Michael ratifies, Decision D2)
+
+Real seconds: `Enter` > 20; `Ordering` > 12 counter / 18 kiosk; `Waiting` > 180 unless linked ticket incomplete; `ToPickup` > 20 when ticket complete; `Dining` > ~2× the configured max dine duration (Codex confirm `dineSeconds` upper bound, believed ~65s → ~130s); `Busing` > 30; `Leave` > 25; outside-with-food > 5.
+
+## Allowed Paths
+
+`HANDOFF.md`; `game/scripts/world/{CrowdCoordinator,AgentManager,CustomerAgent,EmployeeAgent,CharacterRig}.cs`; `test-artifacts/movement-smoke/{assert_movement.py,movement_smoke_runner.gd}`.
+
+## Prohibited Changes / Non-Goals
+
+- No deterministic event schema, export ledger, or ASC-contract change; movement telemetry stays diagnostic-only.
+- No write-back to `SimRunState`; no new sim-facing order-item state without Michael approval (gates the drink stop).
+- No deterministic sim-core change unless Claude confirms it is required and Michael approves.
+- No ingredient/catalog/vendor/back-office changes; no layout, equipment, wall, navmesh, or aesthetic changes.
+- No destructive Git operations; no scope expansion; do not commit generated caches, build outputs, timestamped smoke screenshots, or telemetry folders.
+- Screenshots alone are not proof; local steering is not removed until telemetry proves it redundant.
 
 ## Tests Required
 
 - `dotnet build game\RestaurantSimulator.csproj --nologo`
-- `dotnet run --project tools\engine-selftest\harness.csproj`
+- `dotnet run --project tools\engine-selftest\harness.csproj` (plus the byte-identical event-export comparison vs Base SHA)
 - Godot movement smoke via `test-artifacts/movement-smoke/movement_smoke_runner.gd`
-- Parser: `python test-artifacts\movement-smoke\assert_movement.py <latest movement smoke folder>`
-- Manual visual smoke while Godot is running, with special attention to:
-  - first counter customer;
-  - kiosk customers;
-  - mobile/delivery pickup customers;
-  - walk-in corner;
-  - counter employee POS service;
-  - customers after receiving food.
-
-## Non-Goals
-
-- Do not change deterministic event schemas.
-- Do not change export ledgers or ASC compatibility.
-- Do not redesign restaurant layout in this task.
-- Do not change sellable catalog, ingredients, vendor systems, or back-office systems.
-- Do not use screenshots alone as proof of movement correctness.
-- Do not remove remaining local steering until the telemetry proves it is redundant.
+- `python test-artifacts\movement-smoke\assert_movement.py <latest folder>` — must FAIL pre-fix, PASS post-fix
+- Manual visual smoke: first counter customer, kiosk customers, mobile/delivery pickup, walk-in corner, counter POS service, customers after receiving food
 
 ## Known Risks
 
-- Tight arrival thresholds can create false stuck behavior even when an agent is visually close enough.
-- Local `HoldWithPersonalSpace` and overlap correction can fight reservation slots and create twitching.
-- POS choreography may need a presentation-only order assignment layer so it does not alter the deterministic sim.
-- Drink choreography may require item-level order visibility; if unavailable, it needs separate approval.
-- Walk-in target contention is partly a reservation issue and partly a local steering issue.
-- Parser thresholds must catch human-visible jitter, not just large stuck distances.
+- Tight arrival thresholds can create false stuck even when an agent is visually close enough — practical radii required.
+- Local `HoldWithPersonalSpace`/overlap correction can fight reservation slots and cause twitch — reduce only after proof.
+- POS choreography needs a presentation-only assignment layer so it never alters the deterministic sim.
+- Drink stop may need item-level order visibility; gated on D1.
+- Walk-in contention is part reservation, part local steering.
+- Parser must catch human-visible jitter, not only large stuck distances.
 
-## Open Questions For Claude
+## Decisions Reserved for Michael
 
-- Should POS service be modeled as presentation-only reservations tied to `CustomerAgent.Phase.Ordering`, or should Codex expose additional read-only sim task state for `order_intake`?
-- Is it acceptable to add presentation-only customer subphases such as `ToDrink`, `GettingDrink`, `ToWait`, or should this remain inside existing `CustomerAgent.Phase` values?
-- Can presentation safely infer drink orders from current catalog/order data, or should drink pickup wait for a separate sim-facing order-item view?
-- Should local `HoldWithPersonalSpace` be reduced immediately for reserved/holding agents, or only after the new telemetry catches and proves the walk-in/counter twitch is gone?
-- What are the exact phase timeout thresholds Claude wants for `Enter`, `Dining`, `Busing`, and `Leave`?
+- D1 — Drink-data exposure. If no read-only drink signal exists at HEAD, implementing the drink stop would require new order-item state. Claude recommends DEFERRING the drink stop unless an existing read-only signal is found. Codex must report the data fact first. Status: OPEN.
+- D2 — Ratify the proposed phase-timeout thresholds. Status: OPEN.
+- D3 — Any product-visible pacing introduced by the drink detour. Status: OPEN.
 
 ## Claude Review
 
-Verdict: `PENDING`
+Verdict: `APPROVED_WITH_CORRECTIONS`
 
-Allowed verdicts:
+Corrections (byte-identical determinism gate; jitter assertion; conditional drink-data gating; presentation-only POS boundary with counter/kiosk designation; walk-in standoff; minimal subphases; removal sequencing; phase timeouts) are folded into Requirements and Acceptance above. Basis: the packet is evidence-driven, parser-first, and scope-disciplined; the gaps were the missing jitter assertion, the under-specified determinism gate, and the unconfirmed drink-data assumption — all now constrained. Implementation may proceed on everything EXCEPT the drink stop once Michael approves the specification; the drink stop waits on D1.
 
-- `APPROVED_TO_IMPLEMENT`
-- `APPROVED_WITH_CORRECTIONS`
-- `REWORK_REQUIRED`
-- `HUMAN_DECISION_REQUIRED`
-
-Claude should update this section before Codex makes source code changes.
-
-### Claude Notes
-
-PENDING
-
-### Required Corrections
-
-PENDING
+Reviewed By: Claude Opus — 2026-06-19.
 
 ## Codex Implementation Notes
 
-No source implementation should proceed until Claude approves this packet.
-
-Once approved, Codex should:
-
-1. Update the parser first so current bad behavior fails.
-2. Fix customer arrival/slot behavior.
-3. Fix walk-in supply-run reservation/telemetry behavior.
-4. Fix POS service choreography.
-5. Re-run build, engine self-test, movement smoke, parser, and visual review.
-6. Update this file with implementation evidence.
+No source edits until Michael approves the specification (and D1 for drink scope). Codex MAY now perform the read-only drink-signal inspection to resolve D1 — inspection only, no edits. Once approved, implement in order:
+1. Update parser + telemetry so the current data fails (including jitter); confirm red.
+2. Customer arrival radii + mobile distinct-slot reservations.
+3. Walk-in supply-run reservation + standoff + active-target telemetry.
+4. POS service choreography (presentation-only) + counter/kiosk designation.
+5. (Only if D1 = available) drink-stop choreography.
+6. Reduce conflicting local steering for reserved/holding agents, one at a time.
+7. Re-run build, self-test (byte-identical), smoke, parser (green), visual review; record evidence below.
 
 ## Validation Evidence
 
-Most recent known evidence before this handoff replacement:
+Prior baseline (HEAD `9128fd7`, now known insufficient): build 0 warnings / 0 errors; self-test 120/120, ingredient-model 10/10, career-test 11/11; smoke folder `20260619_132902` passed the old parser (379 samples / 2723 agent samples) but missed long `Enter` stalls and walk-in contention.
 
-- `dotnet build game\RestaurantSimulator.csproj --nologo`: passed with 0 warnings and 0 errors.
-- `dotnet run --project tools\engine-selftest\harness.csproj`: passed with `SELF-TEST TOTAL: 120/120`, `INGREDIENT-MODEL TOTAL: 10/10`, `CAREER-TEST TOTAL: 11/11`.
-- Movement smoke folder: `test-artifacts/movement-smoke/20260619_132902`
-- Existing parser result on that folder: passed with 379 samples and 2723 agent samples, but this is now known insufficient because it missed long `Enter` stalls and walk-in target contention.
+New evidence: PENDING — Codex to populate (commands run, parser red→green, byte-identical replay result, runtime notes).
 
 ## Michael Approval
 
 Specification Approved: `PENDING`
-Implementation Approved: `PENDING_CLAUDE_REVIEW`
+Material Decisions (D1–D3) Approved: `PENDING`
 Merge Approved: `PENDING`
 
+## Rollback
+
+Working tree is clean at Base SHA `9128fd7`. Safest rollback is a revert commit of the single follow-up feature commit, or a targeted commit restoring prior behavior. No reset, rebase, or discard without Michael approval.
+
+## Next Authorized Action
+
+Michael reviews and approves the specification and Decisions D1–D3. Codex may perform the read-only drink-signal inspection now to resolve D1 but must not make source edits until Michael approves. After approval, Codex implements in the order above and updates this file with evidence.
