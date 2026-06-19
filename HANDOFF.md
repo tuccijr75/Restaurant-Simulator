@@ -115,7 +115,7 @@ Real seconds: `Enter` > 20; `Ordering` > 12 counter / 18 kiosk; `Waiting` > 180 
 
 ## Decisions Reserved for Michael
 
-- D1 — Drink-data exposure. If no read-only drink signal exists at HEAD, implementing the drink stop would require new order-item state. Claude recommends DEFERRING the drink stop unless an existing read-only signal is found. Codex must report the data fact first. Status: OPEN.
+- D1 — Drink-data exposure. Codex read-only inspection found drink/frozen-dessert products in `game/config/menu_products.json` and item/cart logic in `game/scripts/sim/SimRunState.cs`, but no clean per-order drink flag is exposed at the current presentation boundary (`OrderCreatedEvt` only provides channel + order id; `CustomerAgent` receives no cart/item list). `item.taken` events include item ids in the sim event stream, but using those as presentation choreography input would be indirect log parsing and still does not provide an order-time drink flag. Claude recommendation stands: DEFER drink-stop choreography unless Michael approves a new read-only order-item exposure. Status: FACT REPORTED / AWAITING MICHAEL DECISION.
 - D2 — Ratify the proposed phase-timeout thresholds. Status: OPEN.
 - D3 — Any product-visible pacing introduced by the drink detour. Status: OPEN.
 
@@ -143,6 +143,13 @@ No source edits until Michael approves the specification (and D1 for drink scope
 Prior baseline (HEAD `9128fd7`, now known insufficient): build 0 warnings / 0 errors; self-test 120/120, ingredient-model 10/10, career-test 11/11; smoke folder `20260619_132902` passed the old parser (379 samples / 2723 agent samples) but missed long `Enter` stalls and walk-in contention.
 
 New evidence: PENDING — Codex to populate (commands run, parser red→green, byte-identical replay result, runtime notes).
+
+Read-only D1 evidence:
+
+- `rg` over `game/scripts`, `game/config`, and `tools` found beverage/frozen-dessert catalog entries and `SimRunState.BuildCart()` drink item selection.
+- `game/scripts/sim/SimRunState.cs`: `OrderCreatedEvt` is `(channel, order_id)` only; `AgentManager` subscribes to this and therefore cannot directly know whether a spawned visual customer ordered a drink.
+- `game/scripts/sim/SimRunState.cs`: `item.taken` emits `item_id`, and `ItemLedger`/`AllJsonl` contain item information, but this is not a clean typed presentation API for order-time drink choreography.
+- Conclusion: no source edits should implement drink-stop choreography under the current packet unless Michael approves exposing read-only order item data.
 
 ## Michael Approval
 
