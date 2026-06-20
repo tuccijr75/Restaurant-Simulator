@@ -9,10 +9,10 @@ Base SHA: `2d07332b88cf823d3d6fbbca9af9daadab6fc5d5`
 Current HEAD: `dd7bcbaaf72defdcb426598361851ca55cf3a2c8`
 Task ID: `layout-interaction-functional-pass`
 Task Name: Seating, object collision, POS location, employee activity, kitchen/office layout, lobby furniture, walk-in scale, model scale
-Status: `AWAITING_CLAUDE_REVIEW_OF_OV1_AND_CUSTOMER_STALL`
-Handoff Version: 5.1
+Status: `REWORK_REQUIRED_GATE_RERUN_AND_STALL_TRIAGE`
+Handoff Version: 6.0
 Last Updated: 2026-06-19
-Updated By: Codex
+Updated By: Claude Opus
 
 ## Workflow Contract
 
@@ -24,169 +24,111 @@ HANDOFF.md is the permanent, revolving coordination channel between Claude Opus 
 - Codex must not edit source until Claude approves the packet and Michael approves the spec.
 - Repository files are the source of truth; model memory is secondary.
 - Neither model may merge, discard, reset, rebase, or delete work without Michael approval.
+- Verification is evidence-based: Codex summaries are claims, not proof. A check passes only when its command completes with verifiable output tied to the current commit SHA. Do not weaken/skip/rewrite failing tests to obtain a pass; if a check cannot run, mark it BLOCKED with the reason. A prior `APPROVED_*` verdict does not carry across commits — it is void once HEAD or a required check changes.
 
 Prior task `movement-runtime-authority-followup` is CLOSED/ACCEPTED at Base SHA. Do not reopen unless a new direct symptom appears.
 
 ## Objective
 
-In runtime smoke, layout and visible interactions read correctly: customers sit aligned in real chairs/booths; characters route around furniture/equipment/walls; POS service at the right-end registers; employees visibly work with animations; office/fryer/walk-in/break-room match Michael's direction; staff and customer apparent heights match. All changes presentation/layout only — deterministic sim outputs unchanged.
+In runtime smoke, layout and visible interactions read correctly: customers sit aligned in chairs/booths; characters route around furniture/equipment/walls; POS at right-end registers; employees visibly work with animations; office/fryer/walk-in/break-room match Michael's direction; staff/customer apparent heights match. All changes presentation/layout only — deterministic sim outputs unchanged.
 
 ## Requirements (as approved & implemented)
 
-Layout / nav:
-- Office closed from the kitchen production area, with a back-wall door (all the way back, facing the kitchen/back) so MOD pathing is reachable; two large office windows (one toward drive-thru, one into the kitchen from the seated position); desk against the back wall facing into the room.
-- Fryer station against the office wall, left corner, facing into the kitchen; fryers directly to its right. Station keys stable; only positions/anchors moved.
-- Walk-in 10% bigger; `freezer_door` anchor and `walkin_standoff_*`/supply slots realigned to the resized door; no fake door; movement parser re-run for no regression.
-- Break table replaced with an employee-only break booth; break slots moved to it.
-- Lobby furniture reworked into functional groups with clear aisles, no clipping.
-- Navmesh obstacle proxies carve furniture/equipment cores while keeping seat/interaction approach slots reachable.
+Layout: office closed from the kitchen with a reachable back-wall door, two windows (drive-thru + kitchen-from-desk), desk facing into the room; fryer at office-wall left corner facing in, fryers to its right; walk-in 10% bigger with realigned `freezer_door`/`walkin_standoff_*`; break table → employee-only break booth; lobby furniture functional with no clipping; navmesh obstacle proxies that carve furniture cores while keeping seat approach slots reachable.
+Seating: typed seat reservations (position/yaw/tray target/type); approach without clipping; align to seat; tray on table.
+POS (presentation-only): order/service + cashier serve slots at customer-facing right `+X`; no `_sim` coupling.
+Employees: `Working=true` plays a station work animation or bounded fallback; busyness from read-only signals only; no sim load/throughput change.
+Scale: AABB normalization to a shared 1.72m (ratified) across all variants, with manual override.
+Determinism: `AllJsonl` replay (normal_day/seed 12345) byte-identical to Base SHA — unconditional, re-confirmed at HEAD.
 
-Seating: typed seat reservations (position, seated yaw, tray/table target, furniture type); customers approach without passing through furniture, align to the seat, place tray/cup on the table.
+## Acceptance Criteria (verification state @ HEAD `dd7bcba`)
 
-POS (presentation-only): order/service + cashier serve slots at the customer-facing right (`+X`) registers; no `_sim` coupling.
+- [x] Manager office-door reachability (OV1) — machine-proven at HEAD: `20260619_205213/manager_office_roundtrip.json` PASS (`emp_28` depart 216, max 2.002m, return 399).
+- [!] Movement parser — FAILS at HEAD on `20260619_205213`: `cust_ord_000002 stuck 4.03s at 3.90m` entering `mobile_entry_0`. (That run is a 72-sample headless probe, not a full smoke.)
+- [stale] Build / self-test / byte-identical / full movement smoke (378/2328/0) / screenshots — green results are from prior commit `b4f8b98` (run `200008`); byte-identical NOT re-run after the v5.1 `WorldBuilder` menu change; screenshots skipped under headless. Must be re-run at HEAD.
+- [x] (carried) Seat-reach, height-parity, POS-right-end assertions existed green at `200008` — must be re-confirmed in the HEAD full smoke.
+- [~] Michael visual smoke (OV2, BINDING) — pending; no fresh screenshots exist at HEAD.
 
-Employees: `Working=true` selects a station work animation with a bounded procedural fallback; visible busyness from read-only signals only; no sim load/throughput change.
+## Required Before Re-Review (Codex)
 
-Scale: AABB normalization to a single shared target height (1.72m, ratified) across all variants, with manual override.
+R1 — Run the full Verification Gate at `dd7bcba` and populate the gate evidence (command, exit code, report path, commit SHA) for each check. No PENDING/NOT_RUN at re-review.
+R2 — Re-run the byte-identical `AllJsonl` check at HEAD (after the v5.1 menu-loading change) and record the hash + commit SHA.
+R3 — Reproduce/triage the `cust_ord_000002` mobile-entry stall in a FULL-length smoke (not the 72-sample headless probe). Report: is it deterministic/persistent, and is it caused by THIS task's nav/anchor changes or a latent mobile-entry issue from the prior task?
+R4 — Confirm the `lobby_menu.png` `ResourceLoader→ImageTexture` change does not alter real (non-headless) menu rendering; if it does, scope it to headless only. (Made for the harness; must not change production visuals.)
 
-Determinism: `AllJsonl` replay (normal_day/seed 12345) byte-identical to Base SHA — unconditional.
+## Decisions Reserved for Michael
 
-## Acceptance Criteria (verification state)
-
-- [x] Build zero errors; Godot runs with no new ERROR/SCRIPT ERROR/Exception/WARN in `godot.log`.
-- [x] Self-test passes; `AllJsonl` byte-identical to Base SHA (hash `05464C88…E83D18B6`).
-- [x] Movement parser green on `20260619_200008` (378 / 2328 / 0 failures) — no new stalls/jitter/walk-in regression.
-- [x] Seat-reach + seat-alignment assertion (caught a real reach failure mid-pass, fixed, now green).
-- [x] Staff/customer apparent-height parity at 1.72m (employee 1.98/1.96→1.72, customers 1.00→1.72) — ratified.
-- [x] Counter order/serve slots at confirmed right-end (`+X`).
-- [x] Manager office-access (M1 door) reachability — targeted probe PASS on `20260619_205213`: `emp_28` departed at frame 216, max distance 2.002m, returned at frame 399, status `pass`.
-- [~] Screenshots / Michael visual smoke (BINDING): office windows/desk sightlines, close-up seating alignment, right-end POS service, employee work animation, furniture clipping.
-- [!] Current movement parser on `20260619_205213` FAILS for a separate customer stall: `cust_ord_000002 stuck 4.03s at 3.90m from target` while entering `mobile_entry_0`. This is outside the OV1 office-door check and needs Claude/Michael direction before gameplay source changes.
-
-## Open Verification (last gate before merge)
-
-OV1 — Manager office-door reachability (M1's functional purpose). CLOSED by Codex targeted check in `test-artifacts/movement-smoke/movement_smoke_runner.gd` plus parser support in `assert_movement.py`. Fresh Godot headless smoke `20260619_205213` wrote `manager_office_roundtrip.json` with status `pass` (`emp_28`, depart frame 216, return frame 399). Status: CLOSED, pending Claude review of the diff.
-
-OV2 — Michael visual smoke (aesthetic/close-up): office window sightlines (drive-thru + kitchen-from-desk), desk facing into the room, seated customers aligned in chairs/booths, POS service at right-end, employees animating while busy, no furniture clipping. Status: PENDING.
-
-## Decisions / Ratifications
-
-- M1 office access, M2 right=`+X`, M3 shared height, M4 employee-only break booth — APPROVED.
-- M3 height deviation — RATIFIED by Michael: 1.72m shared accepted (customers grew from ~1.5m, accepted).
+- D-STALL — After R3 triage: if the stall reproduces in a full smoke and traces to this task's changes, it BLOCKS and is fixed in this task; if it is independent/latent, split it into its own mobile-entry packet so the layout task may merge once the gate is otherwise green at HEAD. Claude recommendation pending triage. Status: OPEN (do not decide before R3).
 
 ## Claude Review
 
-Verdict: `APPROVED_TO_CONTINUE` (Claude review gate fully cleared; remaining gates are Michael's visual smoke + OV1).
+Verdict: `REWORK_REQUIRED` (narrow — verification at HEAD + stall triage + menu-change confirmation; NOT a redesign).
 
-Implementation is clean and scope-correct. The machine assertions did real work (seat-reach went red on the obstacle pass, fixed before green); determinism byte-identical with a recorded hash; movement parser green so the walk-in resize/equipment moves did not regress the prior task; height AABB-normalized across all variants; runtime log clean.
+Note: the v5.1 file presented to review still carried a stale `APPROVED_TO_CONTINUE` verdict and an approval-presupposing Next Action. Both are void on this commit and are corrected here — there is no standing approval while a required check fails at HEAD.
 
-Closed since v4.0:
-- Height ratified (1.72m) by Michael.
-- Codex commit-state CLOSED — committed/pushed at `b4f8b98`, `HEAD == origin/main`, clean worktree.
-- Parser one-sample exemption CLOSED — `phase_changed` is true only on the first sample after a change; timeout checks resume next sample (single sample, not a window).
+Accepted: OV1 office-door reachability is genuinely closed (machine-proven at HEAD). Codex also behaved correctly under the gate rule — it did not falsely mark the gate passed and it surfaced the failing stall rather than hiding it.
 
-Remaining before merge: OV2 (Michael's binding visual smoke) plus review/decision on the newly exposed mobile-entry customer stall from the hardened movement parser. OV1 now has machine evidence.
+Not approvable for merge because, per Michael's evidence rule: (1) the current commit FAILS the movement parser (the mobile-entry stall); (2) the Verification Gate is NOT_RUN and the green build/self-test/byte-identical/full-smoke/screenshot evidence is STALE — from prior commit `b4f8b98`/run `200008`, and the byte-identical was not re-run after the v5.1 menu change; (3) no fresh visual evidence exists at HEAD (headless skipped screenshots). R1–R4 close these; D-STALL is Michael's once R3 is in.
+
+Also flag (scope): the `lobby_menu.png` loading change is a new, harness-motivated change not in the original packet — allowed path, but it must be confirmed real-game-safe (R4).
 
 Reviewed By: Claude Opus — 2026-06-19.
 
 ## Codex Implementation Summary
 
-Changed files (all allowed paths): `WorldBuilder.cs` (typed seat metadata; POS anchors to `+X`; fryer/holder to office wall; walk-in 110%; office door/window/desk geometry; employee-only break booth; reworked lobby furniture; furniture obstacle proxies that carve cores without blocking seats; Codex v5.1 also changed `lobby_menu.png` loading from import-cache `ResourceLoader` to direct `ImageTexture` to remove a headless runtime load error). `CrowdCoordinator.cs` (typed dining seats; employee-only break booth slots; POS slots follow right-end anchors; emits `ApparentHeight`). `CustomerAgent.cs` (seated yaw + tray/table target; align + place tray). `AgentManager.cs` (shared `CharacterTargetHeight=1.72f`; fixed old customer scale). `CharacterRig.cs` (AABB/manual-fallback height normalization; bounded work fallback; no `GlobalTransform` before tree entry). `assert_movement.py` (dining-seat, POS-right-end, height-parity assertions; one-sample post-phase-change exemption; Codex v5.1 adds manager-office round-trip assertion/probe support). `movement_smoke_runner.gd` (Codex v5.1 adds targeted OV1 office round-trip probe and skips screenshot capture under headless dummy renderer). `HANDOFF.md`.
+Changed files (allowed paths): `WorldBuilder.cs` (typed seat metadata; POS `+X`; fryer to office wall; walk-in 110%; office door/window/desk; employee-only break booth; reworked lobby furniture; furniture obstacle proxies; v5.1: `lobby_menu.png` `ResourceLoader`→`ImageTexture` to remove a headless load error). `CrowdCoordinator.cs` (typed seats; break booth slots; right-end POS slots; emits `ApparentHeight`). `CustomerAgent.cs` (seated yaw + tray target; align + place tray). `AgentManager.cs` (`CharacterTargetHeight=1.72f`; fixed customer scale). `CharacterRig.cs` (AABB/fallback height normalization; bounded work fallback; no `GlobalTransform` before tree entry). `assert_movement.py` (dining-seat, POS-right-end, height-parity, one-sample exemption; v5.1 manager-office round-trip probe support). `movement_smoke_runner.gd` (v5.1 OV1 probe; skips screenshots under headless dummy renderer). `HANDOFF.md`.
+Untracked evidence: `…/194415/194834/195344/200008/204625/205038/205213`; `204625`/`205038` are failed intermediate OV1 attempts; `205213` is current. Do not commit unless Michael wants artifacts retained. `CrowdCoordinator.cs.uid` left per repo convention.
 
-Untracked evidence folders `20260619_194415/194834/195344/200008/204625/205038/205213` — do not commit unless Michael wants artifacts retained. `204625` and `205038` are failed intermediate OV1 probe attempts; `205213` is the useful current evidence folder. `CrowdCoordinator.cs.uid` left per repo convention.
-
-## Verification Gate
+## Verification Gate (must be run at HEAD `dd7bcba`)
 
 Build: PENDING
-
 Unit Tests: PENDING
-
 Integration Tests: PENDING
-
 Static Analysis: PENDING
-
 Schema Validation: PENDING
-
 Deterministic Replay: PENDING
-
 Save/Load Compatibility: PENDING
-
-Runtime Smoke Test: PENDING
-
+Runtime Smoke Test: FAILING on last run `205213`
 Packaging: PENDING
-
 Generated File Check: PENDING
 
 ### Gate Result
-
-Status: NOT_RUN
-
-Allowed values:
-
-- NOT_RUN
-- FAILED
-- PASSED
-- BLOCKED
-
+Status: FAILED
+Allowed: NOT_RUN | FAILED | PASSED | BLOCKED
 Evidence:
-
-- Command:
-- Exit code:
-- Log or report path:
-- Commit SHA:
+- Command: `python test-artifacts\movement-smoke\assert_movement.py test-artifacts\movement-smoke\20260619_205213`
+- Exit code: non-zero (1 failure)
+- Log/report path: `test-artifacts/movement-smoke/20260619_205213/` (+ `manager_office_roundtrip.json` PASS)
+- Commit SHA: `dd7bcbaaf72defdcb426598361851ca55cf3a2c8`
 
 ### Gate Rule
+Task may not move to READY_FOR_CLAUDE_REVIEW unless all required checks pass. Task may not move to APPROVED_FOR_MERGE unless: gate passes; Claude completes review; unresolved blocking risks are zero; Michael approves the merge. Codex: do not mark a check passed by inspection/reasoning; a check passes only when its command completes with verifiable output. Do not weaken/skip/delete failing tests to obtain a pass; if a check cannot run, mark BLOCKED with the exact reason.
 
-The task may not move to READY_FOR_CLAUDE_REVIEW unless all required checks pass.
+## Validation Evidence (status @ HEAD)
 
-The task may not move to APPROVED_FOR_MERGE unless:
-
-- the verification gate passes;
-- Claude completes review;
-- unresolved blocking risks are zero;
-- Michael approves the merge.
-
-Codex Instructions:
-
-Do not mark a test as passed based on code inspection or reasoning.
-
-A check passes only when the relevant command completes successfully with verifiable output.
-Do not weaken, skip, delete, or rewrite failing tests merely to obtain a passing result.
-If a required check cannot run, mark it BLOCKED and explain the exact reason.
-
-## Validation Evidence
-
-- Build PASS 0/0. Self-test PASS 120/120, 10/10, 11/11.
-- Byte-identical: Base SHA `2d07332` vs current `AllJsonl` (normal_day/seed 12345): `CANONICAL_EVENT_STREAM_BYTE_IDENTICAL: PASS 05464C886B33616332885744D215EE7FC7EF8EC0F18384C67B05DB17E83D18B6`.
-- Godot smoke `20260619_200008`: normalization printed (employee 1.98/1.96→1.72, customers 1.00→1.72); no errors/warnings in `godot.log`.
-- Parser on `20260619_200008`: PASS 378 / 2328 / 0 failures (existing + dining-seat + POS-right-end + height-parity).
-- `05_overhead.png` reviewed (office/fryer/walk-in/lobby overhead). Manager office-door round-trip not exercised — OV1.
-- Codex v5.1 build: `dotnet build game\RestaurantSimulator.csproj --nologo` PASS 0/0.
-- Codex v5.1 self-test: `dotnet run --project tools\engine-selftest\harness.csproj` PASS 120/120, ingredient 10/10, career 11/11.
-- Codex v5.1 Godot headless movement smoke: `20260619_205213` completed without the prior `lobby_menu.png` load error; screenshots skipped intentionally because headless display mode has no viewport image.
-- Codex v5.1 OV1 probe: `test-artifacts/movement-smoke/20260619_205213/manager_office_roundtrip.json` PASS (`emp_28`, depart frame 216, return frame 399).
-- Codex v5.1 parser on `20260619_205213`: FAIL 72 / 384 / 1 failure: `cust_ord_000002 stuck 4.03s at 3.90m from target`. Office probe PASS is recorded in the parser summary.
-
-## Tests Required
-
-`dotnet build … --nologo`; `dotnet run --project tools\engine-selftest\harness.csproj` (+ `AllJsonl` byte-identical); Godot smoke via console exe + runner; `python … assert_movement.py <folder>`; manual screenshots; inspect `godot.log`. Claude review needed for v5.1 OV1 probe diff and the new mobile-entry customer stall.
+- OV1 office round-trip: `20260619_205213/manager_office_roundtrip.json` PASS (current commit). ACCEPTED.
+- Movement parser `205213`: FAIL 72/384/1 (`cust_ord_000002` stall). CURRENT.
+- v5.1 build PASS 0/0 and self-test PASS 120/120/10/10/11/11 reported by Codex — record with commit SHA in the gate (R1).
+- Byte-identical hash `05464C88…E83D18B6` and full smoke `200008` (378/2328/0) — PRIOR commit `b4f8b98`, STALE; re-run at HEAD (R1/R2).
+- Screenshots: none at HEAD (headless skipped).
 
 ## Known Risks (residual)
 
-- New movement-parser finding: `cust_ord_000002` stalls entering `mobile_entry_0` in `20260619_205213`. This may indicate a remaining entrance/mobile pathing issue, but it was discovered while closing OV1 and is not yet approved for source changes.
-- Office window sightlines / desk facing and close-up seating/clipping are visual-gate only.
+- Mobile-entry stall (`cust_ord_000002` entering `mobile_entry_0`) — unknown if persistent or this-task-caused (R3).
+- `lobby_menu.png` loading change may alter real-game menu rendering (R4).
+- Office window sightlines / desk facing and close-up seating/clipping remain visual-gate only (OV2).
 
 ## Rollback
 
-Targeted restoring commit or revert of implementation commit `b4f8b98da28d61ca887ea2325847c494ef7b5792`. No reset/rebase/discard/delete without Michael approval.
+Targeted restoring commit or revert of implementation commit(s) up to `dd7bcba`. No reset/rebase/discard/delete without Michael approval.
 
 ## Michael Approval
 
 Specification Approved: `APPROVED 2026-06-19`
-Material Decisions: `M1–M4 APPROVED`; height deviation `RATIFIED 1.72m`
-Human Visual Smoke: `PENDING` (binding — OV2)
-Merge Approved: `PENDING`
+Material Decisions: `M1–M4 APPROVED`; height `RATIFIED 1.72m`; D-STALL `PENDING` (after R3)
+Human Visual Smoke: `PENDING` (binding — OV2, needs fresh HEAD screenshots)
+Merge Approved: `PENDING` (blocked by FAILED gate)
 
 ## Next Authorized Action
 
-Claude review v5.1 diff/evidence. If approved, decide whether the `cust_ord_000002` mobile-entry stall becomes the next implementation packet or is treated as a non-blocking transient. Michael still owns OV2 visual smoke and merge approval. No further gameplay source edits until Claude/Michael approve the next packet.
+Codex completes R1–R4: run the full Verification Gate at `dd7bcba` with recorded evidence; re-run byte-identical at HEAD; reproduce/triage the mobile-entry stall in a full smoke; confirm the menu change is real-game-safe. Then Claude re-reviews and Michael decides D-STALL. No merge until the gate is PASSED at HEAD, blocking risks are zero, and Michael's OV2 smoke is clean.
