@@ -341,8 +341,13 @@ public static class WorldBuilder
             Emission = Colors.White,
             EmissionEnergyMultiplier = 0.18f
         };
-        var tex = ResourceLoader.Load<Texture2D>("res://assets/lobby_menu.png");
-        if (tex != null) mat.AlbedoTexture = tex;
+        const string menuPath = "res://assets/lobby_menu.png";
+        if (FileAccess.FileExists(menuPath))
+        {
+            var img = Image.LoadFromFile(ProjectSettings.GlobalizePath(menuPath));
+            if (img != null && img.GetWidth() > 0 && img.GetHeight() > 0)
+                mat.AlbedoTexture = ImageTexture.CreateFromImage(img);
+        }
         var mi = new MeshInstance3D
         {
             Mesh = new BoxMesh { Size = size },

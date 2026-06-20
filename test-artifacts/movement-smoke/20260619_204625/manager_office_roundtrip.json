@@ -1,0 +1,9 @@
+{
+	"agent_id": "emp_28",
+	"depart_frame": -1,
+	"departed": false,
+	"max_distance_m": 0.0,
+	"return_frame": -1,
+	"returned": false,
+	"status": "no_departure"
+}

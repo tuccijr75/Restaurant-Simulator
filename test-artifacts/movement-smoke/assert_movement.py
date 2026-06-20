@@ -25,6 +25,8 @@ WALKIN_PROXIMITY_DISTANCE = 0.8
 DINING_ARRIVAL_SECONDS = 8.0
 RIGHT_POS_MIN_X = 3.0
 HEIGHT_TOLERANCE_M = 0.04
+OFFICE_DEPARTURE_DISTANCE_M = 2.0
+OFFICE_RETURN_RADIUS_M = 0.75
 
 
 def fail(failures, code, msg):
@@ -85,6 +87,7 @@ def main():
     agents_seen = 0
     customer_heights = []
     employee_heights = []
+    office_tracks = {}
 
     for line in sample_path.read_text(encoding="utf-8").splitlines():
         if not line.strip():
@@ -154,6 +157,25 @@ def main():
                 h = float(agent.get("apparent_height_m", 0.0))
                 if h > 0:
                     employee_heights.append(h)
+                track = office_tracks.setdefault(agent_id, {
+                    "home": None,
+                    "departed": False,
+                    "returned": False,
+                    "max_distance": 0.0,
+                    "last_phase": "",
+                    "last_slot": "",
+                })
+                if slot_id.startswith("work_office_") and track["home"] is None:
+                    track["home"] = sample_pos
+                if track["home"] is not None:
+                    office_distance = flat_dist(sample_pos, track["home"])
+                    track["max_distance"] = max(track["max_distance"], office_distance)
+                    if office_distance > OFFICE_DEPARTURE_DISTANCE_M:
+                        track["departed"] = True
+                    if track["departed"] and slot_id.startswith("work_office_") and office_distance <= OFFICE_RETURN_RADIUS_M:
+                        track["returned"] = True
+                    track["last_phase"] = phase
+                    track["last_slot"] = slot_id
 
             if phase == "Ordering":
                 if slot_id.startswith("pos_order_"):
@@ -245,11 +267,38 @@ def main():
         if abs(c_avg - e_avg) > HEIGHT_TOLERANCE_M:
             fail_once(failures, seen_failures, "height_mismatch", f"customer avg {c_avg:.2f}m employee avg {e_avg:.2f}m tolerance {HEIGHT_TOLERANCE_M:.2f}m")
 
+    office_probe_path = out_dir / "manager_office_roundtrip.json"
+    office_probe = None
+    office_probe_passed = False
+    if office_probe_path.exists():
+        office_probe = json.loads(office_probe_path.read_text(encoding="utf-8"))
+        office_probe_passed = office_probe.get("status") == "pass"
+        if not office_probe_passed:
+            fail_once(failures, seen_failures, "office_roundtrip_probe_failed", f"manager_office_roundtrip.json status {office_probe.get('status')}")
+
+    office_candidates = {agent_id: t for agent_id, t in office_tracks.items() if t["home"] is not None}
+    office_roundtrips = {agent_id: t for agent_id, t in office_candidates.items() if t["departed"] and t["returned"]}
+    if not office_probe_passed:
+        if not office_candidates:
+            fail_once(failures, seen_failures, "office_roundtrip_missing_employee", "no employee sampled at a work_office slot")
+        elif not any(t["departed"] for t in office_candidates.values()):
+            fail_once(failures, seen_failures, "office_roundtrip_no_departure", "office employee never left far enough to exercise the office door")
+        elif not office_roundtrips:
+            detail = "; ".join(
+                f"{agent_id} max {t['max_distance']:.2f}m last {t['last_phase']} {t['last_slot']}"
+                for agent_id, t in office_candidates.items()
+            )
+            fail_once(failures, seen_failures, "office_roundtrip_no_return", f"office employee left but did not return to work_office slot ({detail})")
+
     summary = {
         "status": "pass" if not failures else "fail",
         "samples": samples,
         "agents_seen": agents_seen,
         "failures": failures,
+        "office_roundtrip": {
+            "passed_agents": sorted(office_roundtrips.keys()),
+            "probe": office_probe,
+        },
         "thresholds": {
             "overlap_distance_m": OVERLAP_DISTANCE,
             "overlap_seconds": OVERLAP_SECONDS,
@@ -272,6 +321,8 @@ def main():
             "dining_arrival_seconds": DINING_ARRIVAL_SECONDS,
             "right_pos_min_x": RIGHT_POS_MIN_X,
             "height_tolerance_m": HEIGHT_TOLERANCE_M,
+            "office_departure_distance_m": OFFICE_DEPARTURE_DISTANCE_M,
+            "office_return_radius_m": OFFICE_RETURN_RADIUS_M,
         },
     }
     (out_dir / "movement_summary.json").write_text(json.dumps(summary, indent=2), encoding="utf-8")
