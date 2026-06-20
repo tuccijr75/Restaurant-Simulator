@@ -6,11 +6,11 @@ Project: Restaurant Simulator
 Repository: `E:\GitHub Projects\Restaurant Simulator\Restaurant Simulator`
 Branch: `main`
 Base SHA: `2d07332b88cf823d3d6fbbca9af9daadab6fc5d5`
-Current HEAD: `5bc0e6634e6cb6828fee63ee40e6f3cb1cc23dc7`
+Current HEAD: `57818772f8b73a3f18eb66f5c5ae3b9b73bd27e7`
 Task ID: `layout-interaction-functional-pass`
 Task Name: Seating, object collision, POS location, employee activity, kitchen/office layout, lobby furniture, walk-in scale, model scale
-Status: `REWORK_REQUIRED_OV2_VISUAL_DEFECTS`
-Handoff Version: 8.1
+Status: `READY_FOR_CLAUDE_REVIEW`
+Handoff Version: 9.0
 Last Updated: 2026-06-20
 Updated By: Claude Opus
 
@@ -35,7 +35,7 @@ In runtime smoke, layout and visible interactions read correctly: customers sit 
 
 ## OV2 Result
 
-Michael ran the binding visual smoke at HEAD `5bc0e66` and found FOUR defects (D1–D4 below). The machine gate is green and the architecture review is clear, but OV2 is the binding merge gate and it FAILED. Task returns to Codex for a scoped visual-correction pass. This is corrections, not redesign.
+Michael ran the binding visual smoke at HEAD `5bc0e66` and found FOUR defects (D1–D4 below). Codex implemented the scoped correction pass at HEAD `5781877`; machine verification is green again. OV2 remains binding and must be re-run by Michael.
 
 ## Corrections Packet (D1–D4) — allowed paths only
 
@@ -70,6 +70,16 @@ Acceptance:
 - Read the wall opening's coordinates/size from `WorldBuilder` and align the station to them (building opening is the reference); assert the station-opening AABB aligns with the wall opening within tol; crew drive-thru slot reachable in smoke.
 Files: `WorldBuilder.cs` (station position/scale + align to wall opening), `CrowdCoordinator.cs` (drive-thru slot).
 
+## Codex D1-D4 Implementation Result
+
+D1 — IMPLEMENTED. Seat metadata now carries visual seated offsets; customers apply seated model offsets on arrival; movement telemetry records seated yaw, target yaw, seat kind, and seated visual offset. `assert_movement.py` now fails on wrong seated yaw or missing/wrong seated offsets for booth/chair seats. Latest smoke includes 107 post-arrival Dining samples that exercised these checks.
+
+D2 — IMPLEMENTED. Expo moved back from the counter; `layout_metrics.json` records `expo_counter_gap_m=1.04999995231628`, above the locked 1.0m minimum.
+
+D3 — IMPLEMENTED. Menu board changed from a textured box to explicit front/back quads using the same `lobby_menu.png` material, with a thin backing board. Dedicated screenshot capture was attempted but not used as evidence because the gameplay camera kept owning the viewport; final visual confirmation remains OV2.
+
+D4 — IMPLEMENTED. Drive-thru station proxy is aligned to the west-wall aperture; `layout_metrics.json` records center/size errors near zero (`center=0.000000381m`, width `0.000000763m`, depth `0.000000191m`). Drive-thru work anchor moved with the station.
+
 ## Decisions Reserved for Michael
 
 - D2-AISLE — RESOLVED by Michael: ≥1.0m clear walkable gap between expo station and front counter.
@@ -78,45 +88,61 @@ Files: `WorldBuilder.cs` (station position/scale + align to wall opening), `Crow
 
 ## Claude Review
 
-Verdict: `REWORK_REQUIRED` (scoped to OV2 defects D1–D4). No prior verdict inherited.
+Verdict: `PENDING_CLAUDE_REVIEW`
 
-The machine gate at `5bc0e66` is green and Codex addressed the canonical-replay auditability note (deterministic replay now via the canonical engine self-test; hash still byte-identical to base) and correctly left the Claude Review section as PENDING. Architecture and determinism are clear. The block is the binding visual gate: OV2 surfaced four concrete layout/pose/texture defects that no machine check caught. D1 in particular exposes a real lesson — the seat assertion passed while the seated pose is visibly wrong, so the assertion was validating arrival, not pose; it must be tightened (D1 acceptance) so green means right.
+Reason: HEAD moved from Claude-reviewed `5bc0e66` to D1-D4 implementation HEAD `5781877`. Per workflow contract, Claude must re-stamp review. Codex re-ran the verification gate and updated evidence below.
 
-Path to merge: Codex implements D1–D4 → re-runs the full Verification Gate at the new HEAD with fresh evidence (including front+back menu render, drive-thru alignment, and seated-pose screenshots) → Michael re-runs OV2 on the four affected views → D-STALL decision → merge.
+## Codex Implementation Summary (state at `5781877`)
 
-Reviewed By: Claude Opus — 2026-06-20.
+Changed files (allowed paths): `WorldBuilder.cs`, `CrowdCoordinator.cs`, `CustomerAgent.cs`, `CharacterRig.cs`, `assert_movement.py`, `movement_smoke_runner.gd`, `HANDOFF.md`. New committed evidence: `test-artifacts/movement-smoke/20260620_083601/` including screenshots, `layout_metrics.json`, `movement_samples.jsonl`, `movement_summary.json`, and `manager_office_roundtrip.json`.
 
-## Codex Implementation Summary (state at `5bc0e66`)
+## Verification Gate (run at HEAD `57818772f8b73a3f18eb66f5c5ae3b9b73bd27e7`)
 
-Changed files (allowed paths): `WorldBuilder.cs`, `CrowdCoordinator.cs`, `CustomerAgent.cs`, `AgentManager.cs`, `CharacterRig.cs`, `assert_movement.py`, `movement_smoke_runner.gd`, `HANDOFF.md`. Committed evidence after `0d8c259`: `game/assets/lobby_menu.png.import`, `test-artifacts/movement-smoke/20260619_222253/`, `test-artifacts/menu-render-check/`, `test-artifacts/compat-bundles/current-head-normal-day-csharp/`, packaging metadata. Latest gate rerun evidence `test-artifacts/movement-smoke/20260619_232048/`. `CrowdCoordinator.cs.uid` left per repo convention.
+Build: PASSED
+Unit Tests: PASSED
+Integration Tests: PASSED
+Static Analysis: PASSED (py_compile of parser only)
+Schema Validation: PASSED
+Deterministic Replay: PASSED
+Save/Load Compat: PASSED
+Runtime Smoke: PASSED
+Packaging: PASSED
+Generated File Check: PASSED
 
-## Verification Gate (last green run @ `5bc0e66` — MUST re-run at the D1–D4 HEAD)
-
-Build: PASSED · Unit: PASSED · Integration: PASSED · Static Analysis: PASSED (py_compile of parser only) · Schema: PASSED · Deterministic Replay: PASSED (canonical self-test; hash `05464c88…e83d18b6`, byte-identical to base) · Save/Load Compat: PASSED (14 OK) · Runtime Smoke: PASSED (`20260619_232048`, 323/1958/0; OV1 round-trip PASS) · Packaging: PASSED · Generated File Check: PASSED.
-
-Gate Result @ `5bc0e66`: PASSED. This result is VOID for merge purposes once D1–D4 move HEAD; the gate must be re-run and re-populated at the new commit SHA.
+### Gate Result
+Status: PASSED
+Evidence:
+- Build: `dotnet build game\RestaurantSimulator.csproj --nologo`; exit 0; 0 warnings / 0 errors; SHA `5781877`.
+- Static analysis: `python -m py_compile test-artifacts\movement-smoke\assert_movement.py`; exit 0; SHA `5781877`.
+- Runtime parser: `python test-artifacts\movement-smoke\assert_movement.py test-artifacts\movement-smoke\20260620_083601`; exit 0; PASS 323 samples / 1959 agent samples / 0 failures; SHA `5781877`.
+- Runtime smoke evidence: committed `test-artifacts/movement-smoke/20260620_083601/`; `manager_office_roundtrip.json` PASS (`emp_28`, depart 41, max 2.036m, return 71); `layout_metrics.json` status ok; SHA `5781877`.
+- Unit/integration/schema: `python -m unittest discover -s tests -v`; exit 0; 35 tests OK, 14 skipped because no bundle was provided in broad discovery; SHA `5781877`.
+- Save/load compat: `$env:RS_COMPAT_BUNDLES=<current-head-normal-day-csharp>; python -m unittest tests.test_compatibility -v`; exit 0; 14 OK; ResourceWarnings only; SHA `5781877`.
+- Engine self-test/deterministic replay: `dotnet run --project tools\engine-selftest\harness.csproj`; exit 0; PASS 120/120, ingredient 10/10, career 11/11; deterministic replay checks passed; SHA `5781877`.
+- Packaging: `dotnet publish game\RestaurantSimulator.csproj -c Debug --nologo --no-restore -o test-artifacts\packaging\RestaurantSimulator-debug`; exit 0; SHA `5781877`.
+- Generated file check: `git status --short --branch --ignored`; exit 0; no tracked/untracked source changes; ignored local build/cache only; SHA `5781877`.
 
 ### Gate Rule
 Task may not move to READY_FOR_CLAUDE_REVIEW unless all required checks pass. Task may not move to APPROVED_FOR_MERGE unless: gate passes at HEAD; Claude completes review; unresolved blocking risks are zero; the binding OV2 visual smoke is clean; Michael approves the merge. Do not weaken/skip/delete failing tests to obtain a pass; if a check cannot run, mark BLOCKED with the reason.
 
 ## Known Risks (residual)
 
-- D1 seat assertion was passing while the pose was visibly wrong — until tightened, machine green does not guarantee correct seating.
+- D1 machine assertion is now tightened and exercised, but Michael's OV2 visual smoke remains binding.
 - Mobile-entry stall (`cust_ord_000002`) — non-reproduced, not resolved (D-STALL).
-- D2/D4 repositions could perturb nav — re-run smoke to confirm no new stall.
-- D3/D4 are visual-correctness items — confirmed only by the re-run OV2.
+- D3 front/back texture is implemented through two quads but still needs Michael OV2 visual confirmation; the attempted dedicated screenshot runner was discarded as unreliable.
+- D4 alignment is machine-measured clean, but final visual confirmation remains OV2.
 
 ## Rollback
 
-Targeted restoring commit or revert of implementation commit(s) up to the D1–D4 HEAD. No reset/rebase/discard/delete without Michael approval.
+Targeted restoring commit or revert of implementation commit(s) up to `5781877`. No reset/rebase/discard/delete without Michael approval.
 
 ## Michael Approval
 
 Specification Approved: `APPROVED 2026-06-19` (D1–D4 corrections within approved scope)
 Material Decisions: `M1–M4 APPROVED`; height `RATIFIED 1.72m`; `D2-AISLE` RESOLVED (≥1.0m); `D3-BACK` RESOLVED (identical texture); `D-STALL` OPEN
-Human Visual Smoke (OV2): `FAILED 2026-06-20` — defects D1–D4; re-smoke required after corrections
-Merge Approved: `PENDING` (blocked by OV2 defects)
+Human Visual Smoke (OV2): `PENDING RE-SMOKE` — D1–D4 corrections implemented at `5781877`; Michael re-smoke required
+Merge Approved: `PENDING` (blocked by Claude review, OV2 re-smoke, D-STALL decision, Michael approval)
 
 ## Next Authorized Action
 
-Codex implements D1–D4 in allowed paths (D2-AISLE ≥1.0m and D3-BACK identical-texture are now locked), re-runs the full Verification Gate at the new HEAD with fresh evidence (front+back menu render, drive-thru alignment, seated-pose screenshots, movement smoke), and leaves Claude Review PENDING. Then Claude re-reviews, Michael re-runs OV2 on the four affected views and decides D-STALL, and grants merge only if all close.
+Claude re-reviews v9.0 evidence at HEAD `5781877`. If Claude clears review, Michael re-runs OV2 on D1–D4, decides D-STALL, and grants merge only if all close.
