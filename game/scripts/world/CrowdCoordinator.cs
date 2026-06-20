@@ -332,6 +332,8 @@ public sealed class CrowdCoordinator
             customer.TableSpot = seat.Seat;
             customer.TraySpot = seat.Tray;
             customer.SeatYawDeg = seat.YawDeg;
+            customer.SeatTargetVisualYOffset = seat.VisualYOffset;
+            customer.SeatKind = seat.Kind;
         }
     }
 
@@ -465,6 +467,10 @@ public sealed class CrowdCoordinator
         sb.Append(",\"ticket_id\":\"").Append(Json(c.OrderId)).Append("\",\"ticket_complete\":").Append(c.TicketDone ? "true" : "false")
           .Append(",\"carrying_food\":").Append(c.CarryingFood ? "true" : "false")
           .Append(",\"outside_store\":").Append(c.OutsideStore ? "true" : "false")
+          .Append(",\"rotation_y_deg\":").Append(Num(Mathf.RadToDeg(c.Rotation.Y)))
+          .Append(",\"seat_yaw_deg\":").Append(Num(c.SeatYawDeg))
+          .Append(",\"seat_visual_y_offset\":").Append(Num(c.SeatTargetVisualYOffset))
+          .Append(",\"seat_kind\":\"").Append(Json(c.SeatKind)).Append("\"")
           .Append(",\"phase_seconds\":").Append(Num(c.PhaseSeconds)).Append('}');
     }
 

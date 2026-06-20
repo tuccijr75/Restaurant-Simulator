@@ -13,6 +13,7 @@ public sealed class WorldLayout
         public Vector3 Seat;
         public Vector3 Tray;
         public float YawDeg;
+        public float VisualYOffset;
         public string Kind = "";
         public bool EmployeeOnly;
     }
@@ -102,7 +103,7 @@ public static class WorldBuilder
         // ---------- kitchen: drive-thru-first production line ----------
         // Model facing via yaw: 0=+Z(front), 90=+X(right), 180=-Z(back), 270=-X(left).
         // If a loaded model faces the wrong way, add/subtract 90 to its yaw.
-        Station(w, L, "expo", new Vector3(-6.35f, 0.8f, -2.35f), new Vector3(2.4f, 0.9f, 0.8f), Steel, "EXPO", glow: new Color(1f, 0.55f, 0.15f), yaw: 180f, modelScale: new Vector3(1.0f, 1.8f, 1.0f));
+        Station(w, L, "expo", new Vector3(-6.35f, 0.8f, -2.9f), new Vector3(2.4f, 0.9f, 0.8f), Steel, "EXPO", glow: new Color(1f, 0.55f, 0.15f), yaw: 180f, modelScale: new Vector3(1.0f, 1.8f, 1.0f));
         Prop(w, "french_fries", new Vector3(-7.1f, 0.6f, -8.55f), new Vector3(1.0f, 1.2f, 0.7f), new Color(0.85f, 0.7f, 0.25f), yaw: 90f);
         Station(w, L, "fryer", new Vector3(-5.4f, 0.5f, -8.55f), new Vector3(3.0f, 1.0f, 1.1f), Steel, "FRYERS", glow: new Color(1f, 0.75f, 0.2f), yaw: 90f);
         Station(w, L, "assembly", new Vector3(-2.0f, 0.5f, -4.95f), new Vector3(3.9f, 0.95f, 1.45f), Steel, "SANDWICH", yaw: 90f);
@@ -124,7 +125,7 @@ public static class WorldBuilder
         L.Anchor["beverage"] = new Vector3(-10.8f, 0.7f, -1.6f);
 
         // (1) drive-thru window on the LEFT (west) wall; faces INTO the kitchen (+X)
-        Station(w, L, "dt_window", new Vector3(-11.6f, 0.6f, -3.0f), new Vector3(0.6f, 1.1f, 1.4f), Steel, "DT WINDOW", yaw: 90f);
+        Station(w, L, "dt_window", new Vector3(-11.85f, 1.55f, -3.0f), new Vector3(0.3f, 2.2f, 1.55f), Steel, "DT WINDOW", yaw: 90f);
 
         // (2) walk-in: back-RIGHT corner, 10% larger; the model door remains the door.
         Station(w, L, "cooler", new Vector3(16.0f, 1.57f, -8.65f), new Vector3(3.63f, 3.15f, 3.63f), new Color(0.8f, 0.84f, 0.88f), "WALK-IN", yaw: 270f, modelScale: new Vector3(1.1f, 1.1f, 1.1f));
@@ -201,9 +202,9 @@ public static class WorldBuilder
         L.Anchor["work_prep"] = new Vector3(10.4f, 0, -8.25f);
         L.Anchor["work_assembly"] = new Vector3(-2.0f, 0, -3.75f);
         L.Anchor["work_beverage"] = new Vector3(-10.2f, 0, -2.2f);
-        L.Anchor["work_expo"] = new Vector3(-6.35f, 0, -1.65f);
+        L.Anchor["work_expo"] = new Vector3(-6.35f, 0, -2.15f);
         L.Anchor["work_counter"] = new Vector3(3.6f, 0, -1.8f);
-        L.Anchor["work_dt"] = new Vector3(-10.2f, 0, -3.0f);       // at the drive-thru window, inside
+        L.Anchor["work_dt"] = new Vector3(-10.75f, 0, -3.0f);      // at the drive-thru window, inside
         L.Anchor["work_office"] = new Vector3(-10.0f, 0, -8.75f);  // manager sits/stands behind the office desk
         L.Sun = sun; L.SkyMat = sky;
         L.LotLights.AddRange(_lotLights); _lotLights.Clear();
@@ -339,7 +340,8 @@ public static class WorldBuilder
             Roughness = 0.7f,
             EmissionEnabled = true,
             Emission = Colors.White,
-            EmissionEnergyMultiplier = 0.18f
+            EmissionEnergyMultiplier = 0.18f,
+            CullMode = BaseMaterial3D.CullModeEnum.Disabled
         };
         const string menuPath = "res://assets/lobby_menu.png";
         if (FileAccess.FileExists(menuPath))
@@ -348,15 +350,25 @@ public static class WorldBuilder
             if (img != null && img.GetWidth() > 0 && img.GetHeight() > 0)
                 mat.AlbedoTexture = ImageTexture.CreateFromImage(img);
         }
-        var mi = new MeshInstance3D
+        var backing = Box(parent, size, pos, new Color(0.05f, 0.05f, 0.055f), name);
+        var front = new MeshInstance3D
         {
-            Mesh = new BoxMesh { Size = size },
-            Position = pos,
-            Name = name,
+            Mesh = new QuadMesh { Size = new Vector2(size.X, size.Y) },
+            Position = pos + new Vector3(0, 0, size.Z / 2f + 0.004f),
+            Name = name + "_front",
             MaterialOverride = mat
         };
-        parent.AddChild(mi);
-        return mi;
+        parent.AddChild(front);
+        var back = new MeshInstance3D
+        {
+            Mesh = new QuadMesh { Size = new Vector2(size.X, size.Y) },
+            Position = pos - new Vector3(0, 0, size.Z / 2f + 0.004f),
+            RotationDegrees = new Vector3(0, 180f, 0),
+            Name = name + "_back",
+            MaterialOverride = mat
+        };
+        parent.AddChild(back);
+        return backing;
     }
 
     static void Glas(Node3D parent, Vector3 size, Vector3 pos, string name)
@@ -371,9 +383,9 @@ public static class WorldBuilder
         mi.Visible = false;
     }
 
-    static void AddSeat(WorldLayout L, Vector3 seat, Vector3 tray, float yawDeg, string kind, bool employeeOnly)
+    static void AddSeat(WorldLayout L, Vector3 seat, Vector3 tray, float yawDeg, string kind, bool employeeOnly, float visualYOffset = 0f)
     {
-        L.Seats.Add(new WorldLayout.SeatSpot { Seat = seat, Tray = tray, YawDeg = yawDeg, Kind = kind, EmployeeOnly = employeeOnly });
+        L.Seats.Add(new WorldLayout.SeatSpot { Seat = seat, Tray = tray, YawDeg = yawDeg, VisualYOffset = visualYOffset, Kind = kind, EmployeeOnly = employeeOnly });
         if (!employeeOnly) L.Tables.Add(seat);
     }
 
@@ -384,8 +396,8 @@ public static class WorldBuilder
         Decor(w, "booth", at + new Vector3(0.55f, 0.225f, 0), new Vector3(1.25f, 0.45f, 1.0f), color, yaw: yaw + 180f);
         Decor(w, "table", at + new Vector3(0, 0.78f, 0), new Vector3(1.15f, 0.08f, 0.82f), new Color(0.72f, 0.55f, 0.38f));
         NavObstacle(w, new Vector3(1.2f, 0.95f, 0.85f), at + new Vector3(0, 0.48f, 0), prefix + "_booth_table_" + L.Seats.Count);
-        AddSeat(L, at + new Vector3(-0.55f, 0, -0.72f), at + new Vector3(-0.25f, 0.78f, -0.08f), 0f, "booth", employeeOnly);
-        AddSeat(L, at + new Vector3(0.55f, 0, 0.72f), at + new Vector3(0.25f, 0.78f, 0.08f), 180f, "booth", employeeOnly);
+        AddSeat(L, at + new Vector3(-0.55f, 0, -0.58f), at + new Vector3(-0.25f, 0.78f, -0.08f), 0f, "booth", employeeOnly, -0.24f);
+        AddSeat(L, at + new Vector3(0.55f, 0, 0.58f), at + new Vector3(0.25f, 0.78f, 0.08f), 180f, "booth", employeeOnly, -0.24f);
     }
 
     static void AddTableSet(Node3D w, WorldLayout L, Vector3 at, string prefix)
@@ -394,8 +406,8 @@ public static class WorldBuilder
         Decor(w, "chair", at + new Vector3(0, 0.25f, 0.88f), new Vector3(0.45f, 0.5f, 0.45f), Steel, yaw: 180f);
         Decor(w, "chair", at + new Vector3(0, 0.25f, -0.88f), new Vector3(0.45f, 0.5f, 0.45f), Steel, yaw: 0f);
         NavObstacle(w, new Vector3(1.15f, 0.95f, 1.15f), at + new Vector3(0, 0.48f, 0), prefix + "_table_" + L.Seats.Count);
-        AddSeat(L, at + new Vector3(0, 0, 1.08f), at + new Vector3(0, 0.78f, 0.2f), 180f, "chair", false);
-        AddSeat(L, at + new Vector3(0, 0, -1.08f), at + new Vector3(0, 0.78f, -0.2f), 0f, "chair", false);
+        AddSeat(L, at + new Vector3(0, 0, 1.03f), at + new Vector3(0, 0.78f, 0.2f), 180f, "chair", false, -0.14f);
+        AddSeat(L, at + new Vector3(0, 0, -1.03f), at + new Vector3(0, 0.78f, -0.2f), 0f, "chair", false, -0.14f);
     }
 
     static void Station(Node3D w, WorldLayout L, string id, Vector3 pos, Vector3 size, Color color, string label, Color? glow = null, bool hide = false, float yaw = 0f, Vector3? modelScale = null)

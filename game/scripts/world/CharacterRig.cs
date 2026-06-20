@@ -31,6 +31,7 @@ public partial class CharacterRig : Node3D
     /// Persistent state action set by the agent (e.g. "sitting", "sweeping"); wins
     /// over work/idle while standing. Empty = normal walk/work/idle selection.
     public string ActionAnim = "";
+    public float SeatedVisualYOffset;
     string _oneShotAnim = "";
     float _oneShotTimer;
     // (13) sweep stroke: scrub only part of the sweep clip, back and forth, so the broom
@@ -401,7 +402,7 @@ public partial class CharacterRig : Node3D
                 if (Working && !Moving && _seat == SeatState.None && ActionAnim.Length == 0 && _oneShotTimer <= 0f && WorkUsesFallback() && _modelInstance != null)
                     _modelInstance.Position = new Vector3(0, _modelBaseY + Mathf.Sin(_t * 8.0f) * 0.025f, Mathf.Sin(_t * 10.0f) * 0.018f);
                 else if (_modelInstance != null && !Moving)
-                    _modelInstance.Position = new Vector3(0, _modelBaseY, 0);
+                    _modelInstance.Position = new Vector3(0, _modelBaseY + (_seat != SeatState.None ? SeatedVisualYOffset : 0f), 0);
             }
             else if (_boneDriven)
             {
@@ -410,7 +411,7 @@ public partial class CharacterRig : Node3D
             else if (_modelInstance != null)
             {
                 // No clips, no usable rig: bob the whole body so walking isn't static.
-                _modelInstance.Position = new Vector3(0, _modelBaseY + (Moving ? Mathf.Abs(Mathf.Sin(_t * 7.5f)) * 0.04f : 0f), 0);
+                _modelInstance.Position = new Vector3(0, _modelBaseY + (_seat != SeatState.None ? SeatedVisualYOffset : 0f) + (Moving ? Mathf.Abs(Mathf.Sin(_t * 7.5f)) * 0.04f : 0f), 0);
             }
             return;
         }

@@ -27,6 +27,14 @@ RIGHT_POS_MIN_X = 3.0
 HEIGHT_TOLERANCE_M = 0.04
 OFFICE_DEPARTURE_DISTANCE_M = 2.0
 OFFICE_RETURN_RADIUS_M = 0.75
+SEATED_YAW_TOLERANCE_DEG = 18.0
+BOOTH_SEATED_OFFSET_MIN = -0.35
+BOOTH_SEATED_OFFSET_MAX = -0.15
+CHAIR_SEATED_OFFSET_MIN = -0.24
+CHAIR_SEATED_OFFSET_MAX = -0.06
+EXPO_COUNTER_GAP_MIN_M = 1.0
+DT_WINDOW_CENTER_TOLERANCE_M = 0.08
+DT_WINDOW_SIZE_TOLERANCE_M = 0.08
 
 
 def fail(failures, code, msg):
@@ -62,6 +70,11 @@ def flat_dist(a, b):
     dx = a[0] - b[0]
     dz = a[1] - b[1]
     return (dx * dx + dz * dz) ** 0.5
+
+
+def angle_delta_deg(a, b):
+    d = (a - b + 180.0) % 360.0 - 180.0
+    return abs(d)
 
 
 def main():
@@ -132,6 +145,7 @@ def main():
             ticket_complete = bool(agent.get("ticket_complete", False))
             carrying = bool(agent.get("carrying_food", False))
             outside = bool(agent.get("outside_store", False))
+            sample_pos = pos(agent)
 
             if stuck > STUCK_SECONDS and distance > STUCK_TARGET_DISTANCE:
                 fail_key(failures, seen_failures, ("stuck", agent_id), "stuck", f"{agent_id} stuck {stuck:.2f}s at {distance:.2f}m from target")
@@ -148,6 +162,18 @@ def main():
                     fail_key(failures, seen_failures, ("dining_timeout", agent_id), "dining_timeout", f"{agent_id} dining {phase_seconds:.2f}s limit {DINING_SECONDS:.2f}s")
                 if not phase_changed and phase == "Dining" and phase_seconds > DINING_ARRIVAL_SECONDS and distance > ARRIVAL_RADIUS:
                     fail_key(failures, seen_failures, ("dining_seat_unreached", agent_id), "dining_seat_unreached", f"{agent_id} dining seat not reached after {phase_seconds:.2f}s distance {distance:.2f}m")
+                if phase == "Dining" and phase_seconds > DINING_ARRIVAL_SECONDS and distance <= ARRIVAL_RADIUS:
+                    seat_kind = agent.get("seat_kind", "")
+                    seat_offset = float(agent.get("seat_visual_y_offset", 0.0))
+                    if seat_kind == "booth" and not (BOOTH_SEATED_OFFSET_MIN <= seat_offset <= BOOTH_SEATED_OFFSET_MAX):
+                        fail_key(failures, seen_failures, ("booth_seat_offset", agent_id), "booth_seat_offset", f"{agent_id} booth seat visual offset {seat_offset:.2f} outside {BOOTH_SEATED_OFFSET_MIN:.2f}..{BOOTH_SEATED_OFFSET_MAX:.2f}")
+                    if seat_kind == "chair" and not (CHAIR_SEATED_OFFSET_MIN <= seat_offset <= CHAIR_SEATED_OFFSET_MAX):
+                        fail_key(failures, seen_failures, ("chair_seat_offset", agent_id), "chair_seat_offset", f"{agent_id} chair seat visual offset {seat_offset:.2f} outside {CHAIR_SEATED_OFFSET_MIN:.2f}..{CHAIR_SEATED_OFFSET_MAX:.2f}")
+                    yaw = float(agent.get("rotation_y_deg", 0.0))
+                    expected_yaw = float(agent.get("seat_yaw_deg", 0.0))
+                    yaw_delta = angle_delta_deg(yaw, expected_yaw)
+                    if yaw_delta > SEATED_YAW_TOLERANCE_DEG:
+                        fail_key(failures, seen_failures, ("seated_yaw", agent_id), "seated_yaw", f"{agent_id} seated yaw {yaw:.1f} expected {expected_yaw:.1f} delta {yaw_delta:.1f}")
                 if not phase_changed and phase == "Busing" and phase_seconds > BUSING_SECONDS:
                     fail_key(failures, seen_failures, ("busing_timeout", agent_id), "busing_timeout", f"{agent_id} busing {phase_seconds:.2f}s limit {BUSING_SECONDS:.2f}s")
                 if not phase_changed and phase == "Leave" and phase_seconds > LEAVE_SECONDS:
@@ -199,7 +225,6 @@ def main():
             else:
                 outside_food_time[agent_id] = 0.0
 
-            sample_pos = pos(agent)
             hist = jitter.setdefault(agent_id, [])
             hist.append((now, sample_pos, distance, slot_id, phase))
             while hist and now - hist[0][0] > JITTER_WINDOW_SECONDS:
@@ -290,6 +315,23 @@ def main():
             )
             fail_once(failures, seen_failures, "office_roundtrip_no_return", f"office employee left but did not return to work_office slot ({detail})")
 
+    layout_metrics_path = out_dir / "layout_metrics.json"
+    layout_metrics = None
+    if layout_metrics_path.exists():
+        layout_metrics = json.loads(layout_metrics_path.read_text(encoding="utf-8"))
+        gap = float(layout_metrics.get("expo_counter_gap_m", 0.0))
+        if gap < EXPO_COUNTER_GAP_MIN_M:
+            fail_once(failures, seen_failures, "expo_counter_gap", f"expo/counter gap {gap:.2f}m below {EXPO_COUNTER_GAP_MIN_M:.2f}m")
+        center_error = float(layout_metrics.get("dt_window_center_error_m", 999.0))
+        width_error = float(layout_metrics.get("dt_window_width_error_m", 999.0))
+        depth_error = float(layout_metrics.get("dt_window_depth_error_m", 999.0))
+        if center_error > DT_WINDOW_CENTER_TOLERANCE_M:
+            fail_once(failures, seen_failures, "dt_window_center", f"drive-thru window center error {center_error:.2f}m tolerance {DT_WINDOW_CENTER_TOLERANCE_M:.2f}m")
+        if width_error > DT_WINDOW_SIZE_TOLERANCE_M or depth_error > DT_WINDOW_SIZE_TOLERANCE_M:
+            fail_once(failures, seen_failures, "dt_window_size", f"drive-thru window size errors x={width_error:.2f}m z={depth_error:.2f}m tolerance {DT_WINDOW_SIZE_TOLERANCE_M:.2f}m")
+    else:
+        fail_once(failures, seen_failures, "missing_layout_metrics", "layout_metrics.json was not written")
+
     summary = {
         "status": "pass" if not failures else "fail",
         "samples": samples,
@@ -323,7 +365,12 @@ def main():
             "height_tolerance_m": HEIGHT_TOLERANCE_M,
             "office_departure_distance_m": OFFICE_DEPARTURE_DISTANCE_M,
             "office_return_radius_m": OFFICE_RETURN_RADIUS_M,
+            "seated_yaw_tolerance_deg": SEATED_YAW_TOLERANCE_DEG,
+            "expo_counter_gap_min_m": EXPO_COUNTER_GAP_MIN_M,
+            "dt_window_center_tolerance_m": DT_WINDOW_CENTER_TOLERANCE_M,
+            "dt_window_size_tolerance_m": DT_WINDOW_SIZE_TOLERANCE_M,
         },
+        "layout_metrics": layout_metrics,
     }
     (out_dir / "movement_summary.json").write_text(json.dumps(summary, indent=2), encoding="utf-8")
     print(json.dumps(summary))

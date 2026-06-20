@@ -1,0 +1,18 @@
+{
+	"dt_window_center_error_m": 0.000000381469726917771,
+	"dt_window_depth_error_m": 0.000000190734863236841,
+	"dt_window_width_error_m": 0.000000762939453113898,
+	"expected": {
+		"dt_window_center": {
+			"x": -11.85,
+			"z": -3.0
+		},
+		"dt_window_size": {
+			"x": 0.3,
+			"z": 1.55
+		},
+		"expo_counter_gap_m": 1.0
+	},
+	"expo_counter_gap_m": 1.04999995231628,
+	"status": "ok"
+}

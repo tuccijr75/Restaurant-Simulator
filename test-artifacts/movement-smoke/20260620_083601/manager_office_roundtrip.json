@@ -1,0 +1,9 @@
+{
+	"agent_id": "emp_28",
+	"depart_frame": 41,
+	"departed": true,
+	"max_distance_m": 2.03625695637578,
+	"return_frame": 71,
+	"returned": true,
+	"status": "pass"
+}

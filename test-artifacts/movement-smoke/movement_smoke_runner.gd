@@ -41,6 +41,7 @@ func _run() -> void:
 			await _frames(900)
 		_capture("%02d_overhead.png" % i)
 	_write_office_roundtrip()
+	_write_layout_metrics()
 	print("[MovementSmoke] output_dir=", out_dir)
 	quit()
 
@@ -164,6 +165,59 @@ func _write_office_roundtrip() -> void:
 	f.close()
 	print("[MovementSmoke] office_roundtrip=", JSON.stringify(office_roundtrip))
 
+func _write_layout_metrics() -> void:
+	var counter := _world_aabb("counter")
+	var expo := _world_aabb("st_expo")
+	var dt := _world_aabb("st_dt_window")
+	var metrics := {
+		"status": "ok",
+		"expo_counter_gap_m": 0.0,
+		"dt_window_center_error_m": 999.0,
+		"dt_window_width_error_m": 999.0,
+		"dt_window_depth_error_m": 999.0,
+		"expected": {
+			"expo_counter_gap_m": 1.0,
+			"dt_window_center": {"x": -11.85, "z": -3.0},
+			"dt_window_size": {"x": 0.3, "z": 1.55}
+		}
+	}
+	if counter.has("min") and expo.has("max"):
+		metrics.expo_counter_gap_m = counter.min.z - expo.max.z
+	else:
+		metrics.status = "missing_counter_or_expo"
+	if dt.has("center"):
+		var center: Vector3 = dt["center"]
+		metrics.dt_window_center_error_m = sqrt(pow(center.x + 11.85, 2.0) + pow(center.z + 3.0, 2.0))
+		var dt_size: Vector3 = dt["size"]
+		metrics.dt_window_width_error_m = abs(dt_size.x - 0.3)
+		metrics.dt_window_depth_error_m = abs(dt_size.z - 1.55)
+	else:
+		metrics.status = "missing_dt_window"
+	var f := FileAccess.open(out_dir.path_join("layout_metrics.json"), FileAccess.WRITE)
+	if f == null:
+		print("[MovementSmoke] failed to write layout_metrics.json")
+		return
+	f.store_string(JSON.stringify(metrics, "\t"))
+	f.close()
+	print("[MovementSmoke] layout_metrics=", JSON.stringify(metrics))
+
+func _world_aabb(name: String) -> Dictionary:
+	var node := _find_node_named(scene, name)
+	if node == null or not (node is MeshInstance3D):
+		return {}
+	var mi := node as MeshInstance3D
+	var aabb := mi.get_aabb()
+	var min_v := Vector3(INF, INF, INF)
+	var max_v := Vector3(-INF, -INF, -INF)
+	for x in [0.0, aabb.size.x]:
+		for y in [0.0, aabb.size.y]:
+			for z in [0.0, aabb.size.z]:
+				var p := mi.global_transform * (aabb.position + Vector3(x, y, z))
+				min_v = Vector3(min(min_v.x, p.x), min(min_v.y, p.y), min(min_v.z, p.z))
+				max_v = Vector3(max(max_v.x, p.x), max(max_v.y, p.y), max(max_v.z, p.z))
+	var size := max_v - min_v
+	return {"min": min_v, "max": max_v, "size": size, "center": (min_v + max_v) * 0.5}
+
 func _hide_node_named(n: Node, target_name: String) -> bool:
 	if n.name == target_name:
 		if n is Node3D:
@@ -173,3 +227,12 @@ func _hide_node_named(n: Node, target_name: String) -> bool:
 		if _hide_node_named(child, target_name):
 			return true
 	return false
+
+func _find_node_named(n: Node, target_name: String) -> Node:
+	if n.name == target_name:
+		return n
+	for child in n.get_children():
+		var found := _find_node_named(child, target_name)
+		if found != null:
+			return found
+	return null

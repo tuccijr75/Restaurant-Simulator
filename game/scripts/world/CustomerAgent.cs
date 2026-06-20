@@ -19,6 +19,8 @@ public partial class CustomerAgent : CharacterRig
     public Vector3 QueueSpot, WaitSpot, PickupSpot, TableSpot, ExitSpot, BusSpot;
     public Vector3 TraySpot;
     public float SeatYawDeg;
+    public float SeatTargetVisualYOffset;
+    public string SeatKind = "";
     public CrowdCoordinator? Crowd;
     public string SlotId = "";
     public bool Courier;
@@ -160,6 +162,7 @@ public partial class CustomerAgent : CharacterRig
                     if (!Reached(TargetFor(Phase.Dining), delta, 0.55f)) break;
                     Position = TargetFor(Phase.Dining);
                     Rotation = new Vector3(0, Mathf.DegToRad(SeatYawDeg), 0);
+                    SeatedVisualYOffset = SeatTargetVisualYOffset;
                     _seatedAtTable = true;
                     RequestSeated(true);                 // actually sit at the table
                     TrayToTable();                       // tray goes down on the table
