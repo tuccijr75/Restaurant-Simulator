@@ -12,6 +12,7 @@ public partial class CharacterRig : Node3D
     float _t;
     public bool Moving, Working;
     public float WalkSpeed = 1.5f;
+    public float ApparentHeight { get; private set; } = 1.72f;
     public bool DestinationBlocked { get; private set; }
     public float DestinationBlockedSeconds { get; private set; }
     public float MovementStuckSeconds => _stuckSeconds;
@@ -56,6 +57,7 @@ public partial class CharacterRig : Node3D
     public void BuildHuman(Color shirt, Color pants, Color skin, Color? hat = null, float heightScale = 1f)
     {
         Scale = new Vector3(Mathf.Clamp(heightScale, 0.9f, 1.1f), Mathf.Clamp(heightScale, 0.9f, 1.1f), Mathf.Clamp(heightScale, 0.9f, 1.1f));
+        ApparentHeight = 1.75f * Scale.Y;
         _legL = Limb(new Vector3(-0.11f, 0.38f, 0), 0.075f, 0.62f, pants);
         _legR = Limb(new Vector3(0.11f, 0.38f, 0), 0.075f, 0.62f, pants);
         _body = Limb(new Vector3(0, 1.02f, 0), 0.21f, 0.62f, shirt);
@@ -103,7 +105,7 @@ public partial class CharacterRig : Node3D
     /// RS-VS-002: swap the procedural body for an imported model (res://...glb).
     /// Returns false if the resource is missing or isn't a Node3D, so the caller
     /// can fall back to BuildHuman and never end up with an invisible agent.
-    public bool BuildModel(string resPath, float scale = 1f, float yawDegrees = 0f, float yOffset = 0f)
+    public bool BuildModel(string resPath, float scale = 1f, float yawDegrees = 0f, float yOffset = 0f, float targetHeight = 0f)
     {
         var packed = ResourceLoader.Load<PackedScene>(resPath);
         if (packed == null) return false;
@@ -114,6 +116,19 @@ public partial class CharacterRig : Node3D
         inst.RotationDegrees = new Vector3(0, yawDegrees, 0);
         inst.Position = new Vector3(0, yOffset, 0);
         AddChild(inst);
+        if (targetHeight > 0f)
+        {
+            float h = WorldHeight(inst);
+            if (h <= 0.01f) h = ModelHeightFallback(resPath);
+            if (h > 0.01f)
+            {
+                float factor = targetHeight / h;
+                inst.Scale *= factor;
+                ApparentHeight = targetHeight;
+                GD.Print($"[Agent] {System.IO.Path.GetFileName(resPath)} normalized height {h:0.00}m -> {targetHeight:0.00}m scale x{factor:0.###}");
+            }
+        }
+        if (targetHeight <= 0f) ApparentHeight = WorldHeight(inst);
         _modelInstance = inst;
         _usesModel = true;
 
@@ -173,6 +188,47 @@ public partial class CharacterRig : Node3D
             if (r != null) return r;
         }
         return null;
+    }
+
+    static float WorldHeight(Node3D root)
+    {
+        float min = float.PositiveInfinity;
+        float max = float.NegativeInfinity;
+        var stack = new System.Collections.Generic.Stack<(Node Node, Transform3D Xf)>();
+        stack.Push((root, Transform3D.Identity));
+        while (stack.Count > 0)
+        {
+            var (n, parentXf) = stack.Pop();
+            var xf = n is Node3D n3 ? parentXf * n3.Transform : parentXf;
+            if (n is MeshInstance3D mi && mi.Mesh != null)
+            {
+                var aabb = mi.GetAabb();
+                for (int c = 0; c < 8; c++)
+                {
+                    var corner = aabb.Position + new Vector3(
+                        (c & 1) != 0 ? aabb.Size.X : 0,
+                        (c & 2) != 0 ? aabb.Size.Y : 0,
+                        (c & 4) != 0 ? aabb.Size.Z : 0);
+                    float y = (xf * corner).Y;
+                    if (y < min) min = y;
+                    if (y > max) max = y;
+                }
+            }
+            foreach (var ch in n.GetChildren()) stack.Push((ch, xf));
+        }
+        return float.IsInfinity(min) || float.IsInfinity(max) ? 0f : max - min;
+    }
+
+    static float ModelHeightFallback(string resPath)
+    {
+        var f = System.IO.Path.GetFileName(resPath).ToLowerInvariant();
+        return f switch
+        {
+            "customer_m.glb" or "customer_f.glb" => 1.00f,
+            "employee_m.glb" => 1.98f,
+            "employee_f.glb" or "shift_manager.glb" or "store_manager.glb" => 1.96f,
+            _ => 0f,
+        };
     }
 
     // First bone whose lowercased name contains any 'parts' keyword and (if given)
@@ -255,6 +311,7 @@ public partial class CharacterRig : Node3D
     string PickWalk() => Match("walk", "run", "jog", "move", "step") ?? PickIdle();
     string PickWork() => (WorkAnimKey.Length > 0 ? Match(WorkAnimKey) : null)
                          ?? Match("work", "action", "cook", "serve", "prep", "use", "type") ?? PickIdle();
+    bool WorkUsesFallback() => PickWork() == PickIdle();
 
     // Exact (case-insensitive) clip name — needed to tell "sit" from "sitting".
     string? MatchExact(string name)
@@ -341,6 +398,10 @@ public partial class CharacterRig : Node3D
                     _curClip = want;
                     _anim.Play(want, 0.15);   // short crossfade between states
                 }
+                if (Working && !Moving && _seat == SeatState.None && ActionAnim.Length == 0 && _oneShotTimer <= 0f && WorkUsesFallback() && _modelInstance != null)
+                    _modelInstance.Position = new Vector3(0, _modelBaseY + Mathf.Sin(_t * 8.0f) * 0.025f, Mathf.Sin(_t * 10.0f) * 0.018f);
+                else if (_modelInstance != null && !Moving)
+                    _modelInstance.Position = new Vector3(0, _modelBaseY, 0);
             }
             else if (_boneDriven)
             {

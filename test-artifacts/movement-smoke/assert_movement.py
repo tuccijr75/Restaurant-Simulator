@@ -22,6 +22,9 @@ JITTER_MIN_PATH_M = 0.45
 JITTER_MAX_NET_M = 0.12
 WALKIN_PROXIMITY_SECONDS = 2.0
 WALKIN_PROXIMITY_DISTANCE = 0.8
+DINING_ARRIVAL_SECONDS = 8.0
+RIGHT_POS_MIN_X = 3.0
+HEIGHT_TOLERANCE_M = 0.04
 
 
 def fail(failures, code, msg):
@@ -48,6 +51,11 @@ def pos(agent):
     return float(p.get("x", 0.0)), float(p.get("z", 0.0))
 
 
+def target_pos(agent):
+    p = agent.get("target") or {}
+    return float(p.get("x", 0.0)), float(p.get("z", 0.0))
+
+
 def flat_dist(a, b):
     dx = a[0] - b[0]
     dz = a[1] - b[1]
@@ -71,9 +79,12 @@ def main():
     walkin_pair_time = {}
     seen_failures = set()
     jitter = {}
+    last_phase = {}
     prev_time = None
     samples = 0
     agents_seen = 0
+    customer_heights = []
+    employee_heights = []
 
     for line in sample_path.read_text(encoding="utf-8").splitlines():
         if not line.strip():
@@ -111,6 +122,8 @@ def main():
 
             phase = agent.get("phase", "")
             phase_seconds = float(agent.get("phase_seconds", 0.0))
+            phase_changed = last_phase.get(agent_id) != phase
+            last_phase[agent_id] = phase
             distance = float(agent.get("distance_to_target_m", 0.0))
             stuck = float(agent.get("stuck_seconds", 0.0))
             ticket_complete = bool(agent.get("ticket_complete", False))
@@ -121,26 +134,40 @@ def main():
                 fail_key(failures, seen_failures, ("stuck", agent_id), "stuck", f"{agent_id} stuck {stuck:.2f}s at {distance:.2f}m from target")
 
             if agent.get("agent_type") == "customer":
-                if phase == "Enter" and phase_seconds > ENTER_SECONDS:
+                h = float(agent.get("apparent_height_m", 0.0))
+                if h > 0:
+                    customer_heights.append(h)
+                if not phase_changed and phase == "Enter" and phase_seconds > ENTER_SECONDS:
                     fail_key(failures, seen_failures, ("enter_timeout", agent_id), "enter_timeout", f"{agent_id} enter {phase_seconds:.2f}s limit {ENTER_SECONDS:.2f}s")
-                if phase == "Enter" and ticket_complete and phase_seconds > PICKUP_SECONDS:
+                if not phase_changed and phase == "Enter" and ticket_complete and phase_seconds > PICKUP_SECONDS:
                     fail_key(failures, seen_failures, ("complete_ticket_before_pickup", agent_id), "complete_ticket_before_pickup", f"{agent_id} complete ticket stuck in Enter {phase_seconds:.2f}s")
-                if phase == "Dining" and phase_seconds > DINING_SECONDS:
+                if not phase_changed and phase == "Dining" and phase_seconds > DINING_SECONDS:
                     fail_key(failures, seen_failures, ("dining_timeout", agent_id), "dining_timeout", f"{agent_id} dining {phase_seconds:.2f}s limit {DINING_SECONDS:.2f}s")
-                if phase == "Busing" and phase_seconds > BUSING_SECONDS:
+                if not phase_changed and phase == "Dining" and phase_seconds > DINING_ARRIVAL_SECONDS and distance > ARRIVAL_RADIUS:
+                    fail_key(failures, seen_failures, ("dining_seat_unreached", agent_id), "dining_seat_unreached", f"{agent_id} dining seat not reached after {phase_seconds:.2f}s distance {distance:.2f}m")
+                if not phase_changed and phase == "Busing" and phase_seconds > BUSING_SECONDS:
                     fail_key(failures, seen_failures, ("busing_timeout", agent_id), "busing_timeout", f"{agent_id} busing {phase_seconds:.2f}s limit {BUSING_SECONDS:.2f}s")
-                if phase == "Leave" and phase_seconds > LEAVE_SECONDS:
+                if not phase_changed and phase == "Leave" and phase_seconds > LEAVE_SECONDS:
                     fail_key(failures, seen_failures, ("leave_timeout", agent_id), "leave_timeout", f"{agent_id} leave {phase_seconds:.2f}s limit {LEAVE_SECONDS:.2f}s")
 
+            if agent.get("agent_type") == "employee":
+                h = float(agent.get("apparent_height_m", 0.0))
+                if h > 0:
+                    employee_heights.append(h)
+
             if phase == "Ordering":
+                if slot_id.startswith("pos_order_"):
+                    tx, _ = target_pos(agent)
+                    if tx < RIGHT_POS_MIN_X:
+                        fail_key(failures, seen_failures, ("pos_not_right_end", slot_id), "pos_not_right_end", f"{slot_id} target x {tx:.2f} is not at customer-facing right end")
                 limit = ORDER_KIOSK_SECONDS if slot_id.startswith("kiosk_") else ORDER_COUNTER_SECONDS
-                if phase_seconds > limit:
+                if not phase_changed and phase_seconds > limit:
                     fail_key(failures, seen_failures, ("ordering_timeout", agent_id), "ordering_timeout", f"{agent_id} ordering {phase_seconds:.2f}s limit {limit:.2f}s")
 
-            if phase == "ToPickup" and ticket_complete and phase_seconds > PICKUP_SECONDS:
+            if not phase_changed and phase == "ToPickup" and ticket_complete and phase_seconds > PICKUP_SECONDS:
                 fail_key(failures, seen_failures, ("pickup_timeout", agent_id), "pickup_timeout", f"{agent_id} pickup {phase_seconds:.2f}s after ticket complete")
 
-            if phase == "Waiting" and ticket_complete and phase_seconds > WAITING_SECONDS:
+            if not phase_changed and phase == "Waiting" and ticket_complete and phase_seconds > WAITING_SECONDS:
                 fail_key(failures, seen_failures, ("waiting_timeout", agent_id), "waiting_timeout", f"{agent_id} waiting {phase_seconds:.2f}s with complete ticket")
 
             if phase == "Leave" and carrying and outside:
@@ -212,6 +239,11 @@ def main():
         fail_once(failures, seen_failures, "no_samples", "movement_samples.jsonl was empty")
     if agents_seen == 0:
         fail_once(failures, seen_failures, "no_agents", "no agents were sampled")
+    if customer_heights and employee_heights:
+        c_avg = sum(customer_heights) / len(customer_heights)
+        e_avg = sum(employee_heights) / len(employee_heights)
+        if abs(c_avg - e_avg) > HEIGHT_TOLERANCE_M:
+            fail_once(failures, seen_failures, "height_mismatch", f"customer avg {c_avg:.2f}m employee avg {e_avg:.2f}m tolerance {HEIGHT_TOLERANCE_M:.2f}m")
 
     summary = {
         "status": "pass" if not failures else "fail",
@@ -237,6 +269,9 @@ def main():
             "jitter_max_net_m": JITTER_MAX_NET_M,
             "walkin_proximity_seconds": WALKIN_PROXIMITY_SECONDS,
             "walkin_proximity_distance_m": WALKIN_PROXIMITY_DISTANCE,
+            "dining_arrival_seconds": DINING_ARRIVAL_SECONDS,
+            "right_pos_min_x": RIGHT_POS_MIN_X,
+            "height_tolerance_m": HEIGHT_TOLERANCE_M,
         },
     }
     (out_dir / "movement_summary.json").write_text(json.dumps(summary, indent=2), encoding="utf-8")

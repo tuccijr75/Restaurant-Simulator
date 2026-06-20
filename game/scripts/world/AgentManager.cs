@@ -40,8 +40,8 @@ public partial class AgentManager : Node3D
     public static float StaffModelScale = 1f;
     public static float StaffModelYaw = 0f;      // facing offset; flip to 180 if they face away
     public static float StaffModelYOffset = 0.1f;  // floor top sits at ~0.08–0.11; lifts feet onto it
-    // (6) customer GLBs render smaller than the staff GLB — raise this until customers match staff height.
-    public static float CustomerModelScale = 1.5f;
+    public static float CustomerModelScale = 1f;
+    public static float CharacterTargetHeight = 1.72f;
 
     static readonly Color[] CarPaints =
     {
@@ -153,9 +153,9 @@ public partial class AgentManager : Node3D
         if (_walkins.Count >= MaxWalkins) return null;
         var a = new CustomerAgent { OrderId = orderId, Channel = channel, Courier = courier, TicketNumber = TicketNumberFrom(orderId), Crowd = _crowd };
         var shirt = courier ? new Color(0.9f, 0.45f, 0.1f) : Shirts[_vis.Next(Shirts.Length)];
-        float scale = CustomerModelScale * (0.95f + (float)_vis.NextDouble() * 0.12f);   // RS-VS-001 height variance
+        float scale = CustomerModelScale;
         string custFile = (_vis.Next(2) == 0 ? "customer_m.glb" : "customer_f.glb");
-        if (!a.BuildModel(CustomerModelDir + custFile, scale, 0f, 0.1f))
+        if (!a.BuildModel(CustomerModelDir + custFile, scale, 0f, 0.1f, CharacterTargetHeight))
         {
             // Missing-model case only. Mobile/delivery pickup guests should still
             // use the customer_m/f GLBs, not the procedural fallback.
@@ -315,7 +315,7 @@ public partial class AgentManager : Node3D
                     "restaurant_manager" => "store_manager.glb",          // GM
                     _                    => (((empId * 2654435761u) >> 16) & 1) == 0 ? "employee_m.glb" : "employee_f.glb",
                 };
-                if (!e.BuildModel(StaffModelDir + file, StaffModelScale, StaffModelYaw, StaffModelYOffset))
+                if (!e.BuildModel(StaffModelDir + file, StaffModelScale, StaffModelYaw, StaffModelYOffset, CharacterTargetHeight))
                 {
                     var shirt = role == "crew" ? new Color(0.75f, 0.16f, 0.12f)
                               : role == "shift_manager" ? new Color(0.92f, 0.92f, 0.92f)

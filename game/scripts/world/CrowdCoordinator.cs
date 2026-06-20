@@ -144,8 +144,12 @@ public sealed class CrowdCoordinator
         for (int i = 0; i < 10; i++)
             Add("mobile_pickup_" + i, "MobilePickup", "mobile", MobilePickupSpot(i), 0.55f, i);
 
-        for (int i = 0; i < _world.Tables.Count; i++)
-            Add("dining_" + i, "Dining", "lobby", _world.Tables[i], 0.6f, i);
+        int diningIndex = 0;
+        for (int i = 0; i < _world.Seats.Count; i++)
+        {
+            if (_world.Seats[i].EmployeeOnly) continue;
+            Add("dining_" + diningIndex++, "Dining", "lobby", _world.Seats[i].Seat, 0.6f, i);
+        }
         for (int i = 0; i < 6; i++)
             Add("tray_return_" + i, "TrayReturn", "lobby", _world.Anchor["pickup"] + new Vector3((i % 3 - 1) * 0.5f, 0f, 0.55f + (i / 3) * 0.45f), 0.55f, i);
 
@@ -158,8 +162,9 @@ public sealed class CrowdCoordinator
         AddEmployeeSlots("work_counter2", 2);
         AddEmployeeSlots("work_dt", 2);
         AddEmployeeSlots("work_office", 3);
+        var breakSeats = EmployeeBreakSeats();
         for (int i = 0; i < 6; i++)
-            Add("break_" + i, "Break", "staff", _world.Anchor["break_room"] + new Vector3((i % 3) * 0.65f - 0.65f, 0f, (i / 3) * 0.45f), 0.65f, i);
+            Add("break_" + i, "Break", "staff", breakSeats.Count > 0 ? breakSeats[i % breakSeats.Count].Seat : _world.Anchor["break_room"] + new Vector3((i % 3) * 0.65f - 0.65f, 0f, (i / 3) * 0.45f), 0.65f, i);
         for (int i = 0; i < 4; i++)
             Add("walkin_door_" + i, "WalkInDoor", "staff", _world.Anchor["freezer_door"] + new Vector3((i % 2) * 0.65f - 0.32f, 0f, 0.35f + (i / 2) * 0.45f), 0.65f, i);
         for (int i = 0; i < 6; i++)
@@ -225,7 +230,7 @@ public sealed class CrowdCoordinator
             else if (c.Channel == "lobby" && c.State == CustomerAgent.Phase.ToPickup)
                 Reserve(c.AgentId, "lobby_pickup_" + lobbyPickup++, p => c.PickupSpot = p, c);
             else if (c.Channel == "lobby" && c.State == CustomerAgent.Phase.Dining)
-                Reserve(c.AgentId, "dining_" + dining++, p => c.TableSpot = p, c);
+                ReserveDining(c, "dining_" + dining++);
             else if (c.Channel == "lobby" && c.State == CustomerAgent.Phase.Busing)
                 Reserve(c.AgentId, "tray_return_" + trayReturn++, p => c.BusSpot = p, c);
             else if ((c.Channel == "mobile" || c.Channel == "delivery") && c.State == CustomerAgent.Phase.Enter)
@@ -314,6 +319,22 @@ public sealed class CrowdCoordinator
         if (customer != null) customer.SlotId = slot.Id;
     }
 
+    void ReserveDining(CustomerAgent customer, string preferredSlotId)
+    {
+        var slot = SlotOrFallback(preferredSlotId);
+        slot.ReservedBy = customer.AgentId;
+        if (FlatDistance(customer.Position, slot.Position) <= slot.Radius)
+            slot.OccupiedBy = customer.AgentId;
+        customer.TableSpot = slot.Position;
+        customer.SlotId = slot.Id;
+        if (TrySeat(slot.QueueIndex, out var seat))
+        {
+            customer.TableSpot = seat.Seat;
+            customer.TraySpot = seat.Tray;
+            customer.SeatYawDeg = seat.YawDeg;
+        }
+    }
+
     void Reserve(string agentId, string preferredSlotId, Action<Vector3> assign, EmployeeAgent? employee)
     {
         var slot = SlotOrFallback(preferredSlotId);
@@ -336,6 +357,25 @@ public sealed class CrowdCoordinator
     }
 
     Vector3 SlotPosition(string slotId) => SlotOrFallback(slotId).Position;
+
+    bool TrySeat(int index, out WorldLayout.SeatSpot seat)
+    {
+        if (index >= 0 && index < _world.Seats.Count)
+        {
+            seat = _world.Seats[index];
+            return true;
+        }
+        seat = default!;
+        return false;
+    }
+
+    List<WorldLayout.SeatSpot> EmployeeBreakSeats()
+    {
+        var seats = new List<WorldLayout.SeatSpot>();
+        foreach (var s in _world.Seats)
+            if (s.EmployeeOnly) seats.Add(s);
+        return seats;
+    }
 
     Vector3 CounterPosOrderSpot(int idx)
     {
@@ -421,7 +461,7 @@ public sealed class CrowdCoordinator
 
     void AppendCustomer(StringBuilder sb, CustomerAgent c)
     {
-        AppendAgentCommon(sb, c.AgentId, "customer", c.Channel, c.State.ToString(), c.Position, CustomerTarget(c, c.State), c.SlotId, c.MovementStuckSeconds);
+        AppendAgentCommon(sb, c.AgentId, "customer", c.Channel, c.State.ToString(), c.Position, CustomerTarget(c, c.State), c.SlotId, c.MovementStuckSeconds, c.ApparentHeight);
         sb.Append(",\"ticket_id\":\"").Append(Json(c.OrderId)).Append("\",\"ticket_complete\":").Append(c.TicketDone ? "true" : "false")
           .Append(",\"carrying_food\":").Append(c.CarryingFood ? "true" : "false")
           .Append(",\"outside_store\":").Append(c.OutsideStore ? "true" : "false")
@@ -431,17 +471,18 @@ public sealed class CrowdCoordinator
     void AppendEmployee(StringBuilder sb, EmployeeAgent e)
     {
         var target = e.ActiveTarget == Vector3.Zero ? EmployeeTarget(e, e.ShouldServeCustomer) : e.ActiveTarget;
-        AppendAgentCommon(sb, e.AgentId, "employee", "staff", e.Task, e.Position, target, e.SlotId, e.MovementStuckSeconds);
+        AppendAgentCommon(sb, e.AgentId, "employee", "staff", e.Task, e.Position, target, e.SlotId, e.MovementStuckSeconds, e.ApparentHeight);
         sb.Append(",\"ticket_id\":null,\"ticket_complete\":false,\"carrying_food\":false,\"outside_store\":false,\"phase_seconds\":0}");
     }
 
-    void AppendAgentCommon(StringBuilder sb, string id, string type, string channel, string phase, Vector3 pos, Vector3 target, string slotId, float stuck)
+    void AppendAgentCommon(StringBuilder sb, string id, string type, string channel, string phase, Vector3 pos, Vector3 target, string slotId, float stuck, float apparentHeight)
     {
         sb.Append("{\"agent_id\":\"").Append(Json(id)).Append("\",\"agent_type\":\"").Append(type)
           .Append("\",\"channel\":\"").Append(Json(channel)).Append("\",\"phase\":\"").Append(Json(phase))
           .Append("\",\"position\":").Append(Vec(pos)).Append(",\"target\":").Append(Vec(target))
           .Append(",\"slot_id\":\"").Append(Json(slotId)).Append("\",\"distance_to_target_m\":").Append(Num(FlatDistance(pos, target)))
-          .Append(",\"stuck_seconds\":").Append(Num(stuck));
+          .Append(",\"stuck_seconds\":").Append(Num(stuck))
+          .Append(",\"apparent_height_m\":").Append(Num(apparentHeight));
     }
 
     void AppendPairs(StringBuilder sb, IReadOnlyList<CustomerAgent> customers, IReadOnlyList<EmployeeAgent> staff)

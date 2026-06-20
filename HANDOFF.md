@@ -9,10 +9,10 @@ Base SHA: `2d07332b88cf823d3d6fbbca9af9daadab6fc5d5`
 Current HEAD: `2d07332b88cf823d3d6fbbca9af9daadab6fc5d5`
 Task ID: `layout-interaction-functional-pass`
 Task Name: Seating, object collision, POS location, employee activity, kitchen/office layout, lobby furniture, walk-in scale, model scale
-Status: `AWAITING_MICHAEL_APPROVAL`
-Handoff Version: 2.0
+Status: `IMPLEMENTED_AWAITING_CLAUDE_REVIEW`
+Handoff Version: 3.0
 Last Updated: 2026-06-19
-Updated By: Claude Opus
+Updated By: Codex
 
 ## Workflow Contract
 
@@ -80,10 +80,11 @@ Michael's 2026-06-19 findings + screenshots; current source under `game/scripts/
 ## Requirements (Codex packet + Claude corrections)
 
 Layout / nav:
-- Close the office from the kitchen. Manager access: see Decision M1 (non-kitchen door, or relocate `work_office`/MOD so pathing is never trapped).
+- Close the office from the kitchen. Manager access: Decision M1 approved — add a door on the back wall, facing the kitchen/back area and placed all the way to the back wall so `work_office`/MOD pathing is not trapped.
+- Office interior: add two large windows, one with visibility toward drive-thru and one with visibility into the kitchen while sitting in the office. Desk goes against the back wall but faces into the room so the manager sits behind it and can see out.
 - Fryer station against the office wall, left corner, facing into the kitchen; fryers directly to its right with aisle clearance. Keep `work_fryer`/`work_grill` keys stable; re-derive only positions/anchors.
 - Walk-in 10% bigger; keep `freezer_door` anchor and the prior task's `walkin_standoff_*`/supply slots aligned to the resized model's real door; no separate fake door object. Re-run the movement parser to confirm no walk-in choreography regression.
-- Replace the break table with a booth-based break area; move break reservation slots to the new booth.
+- Replace the break table with an employee-only booth-based break area; move break reservation slots to the new booth.
 - Rework lobby furniture into functional seating groups with clear aisles and no clipping.
 - Add navmesh obstacle proxies for furniture/equipment, but keep every seat/interaction approach slot reachable on navmesh (carve the furniture, not the seat/stand point).
 
@@ -117,10 +118,10 @@ Determinism:
 
 ## Decisions Reserved for Michael
 
-- M1 — Office access. Sealing the office from the kitchen can trap manager pathing if `work_office` stays assigned with no reachable route. Options: non-kitchen door for managers, or relocate the MOD station out of the sealed office. Claude rec: provide a non-kitchen door OR relocate `work_office`; do not seal and strand it. Status: OPEN.
-- M2 — Counter "right end" perspective. Codex confirms against the screenshots before moving POS anchors; convention is customer-facing (+X). Status: OPEN (confirm).
-- M3 — Scale target. Michael's finding says employees at the same apparent size as customers. Claude rec: normalize both to one shared target height. Status: OPEN (confirm exact-match vs slight role variation).
-- M4 — Break booth occupancy: employee-only this pass, or customer-reservable when the lobby is full? Claude rec: employee-only for this pass (overflow seating is a separate feature). Status: OPEN.
+- M1 — Office access. APPROVED: office stays closed off from the kitchen production area, but gets a door on the back wall facing the kitchen/back area and placed all the way to the back wall so manager pathing is reachable. Add two large office windows: one looking toward drive-thru, one looking into the kitchen from the manager's seated position. Desk goes against the back wall and faces into the room.
+- M2 — Counter "right end" perspective. APPROVED: customer-facing right, which maps to `+X`.
+- M3 — Scale target. APPROVED: same apparent height across employees and customers; normalize to customer height.
+- M4 — Break booth occupancy: APPROVED employee-only for this pass.
 
 ## Claude-Resolved Questions
 
@@ -166,16 +167,44 @@ Reviewed By: Claude Opus — 2026-06-19.
 8. Per group: rebuild, self-test, byte-identical, movement parser, smoke, screenshots, log check.
 9. Update this handoff with evidence and changed-file rationale.
 
+## Codex Implementation Summary
+
+Implemented 2026-06-19 within approved paths.
+
+Changed files:
+- `game/scripts/world/WorldBuilder.cs`: added typed seat metadata, moved POS anchors to customer-facing right (`+X`), moved fryer/fry holder toward the office wall, resized walk-in to 110%, added office door/window/desk intent geometry, replaced break table with employee-only booth seating, reworked lobby furniture, and added nav obstacle proxies that carve table cores without blocking seat targets.
+- `game/scripts/world/CrowdCoordinator.cs`: dining slots now reserve typed seats; break slots use employee-only booth seats; POS order/service slots follow moved right-end register anchors; telemetry emits actual `ApparentHeight`.
+- `game/scripts/world/CustomerAgent.cs`: customers receive seated yaw and tray/table target metadata; on dining arrival they align to the assigned seat and place tray/cup at the assigned table target.
+- `game/scripts/world/AgentManager.cs`: staff and customers now load with shared `CharacterTargetHeight = 1.72f`; fixed old customer scale constant.
+- `game/scripts/world/CharacterRig.cs`: imported model loading supports AABB/manual-fallback height normalization and a visible bounded work fallback when no station-specific clip is available; height measurement no longer uses `GlobalTransform` before tree entry.
+- `test-artifacts/movement-smoke/assert_movement.py`: added dining-seat arrival, POS-right-end, and staff/customer height parity assertions; ignores timeout checks on the first telemetry sample after a phase change to avoid stale phase timer false positives.
+- `HANDOFF.md`: approvals and evidence.
+
+Generated/untracked evidence folders:
+- `test-artifacts/movement-smoke/20260619_194415/` early smoke with pre-fix `GlobalTransform` warnings.
+- `test-artifacts/movement-smoke/20260619_194834/` clean runtime, parser initially exposed seating reach failures.
+- `test-artifacts/movement-smoke/20260619_195344/` seating obstacle fix smoke; parser exposed stale phase-timer false positive.
+- `test-artifacts/movement-smoke/20260619_200008/` final green smoke. Do not commit these folders unless Michael wants runtime evidence artifacts retained.
+
+## Validation Evidence
+
+- `dotnet build game\RestaurantSimulator.csproj --nologo`: PASS, 0 warnings / 0 errors.
+- `dotnet run --project tools\engine-selftest\harness.csproj`: PASS; `SELF-TEST TOTAL: 120/120`, `INGREDIENT-MODEL TOTAL: 10/10`, `CAREER-TEST TOTAL: 11/11`, `RESULT: PASS`.
+- Canonical deterministic replay: baseline Base SHA `2d07332b88cf823d3d6fbbca9af9daadab6fc5d5` vs current `SimRunState.AllJsonl`, `normal_day` / seed `12345`: `CANONICAL_EVENT_STREAM_BYTE_IDENTICAL: PASS 05464C886B33616332885744D215EE7FC7EF8EC0F18384C67B05DB17E83D18B6`.
+- Godot movement smoke: PASS, output `test-artifacts/movement-smoke/20260619_200008/`; runtime printed model normalization (`employee_m 1.98m -> 1.72m`, `employee_f/shift_manager 1.96m -> 1.72m`, customers `1.00m -> 1.72m`); no `ERROR`, `SCRIPT ERROR`, `Exception`, or `WARN` matches in latest `godot.log` check.
+- `python test-artifacts\movement-smoke\assert_movement.py test-artifacts\movement-smoke\20260619_200008`: PASS, 378 samples / 2328 agent samples / 0 failures. This includes existing movement rules plus new dining-seat, POS-right-end, and height parity checks.
+- Visual sample reviewed: `test-artifacts/movement-smoke/20260619_200008/05_overhead.png` shows updated office/fryer/walk-in/lobby layout from overhead. Michael manual close-up smoke remains the final visual acceptance gate.
+
 ## Rollback
 
 Targeted restoring commit or revert of the approved implementation commit(s) — one per group keeps reverts clean. No reset, rebase, checkout-discard, or delete without Michael approval. Worktree clean at Base SHA `2d07332`.
 
 ## Michael Approval
 
-Specification Approved: `PENDING`
-Material Decisions (M1–M4) Approved: `PENDING`
+Specification Approved: `APPROVED 2026-06-19`
+Material Decisions: `M1 APPROVED`, `M2 APPROVED`, `M3 APPROVED`, `M4 APPROVED`
 Merge Approved: `PENDING`
 
 ## Next Authorized Action
 
-Michael approves/amends the specification and decides M1–M4. Codex makes no gameplay/layout source edits until approval; it may confirm M2 (right-end coordinate) against the screenshots as read-only inspection now. After approval, Codex implements per the grouped sequence, validating each group, and updates this file with evidence.
+Claude reviews implementation evidence and diffs. Michael performs final manual visual smoke for close-up seating, POS service, employee work animation, office windows/door, and furniture clipping. No merge until Claude review and Michael approval.

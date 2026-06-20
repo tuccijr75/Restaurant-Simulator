@@ -17,6 +17,8 @@ public partial class CustomerAgent : CharacterRig
     public bool CanOrderNow = true;
     public int TicketNumber;
     public Vector3 QueueSpot, WaitSpot, PickupSpot, TableSpot, ExitSpot, BusSpot;
+    public Vector3 TraySpot;
+    public float SeatYawDeg;
     public CrowdCoordinator? Crowd;
     public string SlotId = "";
     public bool Courier;
@@ -100,8 +102,8 @@ public partial class CustomerAgent : CharacterRig
 
     void TrayToTable()
     {
-        if (_tray != null) _tray.Position = new Vector3(0, 0.78f, 0.34f);    // set down in front, table height
-        if (_cup != null) _cup.Position = new Vector3(0.10f, 0.86f, 0.34f);
+        if (_tray != null) _tray.Position = ToLocal(TraySpot == Vector3.Zero ? GlobalPosition + new Vector3(0, 0.78f, 0.34f) : TraySpot);
+        if (_cup != null) _cup.Position = (_tray?.Position ?? new Vector3(0, 0.78f, 0.34f)) + new Vector3(0.10f, 0.08f, 0f);
     }
     void TrayToHands()
     {
@@ -156,6 +158,8 @@ public partial class CustomerAgent : CharacterRig
                 if (!_seatedAtTable)
                 {
                     if (!Reached(TargetFor(Phase.Dining), delta, 0.55f)) break;
+                    Position = TargetFor(Phase.Dining);
+                    Rotation = new Vector3(0, Mathf.DegToRad(SeatYawDeg), 0);
                     _seatedAtTable = true;
                     RequestSeated(true);                 // actually sit at the table
                     TrayToTable();                       // tray goes down on the table

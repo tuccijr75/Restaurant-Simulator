@@ -8,6 +8,15 @@ namespace RestaurantSimulator;
 /// named anchor map that the camera system and character agents share.
 public sealed class WorldLayout
 {
+    public sealed class SeatSpot
+    {
+        public Vector3 Seat;
+        public Vector3 Tray;
+        public float YawDeg;
+        public string Kind = "";
+        public bool EmployeeOnly;
+    }
+
     public Node3D RoofGroup = null!;   // toggled with R / auto-hidden for overhead & high free cam
     public DirectionalLight3D Sun = null!;            // RS-VS-001 day/night
     public ProceduralSkyMaterial SkyMat = null!;
@@ -19,6 +28,7 @@ public sealed class WorldLayout
     public readonly List<Vector3> KioskSpots = new();    // lobby self-order kiosks
     public readonly List<Vector3> ParkingSpots = new();  // customer parking stall walk-up points
     public readonly List<Vector3> Tables = new();        // dining seats
+    public readonly List<SeatSpot> Seats = new();         // typed dining/break seats
     public NavigationRegion3D NavRegion = null!;         // baked walkable area
     public Vector3 Door => Anchor["door"];
 }
@@ -83,8 +93,8 @@ public static class WorldBuilder
         var counterTopMi = Box(w, new Vector3(13, 0.06f, 1.1f), new Vector3(-0.5f, 1.13f, -1.0f), Steel, "counter_top");
         if (LoadEquip(w, new[] { "counter" }, new Vector3(-0.5f, 0, -1.0f), "equip_counter", 180f) != null)
         { counterMi.Visible = false; counterTopMi.Visible = false; }   // 180° faces the service side into the kitchen; change to 0f if reversed
-        Station(w, L, "pos_register_1", new Vector3(-2.0f, 1.2f, -1.0f), new Vector3(0.4f, 0.35f, 0.3f), DarkSteel, "POS 1", hide: true);
-        Station(w, L, "pos_register_2", new Vector3(2.0f, 1.2f, -1.0f), new Vector3(0.4f, 0.35f, 0.3f), DarkSteel, "POS 2", hide: true);
+        Station(w, L, "pos_register_1", new Vector3(3.6f, 1.2f, -1.0f), new Vector3(0.4f, 0.35f, 0.3f), DarkSteel, "POS 1", hide: true);
+        Station(w, L, "pos_register_2", new Vector3(5.0f, 1.2f, -1.0f), new Vector3(0.4f, 0.35f, 0.3f), DarkSteel, "POS 2", hide: true);
         // (6) mobile-order pickup sits on the LEFT end of the counter
         Station(w, L, "mobile_shelf", new Vector3(-5.5f, 1.2f, -1.0f), new Vector3(1.0f, 1.4f, 0.45f), Steel, "MOBILE PICKUP");
         Box(w, new Vector3(7, 1.0f, 0.1f), new Vector3(-0.5f, 3.35f, -1.6f), new Color(0.12f, 0.12f, 0.14f), "menu_board");
@@ -93,8 +103,8 @@ public static class WorldBuilder
         // Model facing via yaw: 0=+Z(front), 90=+X(right), 180=-Z(back), 270=-X(left).
         // If a loaded model faces the wrong way, add/subtract 90 to its yaw.
         Station(w, L, "expo", new Vector3(-6.35f, 0.8f, -2.35f), new Vector3(2.4f, 0.9f, 0.8f), Steel, "EXPO", glow: new Color(1f, 0.55f, 0.15f), yaw: 180f, modelScale: new Vector3(1.0f, 1.8f, 1.0f));
-        Prop(w, "french_fries", new Vector3(-6.35f, 0.6f, -8.65f), new Vector3(1.0f, 1.2f, 0.7f), new Color(0.85f, 0.7f, 0.25f));
-        Station(w, L, "fryer", new Vector3(-3.55f, 0.5f, -8.65f), new Vector3(3.2f, 1.0f, 1.1f), Steel, "FRYERS", glow: new Color(1f, 0.75f, 0.2f), yaw: 0f);
+        Prop(w, "french_fries", new Vector3(-7.1f, 0.6f, -8.55f), new Vector3(1.0f, 1.2f, 0.7f), new Color(0.85f, 0.7f, 0.25f), yaw: 90f);
+        Station(w, L, "fryer", new Vector3(-5.4f, 0.5f, -8.55f), new Vector3(3.0f, 1.0f, 1.1f), Steel, "FRYERS", glow: new Color(1f, 0.75f, 0.2f), yaw: 90f);
         Station(w, L, "assembly", new Vector3(-2.0f, 0.5f, -4.95f), new Vector3(3.9f, 0.95f, 1.45f), Steel, "SANDWICH", yaw: 90f);
         Station(w, L, "grill", new Vector3(-2.0f, 0.5f, -9.35f), new Vector3(3.4f, 1.0f, 1.15f), DarkSteel, "GRILL", glow: new Color(1f, 0.35f, 0.1f), yaw: 0f);
         // Hot-holding unit sits centered on the doubled assembly board.
@@ -109,38 +119,28 @@ public static class WorldBuilder
         Box(w, new Vector3(1.0f, 0.28f, 0.72f), new Vector3(7.0f, 0.24f, -7.75f), new Color(0.70f, 0.72f, 0.74f), "mop_sink");
         Box(w, new Vector3(0.08f, 0.82f, 0.08f), new Vector3(7.0f, 0.82f, -8.08f), DarkSteel, "mop_sink_faucet");
         Box(w, new Vector3(2.0f, 1.2f, 0.42f), new Vector3(12.6f, 0.6f, -7.05f), new Color(0.38f, 0.40f, 0.44f), "st_crew_lockers");
-        Box(w, new Vector3(1.4f, 0.75f, 0.9f), new Vector3(9.0f, 0.40f, -6.85f), new Color(0.72f, 0.55f, 0.38f), "break_table");
-        Box(w, new Vector3(1.6f, 0.45f, 0.4f), new Vector3(9.0f, 0.23f, -6.05f), Accent, "break_bench");
+        AddBoothSet(w, L, new Vector3(9.2f, 0, -6.8f), 0f, employeeOnly: true, "break");
         // Drinks are fulfilled from lobby self-serve fountains or the drive-thru soda machine.
         L.Anchor["beverage"] = new Vector3(-10.8f, 0.7f, -1.6f);
 
         // (1) drive-thru window on the LEFT (west) wall; faces INTO the kitchen (+X)
         Station(w, L, "dt_window", new Vector3(-11.6f, 0.6f, -3.0f), new Vector3(0.6f, 1.1f, 1.4f), Steel, "DT WINDOW", yaw: 90f);
 
-        // (2) walk-in: back-RIGHT corner, 10% larger; the door visual is passable.
-        Station(w, L, "cooler", new Vector3(16.25f, 1.43f, -8.85f), new Vector3(3.3f, 2.86f, 3.3f), new Color(0.8f, 0.84f, 0.88f), "WALK-IN", yaw: 270f);
+        // (2) walk-in: back-RIGHT corner, 10% larger; the model door remains the door.
+        Station(w, L, "cooler", new Vector3(16.0f, 1.57f, -8.65f), new Vector3(3.63f, 3.15f, 3.63f), new Color(0.8f, 0.84f, 0.88f), "WALK-IN", yaw: 270f, modelScale: new Vector3(1.1f, 1.1f, 1.1f));
 
-        // (2) office: back-LEFT corner (room walls in BuildExtras); desk sits against the back wall
-        Station(w, L, "office", new Vector3(-10.8f, 0.5f, -6.3f), new Vector3(1.8f, 1.0f, 1.2f), new Color(0.55f, 0.45f, 0.35f), "OFFICE", yaw: 0f);
+        // (2) office: desk against the back wall, facing into the room.
+        Station(w, L, "office", new Vector3(-10.0f, 0.5f, -9.65f), new Vector3(1.8f, 1.0f, 1.2f), new Color(0.55f, 0.45f, 0.35f), "OFFICE", yaw: 180f);
         // Red partitions close the customer side while preserving staff aisles behind the line.
         Box(w, new Vector3(24f, 1.1f, 0.3f), new Vector3(0.0f, 0.55f, -0.5f), Accent, "wall_kitchen_lw");
         Box(w, new Vector3(1.4f, 1.12f, 0.12f), new Vector3(10.6f, 0.6f, -0.35f), Accent, "wall_support_lobby_access_blocked");
 
         // ---------- dining room ----------
-        // booths along the front wall (non-obstacle name so guests can path to a seat); avoid the center door (x -1..1)
-        foreach (var (x, z) in new[] { (-8f,6.2f), (-5f,6.2f), (-2.5f,6.2f), (2.5f,6.2f), (5f,6.2f), (8f,6.2f) })
-        {
-            Decor(w, "booth", new Vector3(x, 0.225f, z), new Vector3(1.3f, 0.45f, 1.0f), Accent, yaw: 180f);
-            L.Tables.Add(new Vector3(x, 0, z - 0.8f));
-        }
-        // free-standing tables + chairs, spaced with room to walk between
-        foreach (var (x, z) in new[] { (-8f,2.6f), (-4.5f,3.4f), (-8f,4.6f), (3.5f,1.2f), (7.0f,4.8f), (3.8f,4.4f) })
-        {
-            Decor(w, "table", new Vector3(x, 0.78f, z), new Vector3(1.2f, 0.08f, 1.2f), new Color(0.72f,0.55f,0.38f));
-            Decor(w, "chair", new Vector3(x, 0.25f, z + 0.85f), new Vector3(0.45f, 0.5f, 0.45f), Steel, yaw: 180f);
-            Decor(w, "chair", new Vector3(x, 0.25f, z - 0.85f), new Vector3(0.45f, 0.5f, 0.45f), Steel, yaw: 0f);
-            L.Tables.Add(new Vector3(x, 0, z + 0.85f));
-        }
+        // Functional lobby seating with aisles between all furniture groups.
+        foreach (var at in new[] { new Vector3(-8.4f, 0, 5.7f), new Vector3(-5.2f, 0, 5.7f), new Vector3(4.8f, 0, 5.7f), new Vector3(8.0f, 0, 5.7f) })
+            AddBoothSet(w, L, at, 180f, employeeOnly: false, "lobby");
+        foreach (var at in new[] { new Vector3(-8.2f, 0, 2.25f), new Vector3(-4.8f, 0, 3.35f), new Vector3(4.2f, 0, 2.1f), new Vector3(8.0f, 0, 3.65f) })
+            AddTableSet(w, L, at, "lobby");
         Box(w, new Vector3(0.6f, 1.0f, 0.6f), new Vector3(-11.3f, 0.5f, 6.4f), DarkSteel, "trash");
 
         // ---------- exterior: drive-thru lane on the LEFT (west), cars drive -Z -> +Z ----------
@@ -184,27 +184,27 @@ public static class WorldBuilder
         L.Anchor["door"] = new Vector3(0, 0, 6.8f);
         L.Anchor["door_out"] = new Vector3(0, 0, 9.0f);
         L.Anchor["pickup"] = new Vector3(-5.8f, 0, 0.25f);         // collect on the lobby side of the counter
-        L.Anchor["freezer_door"] = new Vector3(14.55f, 0, -8.85f); // kitchen side of the walk-in model door
-        L.Anchor["work_counter2"] = new Vector3(2.0f, 0, -1.8f);   // cashier behind POS 2
+        L.Anchor["freezer_door"] = new Vector3(14.12f, 0, -8.65f); // kitchen side of the walk-in model door
+        L.Anchor["work_counter2"] = new Vector3(5.0f, 0, -1.8f);   // cashier behind POS 2
         L.Anchor["mobile_wait"] = new Vector3(-5.5f, 0, 0.0f);     // in front of the mobile rack, lobby side
         L.Anchor["break_room"] = new Vector3(9.0f, 0, -6.05f);     // crew break area in the support room
-        L.QueueSpots.Add(new Vector3(-2.0f, 0, 0.85f));
-        L.QueueSpots.Add(new Vector3(-2.0f, 0, 1.65f));
-        L.QueueSpots.Add(new Vector3(-2.0f, 0, 2.45f));
-        L.QueueSpots.Add(new Vector3(-1.2f, 0, 3.25f));
-        L.QueueSpots.Add(new Vector3(-1.2f, 0, 4.05f));
+        L.QueueSpots.Add(new Vector3(4.25f, 0, 0.85f));
+        L.QueueSpots.Add(new Vector3(4.25f, 0, 1.65f));
+        L.QueueSpots.Add(new Vector3(4.25f, 0, 2.45f));
+        L.QueueSpots.Add(new Vector3(3.4f, 0, 3.25f));
+        L.QueueSpots.Add(new Vector3(3.4f, 0, 4.05f));
         L.KioskSpots.Add(new Vector3(-1.25f, 0, 2.5f));
         L.KioskSpots.Add(new Vector3(1.25f, 0, 2.5f));
         // Employee work spots (sim station id -> world position, crew side of fixtures)
         L.Anchor["work_grill"] = new Vector3(-2.0f, 0, -8.15f);
-        L.Anchor["work_fryer"] = new Vector3(-3.55f, 0, -7.55f);
+        L.Anchor["work_fryer"] = new Vector3(-5.4f, 0, -7.25f);
         L.Anchor["work_prep"] = new Vector3(10.4f, 0, -8.25f);
         L.Anchor["work_assembly"] = new Vector3(-2.0f, 0, -3.75f);
         L.Anchor["work_beverage"] = new Vector3(-10.2f, 0, -2.2f);
         L.Anchor["work_expo"] = new Vector3(-6.35f, 0, -1.65f);
-        L.Anchor["work_counter"] = new Vector3(-2.0f, 0, -1.8f);
+        L.Anchor["work_counter"] = new Vector3(3.6f, 0, -1.8f);
         L.Anchor["work_dt"] = new Vector3(-10.2f, 0, -3.0f);       // at the drive-thru window, inside
-        L.Anchor["work_office"] = new Vector3(-10.8f, 0, -4.9f);   // manager stands in front of the desk
+        L.Anchor["work_office"] = new Vector3(-10.0f, 0, -8.75f);  // manager sits/stands behind the office desk
         L.Sun = sun; L.SkyMat = sky;
         L.LotLights.AddRange(_lotLights); _lotLights.Clear();
         // RS-VS-001: interior ceiling lights — dim by day, carry the room at night.
@@ -238,7 +238,7 @@ public static class WorldBuilder
             string n = mi.Name;
             bool walkable = n == "floor" || n == "kitchen_floor" || n == "sidewalk";
             bool obstacle = n.StartsWith("st_") || n.StartsWith("counter") || n.StartsWith("wall_")
-                            || n == "trash" || n == "break_table";
+                            || n.StartsWith("obs_") || n == "trash" || n == "break_table";
             if (walkable) { AddMeshSource(src, mi); walk++; }
             else if (obstacle) { AddMeshSource(src, mi); obs++; }
         }
@@ -337,6 +337,39 @@ public static class WorldBuilder
         ((StandardMaterial3D)mi.MaterialOverride).Transparency = BaseMaterial3D.TransparencyEnum.Alpha;
     }
 
+    static void NavObstacle(Node3D w, Vector3 size, Vector3 pos, string name)
+    {
+        var mi = Box(w, size, pos, new Color(0.1f, 0.1f, 0.1f, 0.0f), "obs_" + name);
+        mi.Visible = false;
+    }
+
+    static void AddSeat(WorldLayout L, Vector3 seat, Vector3 tray, float yawDeg, string kind, bool employeeOnly)
+    {
+        L.Seats.Add(new WorldLayout.SeatSpot { Seat = seat, Tray = tray, YawDeg = yawDeg, Kind = kind, EmployeeOnly = employeeOnly });
+        if (!employeeOnly) L.Tables.Add(seat);
+    }
+
+    static void AddBoothSet(Node3D w, WorldLayout L, Vector3 at, float yaw, bool employeeOnly, string prefix)
+    {
+        var color = employeeOnly ? new Color(0.55f, 0.12f, 0.09f) : Accent;
+        Decor(w, "booth", at + new Vector3(-0.55f, 0.225f, 0), new Vector3(1.25f, 0.45f, 1.0f), color, yaw: yaw);
+        Decor(w, "booth", at + new Vector3(0.55f, 0.225f, 0), new Vector3(1.25f, 0.45f, 1.0f), color, yaw: yaw + 180f);
+        Decor(w, "table", at + new Vector3(0, 0.78f, 0), new Vector3(1.15f, 0.08f, 0.82f), new Color(0.72f, 0.55f, 0.38f));
+        NavObstacle(w, new Vector3(1.2f, 0.95f, 0.85f), at + new Vector3(0, 0.48f, 0), prefix + "_booth_table_" + L.Seats.Count);
+        AddSeat(L, at + new Vector3(-0.55f, 0, -0.72f), at + new Vector3(-0.25f, 0.78f, -0.08f), 0f, "booth", employeeOnly);
+        AddSeat(L, at + new Vector3(0.55f, 0, 0.72f), at + new Vector3(0.25f, 0.78f, 0.08f), 180f, "booth", employeeOnly);
+    }
+
+    static void AddTableSet(Node3D w, WorldLayout L, Vector3 at, string prefix)
+    {
+        Decor(w, "table", at + new Vector3(0, 0.78f, 0), new Vector3(1.15f, 0.08f, 1.15f), new Color(0.72f, 0.55f, 0.38f));
+        Decor(w, "chair", at + new Vector3(0, 0.25f, 0.88f), new Vector3(0.45f, 0.5f, 0.45f), Steel, yaw: 180f);
+        Decor(w, "chair", at + new Vector3(0, 0.25f, -0.88f), new Vector3(0.45f, 0.5f, 0.45f), Steel, yaw: 0f);
+        NavObstacle(w, new Vector3(1.15f, 0.95f, 1.15f), at + new Vector3(0, 0.48f, 0), prefix + "_table_" + L.Seats.Count);
+        AddSeat(L, at + new Vector3(0, 0, 1.08f), at + new Vector3(0, 0.78f, 0.2f), 180f, "chair", false);
+        AddSeat(L, at + new Vector3(0, 0, -1.08f), at + new Vector3(0, 0.78f, -0.2f), 0f, "chair", false);
+    }
+
     static void Station(Node3D w, WorldLayout L, string id, Vector3 pos, Vector3 size, Color color, string label, Color? glow = null, bool hide = false, float yaw = 0f, Vector3? modelScale = null)
     {
         var mi = Box(w, size, pos, color, "st_" + id);
@@ -397,10 +430,17 @@ public static class WorldBuilder
         Prop(w, "soda_lobby_1", new Vector3(-11.4f, 0.7f, 1.2f), new Vector3(0.7f, 1.5f, 1.0f), steel, model: "soda_machine", yaw: 90f);
         Prop(w, "soda_lobby_2", new Vector3(-11.4f, 0.7f, 2.8f), new Vector3(0.7f, 1.5f, 1.0f), steel, model: "soda_machine", yaw: 90f);
 
-        // --- (2) Office room: back-LEFT corner (back wall z=-7 and west wall x=-12 already exist) ---
-        // Solid east wall; the south wall (faces kitchen) has the door, so the manager can reach the desk.
-        WallAlongZ(w, -8.0f, -7.0f, -4.2f, "wall_office_e");
-        WallAlongX(w, -4.2f, -12.0f, -8.0f, "wall_office_s", openAt: -9.2f, openW: 1.2f);
+        // --- Office room: closed from the production aisle, with back-wall access and sight lines. ---
+        // West/back walls are the shell. The east wall has a door near the rear plus
+        // a large kitchen-view window; the west wall has a large drive-thru-view window.
+        Box(w, new Vector3(0.2f, WallH, 0.58f), new Vector3(-7.45f, WallH / 2, -10.21f), WallCol, "wall_office_e_rear");
+        Box(w, new Vector3(0.2f, WallH, 0.78f), new Vector3(-7.45f, WallH / 2, -8.49f), WallCol, "wall_office_e_mid");
+        Box(w, new Vector3(0.2f, WallH, 0.75f), new Vector3(-7.45f, WallH / 2, -6.08f), WallCol, "wall_office_e_front");
+        Box(w, new Vector3(0.2f, 0.9f, 1.55f), new Vector3(-7.45f, 0.45f, -7.25f), WallCol, "wall_office_e_window_sill");
+        Box(w, new Vector3(0.2f, 0.7f, 1.55f), new Vector3(-7.45f, 3.65f, -7.25f), WallCol, "wall_office_e_window_hdr");
+        Glas(w, new Vector3(0.05f, 1.9f, 1.45f), new Vector3(-7.38f, 2.05f, -7.25f), "glass_office_kitchen");
+        WallAlongX(w, -5.7f, -12.0f, -7.45f, "wall_office_front");
+        Glas(w, new Vector3(0.05f, 1.9f, 1.8f), new Vector3(-11.82f, 2.05f, -8.2f), "glass_office_dt");
 
         // --- Restroom room: RIGHT side, directly in front of the walk-in (east wall x=12 is the back) ---
         WallAlongZ(w, 9.5f, -0.5f, 2.5f, "wall_bath_w", openAt: 1.0f, openW: 1.0f);   // door to the dining room
