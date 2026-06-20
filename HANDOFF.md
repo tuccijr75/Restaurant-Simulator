@@ -95,6 +95,65 @@ Changed files (all allowed paths): `WorldBuilder.cs` (typed seat metadata; POS a
 
 Untracked evidence folders `20260619_194415/194834/195344/200008/204625/205038/205213` — do not commit unless Michael wants artifacts retained. `204625` and `205038` are failed intermediate OV1 probe attempts; `205213` is the useful current evidence folder. `CrowdCoordinator.cs.uid` left per repo convention.
 
+## Verification Gate
+
+Build: PENDING
+
+Unit Tests: PENDING
+
+Integration Tests: PENDING
+
+Static Analysis: PENDING
+
+Schema Validation: PENDING
+
+Deterministic Replay: PENDING
+
+Save/Load Compatibility: PENDING
+
+Runtime Smoke Test: PENDING
+
+Packaging: PENDING
+
+Generated File Check: PENDING
+
+### Gate Result
+
+Status: NOT_RUN
+
+Allowed values:
+
+- NOT_RUN
+- FAILED
+- PASSED
+- BLOCKED
+
+Evidence:
+
+- Command:
+- Exit code:
+- Log or report path:
+- Commit SHA:
+
+### Gate Rule
+
+The task may not move to READY_FOR_CLAUDE_REVIEW unless all required checks pass.
+
+The task may not move to APPROVED_FOR_MERGE unless:
+
+- the verification gate passes;
+- Claude completes review;
+- unresolved blocking risks are zero;
+- Michael approves the merge.
+
+Codex Instructions:
+
+Do not mark a test as passed based on code inspection or reasoning.
+
+A check passes only when the relevant command completes successfully with verifiable output.
+Do not weaken, skip, delete, or rewrite failing tests merely to obtain a passing result.
+If a required check cannot run, mark it BLOCKED and explain the exact reason.
+
 ## Validation Evidence
 
 - Build PASS 0/0. Self-test PASS 120/120, 10/10, 11/11.
