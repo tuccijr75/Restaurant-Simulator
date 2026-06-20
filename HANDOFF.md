@@ -6,13 +6,13 @@ Project: Restaurant Simulator
 Repository: `E:\GitHub Projects\Restaurant Simulator\Restaurant Simulator`
 Branch: `main`
 Base SHA: `2d07332b88cf823d3d6fbbca9af9daadab6fc5d5`
-Current HEAD: `2d07332b88cf823d3d6fbbca9af9daadab6fc5d5`  (implementation appears UNCOMMITTED — see Claude Review / commit-state note)
+Current HEAD: `b4f8b98da28d61ca887ea2325847c494ef7b5792`
 Task ID: `layout-interaction-functional-pass`
 Task Name: Seating, object collision, POS location, employee activity, kitchen/office layout, lobby furniture, walk-in scale, model scale
 Status: `AWAITING_MICHAEL_VISUAL_SMOKE_AND_MERGE`
-Handoff Version: 4.0
+Handoff Version: 4.1
 Last Updated: 2026-06-19
-Updated By: Claude Opus
+Updated By: Codex
 
 ## Workflow Contract
 
@@ -76,8 +76,8 @@ Implementation is clean and scope-correct (only allowed paths touched). Strength
 Items for Michael / Codex before merge (none are code rework):
 1. (Michael) RATIFY the 1.72m height deviation from M3 (above) — it changed customer apparent size.
 2. (Michael) Visual smoke is the BINDING gate for the new office geometry (window sightlines, desk facing, reachable back-wall door) and close-up seating/POS/animation — none of which an overhead or the machine checks confirm. Confirm a manager actually reaches the office in the run (M1's purpose).
-3. (Codex) Commit-state: Current HEAD still equals Base SHA, so the implementation is uncommitted; commit it, advance HEAD, and correct the Rollback line before merge.
-4. (Codex) Confirm the parser's post-phase-change exemption is exactly one sample, not a window, so it cannot blind a real timeout.
+3. (Codex) Commit-state: CLOSED — implementation is committed and pushed at `b4f8b98da28d61ca887ea2325847c494ef7b5792`; `HEAD == origin/main`; worktree clean at confirmation time.
+4. (Codex) Confirm the parser's post-phase-change exemption is exactly one sample, not a window, so it cannot blind a real timeout. CLOSED — `assert_movement.py` compares each agent's current phase to `last_phase[agent_id]`; only the first sample after an immediate phase change has `phase_changed=true`, and timeout checks resume on the next sample.
 
 On Michael's clean visual smoke + height ratification, this is merge-ready.
 
@@ -105,11 +105,11 @@ Untracked evidence folders `20260619_194415 / 194834 / 195344 / 200008` — do n
 
 - New office geometry and close-up seating/clipping are visual-gate only — not machine-verified.
 - 1.72m height changed customer apparent size (ratification pending).
-- Uncommitted worktree — rollback plan assumes a commit that does not yet exist.
+- Manager office access from elsewhere back through the new door has not been machine-proven; final visual smoke or a targeted runtime check should confirm M1 pathing beyond the manager starting at the office slot.
 
 ## Rollback
 
-Once committed: targeted restoring commit or revert of the implementation commit(s) — one per group keeps reverts clean. No reset/rebase/discard/delete without Michael approval. (Note: HEAD currently still at Base SHA; commit before relying on revert.)
+Targeted restoring commit or revert of implementation commit `b4f8b98da28d61ca887ea2325847c494ef7b5792`. No reset/rebase/discard/delete without Michael approval.
 
 ## Michael Approval
 
@@ -120,4 +120,4 @@ Merge Approved: `PENDING`
 
 ## Next Authorized Action
 
-Michael performs the binding visual smoke (office windows/door/desk + manager office access; close-up seating alignment, right-end POS service, employee work animation, furniture clipping) and ratifies the 1.72m height. Codex commits the implementation (advance HEAD, fix Rollback), confirms the parser one-sample exemption, and confirms the smoke exercised manager office access. No merge until both close.
+Michael performs the binding visual smoke (office windows/door/desk + manager office access; close-up seating alignment, right-end POS service, employee work animation, furniture clipping) and ratifies the 1.72m height. Codex has confirmed commit state and the parser one-sample exemption. Existing smoke confirms `emp_28` starts at the office slot (`work_office_0`, ~0.10m from target) but does not prove a return path through the new office door from elsewhere, so manager office access remains part of Michael's visual/targeted smoke. No merge until both close.
