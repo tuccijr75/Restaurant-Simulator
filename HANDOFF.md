@@ -9,10 +9,10 @@ Base SHA: `2d07332b88cf823d3d6fbbca9af9daadab6fc5d5`
 Current HEAD: `0d8c2595b39af52f09d5c8b368819240af5abc06`
 Task ID: `layout-interaction-functional-pass`
 Task Name: Seating, object collision, POS location, employee activity, kitchen/office layout, lobby furniture, walk-in scale, model scale
-Status: `READY_FOR_CLAUDE_REVIEW`
-Handoff Version: 6.1
+Status: `CLAUDE_REVIEW_CLEARED_AWAITING_MICHAEL_OV2_DSTALL_MERGE`
+Handoff Version: 7.0
 Last Updated: 2026-06-19
-Updated By: Codex
+Updated By: Claude Opus
 
 ## Workflow Contract
 
@@ -22,6 +22,7 @@ HANDOFF.md is the permanent, revolving coordination channel between Claude Opus 
 - Claude Opus owns task definition, architecture/risk review, acceptance criteria, packet/implementation review.
 - Codex owns repository inspection, source implementation, test execution, implementation evidence.
 - Codex must not edit source until Claude approves the packet and Michael approves the spec.
+- Codex must not author or sign the "Claude Review" section; if a fresh review is needed, leave it `PENDING_CLAUDE_REVIEW`.
 - Repository files are the source of truth; model memory is secondary.
 - Neither model may merge, discard, reset, rebase, or delete work without Michael approval.
 - Verification is evidence-based: Codex summaries are claims, not proof. A check passes only when its command completes with verifiable output tied to the current commit SHA. Do not weaken/skip/rewrite failing tests to obtain a pass; if a check cannot run, mark it BLOCKED with the reason. A prior `APPROVED_*` verdict does not carry across commits — it is void once HEAD or a required check changes.
@@ -44,47 +45,54 @@ Determinism: `AllJsonl` replay (normal_day/seed 12345) byte-identical to Base SH
 ## Acceptance Criteria (verification state @ HEAD `0d8c259`)
 
 - [x] Manager office-door reachability (OV1) — machine-proven at HEAD: `20260619_222253/manager_office_roundtrip.json` PASS (`emp_28` depart 41, max 2.043m, return 72).
-- [x] Movement parser — PASS at HEAD on full non-headless smoke `20260619_222253`: 323 samples / 1958 agent samples / 0 failures. Earlier `205213` mobile-entry stall did NOT reproduce in the full rendered smoke.
-- [x] Build / self-test / byte-identical / full movement smoke / screenshots — re-run at HEAD `0d8c259`; evidence in Verification Gate.
+- [x] Movement parser — PASS at HEAD on full **non-headless** smoke `20260619_222253`: 323 / 1958 / 0. The earlier `205213` mobile-entry stall did not reproduce in the rendered run.
+- [x] Build / self-test / byte-identical / full smoke / packaging / compat — re-run at HEAD; evidence in Verification Gate. Determinism hash matches base (no sim-stream leakage).
 - [x] Seat-reach, height-parity, POS-right-end assertions re-confirmed in HEAD full smoke `20260619_222253`.
-- [~] Michael visual smoke (OV2, BINDING) — pending; fresh HEAD screenshots are available under `test-artifacts/movement-smoke/20260619_222253/`.
+- [x] Menu render (R4) — `lobby_menu.png` visible in non-headless close-up `menu-render-check/menu_board_closeup_inside.png`.
+- [~] Michael visual smoke (OV2, BINDING) — pending; fresh HEAD screenshots available under `20260619_222253/` + menu close-up.
 
-## Required Before Re-Review (Codex)
+## Required Before Re-Review (Codex) — all CLOSED at HEAD
 
-R1 — CLOSED. Full Verification Gate run at actual HEAD `0d8c2595b39af52f09d5c8b368819240af5abc06`; populated below.
-R2 — CLOSED. `AllJsonl` normal_day/12345 hash at HEAD: `05464c886b33616332885744d215ee7fc7ef8ec0f18384c67b05db17e83d18b6`.
-R3 — CLOSED. `cust_ord_000002` mobile-entry stall from 72-sample headless probe did not reproduce in full non-headless smoke `20260619_222253`; parser passed 323 / 1958 / 0. Treat as non-reproduced headless/probe artifact unless Michael/Claude require more repeated smokes.
-R4 — CLOSED. Real non-headless menu rendering confirmed by `test-artifacts/menu-render-check/menu_board_closeup_inside.png`; menu texture is visible on the board.
+R1 — CLOSED. Full Verification Gate run at HEAD `0d8c259`; populated below.
+R2 — CLOSED. `AllJsonl` normal_day/12345 hash at HEAD `05464c88…e83d18b6` — byte-identical to base.
+R3 — CLOSED (non-reproduced, see D-STALL). Stall did not reproduce in full non-headless smoke; parser 323/1958/0.
+R4 — CLOSED. Real non-headless menu rendering confirmed.
 
 ## Decisions Reserved for Michael
 
-- D-STALL — R3 result: stall did not reproduce in full non-headless smoke and the full parser passed. Codex recommendation: non-blocking unless Claude/Michael request repeated stress smokes. Status: READY_FOR_CLAUDE_DECISION.
+- D-STALL — Status: READY_FOR_MICHAEL.
+  Result: the `cust_ord_000002` mobile-entry stall did not reproduce in the full rendered smoke; the gate is green without it. It is therefore NOT a current blocking failure.
+  Claude position: record it as **non-reproduced, not resolved** — one clean full run is not proof an intermittent presentation-layer symptom is gone, and this is the same customer with prior entry-pathing history; causation (this task's nav changes vs. a latent prior-task mobile-entry edge) is unanswered, acceptable only because the layout criteria pass independently.
+  Claude recommendation: do not block this task on it, but before merge either (a) run 2–3 additional full smokes to confirm it stays clean, or (b) split a small `mobile-entry-stall-watch` follow-up. Michael chooses (a), (b), or accept-as-is.
 
 ## Claude Review
 
-Verdict: `REWORK_REQUIRED` from Claude v6.0 is now addressed by Codex v6.1 evidence. Requires fresh Claude review; no prior `APPROVED_*` verdict is inherited.
+Verdict: `APPROVED_TO_CONTINUE` (Claude review gate cleared; advances to Michael for OV2 + D-STALL + merge). No prior verdict inherited; this is a fresh review of HEAD `0d8c259`.
 
-Note: the v5.1 file presented to review still carried a stale `APPROVED_TO_CONTINUE` verdict and an approval-presupposing Next Action. Both are void on this commit and are corrected here — there is no standing approval while a required check fails at HEAD.
+The v6.1 gate is real, current, and comprehensive: every check carries a command, exit code, report path, and this commit's SHA. The implementation concerns from v6.0 are answered. Strengths verified at HEAD:
+- Determinism: `AllJsonl` hash is byte-identical to base — the correct pass condition; confirms the layout work did not leak into the sim event stream.
+- The full non-headless movement smoke is green (323/1958/0) and exercises the actual layout changes (seat-reach, POS-right-end `+X`, height-parity 1.72m, OV1 office round-trip), not just the untouched sim core.
+- The menu-loading change is confirmed safe in a real rendered close-up (R4).
+- Codex surfaced the headless stall honestly rather than burying it, and did not fake the gate.
 
-Accepted: OV1 office-door reachability is genuinely closed (machine-proven at HEAD). Codex also behaved correctly under the gate rule — it did not falsely mark the gate passed and it surfaced the failing stall rather than hiding it.
-
-Codex v6.1 update: R1–R4 are closed at actual HEAD `0d8c259`. The full rendered movement parser is green, the deterministic hash is re-confirmed, real screenshots exist, and the menu texture renders in a non-headless close-up. D-STALL is ready for Claude/Michael decision.
-
-Also flag (scope): the `lobby_menu.png` loading change is a new, harness-motivated change not in the original packet — allowed path, and now confirmed real-game-safe in non-headless render evidence (R4).
+Non-blocking notes for the record:
+1. D-STALL (above) — Michael's call; non-reproduced ≠ resolved.
+2. Auditability: deterministic replay was produced by a temporary out-of-repo helper rather than the canonical `engine-selftest` byte-identical assertion. The matching hash makes it credible; routing it through the repo tool would be more auditable. Confirm whether the 120/120 self-test already embeds the canonical byte-identical check.
+3. "Static Analysis" is `py_compile` of the parser script only — it does not analyze the C# game code (the build's warn-as-error on NU1605/SYSLIB0011 is the C# guard).
 
 Reviewed By: Claude Opus — 2026-06-19.
 
 ## Codex Implementation Summary
 
-Changed files (allowed paths): `WorldBuilder.cs` (typed seat metadata; POS `+X`; fryer to office wall; walk-in 110%; office door/window/desk; employee-only break booth; reworked lobby furniture; furniture obstacle proxies; v5.1: `lobby_menu.png` `ResourceLoader`→`ImageTexture` to remove a headless load error). `CrowdCoordinator.cs` (typed seats; break booth slots; right-end POS slots; emits `ApparentHeight`). `CustomerAgent.cs` (seated yaw + tray target; align + place tray). `AgentManager.cs` (`CharacterTargetHeight=1.72f`; fixed customer scale). `CharacterRig.cs` (AABB/fallback height normalization; bounded work fallback; no `GlobalTransform` before tree entry). `assert_movement.py` (dining-seat, POS-right-end, height-parity, one-sample exemption; v5.1 manager-office round-trip probe support). `movement_smoke_runner.gd` (v5.1 OV1 probe; skips screenshots under headless dummy renderer). `HANDOFF.md`.
-Untracked evidence includes prior smoke runs plus current HEAD artifacts: `test-artifacts/movement-smoke/20260619_222253/`, `test-artifacts/menu-render-check/`, `test-artifacts/compat-bundles/current-head-normal-day-csharp/`, and `test-artifacts/packaging/`. Do not commit unless Michael wants artifacts retained. `CrowdCoordinator.cs.uid` left per repo convention.
+Changed files (allowed paths): `WorldBuilder.cs` (typed seat metadata; POS `+X`; fryer to office wall; walk-in 110%; office door/window/desk; employee-only break booth; reworked lobby furniture; furniture obstacle proxies; `lobby_menu.png` `ResourceLoader`→`ImageTexture`). `CrowdCoordinator.cs` (typed seats; break booth slots; right-end POS slots; emits `ApparentHeight`). `CustomerAgent.cs` (seated yaw + tray target; align + place tray). `AgentManager.cs` (`CharacterTargetHeight=1.72f`; fixed customer scale). `CharacterRig.cs` (AABB/fallback height normalization; bounded work fallback; no `GlobalTransform` before tree entry). `assert_movement.py` (dining-seat, POS-right-end, height-parity, one-sample exemption; manager-office round-trip probe support). `movement_smoke_runner.gd` (OV1 probe; skips screenshots under headless dummy renderer). `HANDOFF.md`.
+Untracked evidence at HEAD: `test-artifacts/movement-smoke/20260619_222253/`, `test-artifacts/menu-render-check/`, `test-artifacts/compat-bundles/current-head-normal-day-csharp/`, `test-artifacts/packaging/`. Do not commit unless Michael wants artifacts retained. `CrowdCoordinator.cs.uid` left per repo convention.
 
 ## Verification Gate (run at HEAD `0d8c2595b39af52f09d5c8b368819240af5abc06`)
 
 Build: PASSED
 Unit Tests: PASSED
 Integration Tests: PASSED
-Static Analysis: PASSED
+Static Analysis: PASSED (py_compile of parser only — see review note 3)
 Schema Validation: PASSED
 Deterministic Replay: PASSED
 Save/Load Compatibility: PASSED
@@ -96,35 +104,36 @@ Generated File Check: PASSED
 Status: PASSED
 Allowed: NOT_RUN | FAILED | PASSED | BLOCKED
 Evidence:
-- Build command: `dotnet build game\RestaurantSimulator.csproj --nologo`; exit code 0; report path: console output; commit SHA `0d8c2595b39af52f09d5c8b368819240af5abc06`.
-- Unit/integration/schema command: `python -m unittest discover -s tests -v`; exit code 0; 35 tests run, 14 skipped because no bundle was provided in that broad discovery run; report path: console output; commit SHA `0d8c2595b39af52f09d5c8b368819240af5abc06`.
-- Static analysis command: `python -m py_compile test-artifacts\movement-smoke\assert_movement.py`; exit code 0; report path: console output; commit SHA `0d8c2595b39af52f09d5c8b368819240af5abc06`.
-- Engine self-test command: `dotnet run --project tools\engine-selftest\harness.csproj`; exit code 0; report path: console output; result PASS 120/120, ingredient 10/10, career 11/11; commit SHA `0d8c2595b39af52f09d5c8b368819240af5abc06`.
-- Deterministic replay command: temporary out-of-repo .NET helper using same sim sources; exit code 0; `AllJsonlHash=05464c886b33616332885744d215ee7fc7ef8ec0f18384c67b05db17e83d18b6`, events 8923, orders 792, completed 763, validation OK; commit SHA `0d8c2595b39af52f09d5c8b368819240af5abc06`.
-- C# export bundle command: temporary out-of-repo .NET helper using `Exports.BuildAll`; exit code 0; report path: `test-artifacts/compat-bundles/current-head-normal-day-csharp`; exported 8 files; commit SHA `0d8c2595b39af52f09d5c8b368819240af5abc06`.
-- Save/load compatibility command: `$env:RS_COMPAT_BUNDLES=<current-head-normal-day-csharp>; python -m unittest tests.test_compatibility -v`; exit code 0; 14 tests OK; report path: `test-artifacts/compat-bundles/current-head-normal-day-csharp`; commit SHA `0d8c2595b39af52f09d5c8b368819240af5abc06`.
-- Runtime smoke command: Godot 4.6.3 mono console non-headless `--path game --script ..\test-artifacts\movement-smoke\movement_smoke_runner.gd`; exit code 0; report path: `test-artifacts/movement-smoke/20260619_222253`; screenshots `00_start.png` through `05_overhead.png`; `manager_office_roundtrip.json` PASS; commit SHA `0d8c2595b39af52f09d5c8b368819240af5abc06`.
-- Runtime parser command: `python test-artifacts\movement-smoke\assert_movement.py test-artifacts\movement-smoke\20260619_222253`; exit code 0; report path: `test-artifacts/movement-smoke/20260619_222253/movement_summary.json`; PASS 323 samples / 1958 agent samples / 0 failures; commit SHA `0d8c2595b39af52f09d5c8b368819240af5abc06`.
-- Menu render confirmation command: temporary non-headless Godot close-up runner; exit code 0; report path: `test-artifacts/menu-render-check/menu_board_closeup_inside.png`; `lobby_menu.png` visible on board; commit SHA `0d8c2595b39af52f09d5c8b368819240af5abc06`.
-- Packaging command: `dotnet publish game\RestaurantSimulator.csproj -c Debug --nologo --no-restore -o test-artifacts\packaging\RestaurantSimulator-debug`; exit code 0; report path: `test-artifacts/packaging/RestaurantSimulator-debug`; commit SHA `0d8c2595b39af52f09d5c8b368819240af5abc06`.
-- Generated file check command: `git status --short --ignored`; exit code 0; expected untracked evidence only under `test-artifacts/compat-bundles/`, `test-artifacts/menu-render-check/`, `test-artifacts/movement-smoke/20260619_222253/`, `test-artifacts/packaging/`; ignored local build/cache artifacts present (`game/.godot/`, `__pycache__`, `tools/engine-selftest/bin|obj`, packaged DLL/PDB). No source files modified by generated output; commit SHA `0d8c2595b39af52f09d5c8b368819240af5abc06`.
+- Build: `dotnet build game\RestaurantSimulator.csproj --nologo`; exit 0; SHA `0d8c259`.
+- Unit/integration/schema: `python -m unittest discover -s tests -v`; exit 0; 35 run, 14 skipped (no bundle in broad run — those 14 run under Save/Load below); SHA `0d8c259`.
+- Static analysis: `python -m py_compile test-artifacts\movement-smoke\assert_movement.py`; exit 0; SHA `0d8c259`.
+- Engine self-test: `dotnet run --project tools\engine-selftest\harness.csproj`; exit 0; PASS 120/120, 10/10, 11/11; SHA `0d8c259`.
+- Deterministic replay: temporary out-of-repo .NET helper (same sim sources); exit 0; `AllJsonlHash=05464c88…e83d18b6`, events 8923/orders 792/completed 763, validation OK; SHA `0d8c259`.
+- C# export bundle: temporary helper `Exports.BuildAll`; exit 0; 8 files → `test-artifacts/compat-bundles/current-head-normal-day-csharp`; SHA `0d8c259`.
+- Save/load compat: `RS_COMPAT_BUNDLES=<…csharp>; python -m unittest tests.test_compatibility -v`; exit 0; 14 OK; SHA `0d8c259`.
+- Runtime smoke: Godot 4.6.3 mono console **non-headless** `--path game --script ..\test-artifacts\movement-smoke\movement_smoke_runner.gd`; exit 0; screenshots `00_start.png`–`05_overhead.png`; `manager_office_roundtrip.json` PASS; SHA `0d8c259`.
+- Runtime parser: `python test-artifacts\movement-smoke\assert_movement.py …\20260619_222253`; exit 0; `movement_summary.json` PASS 323/1958/0; SHA `0d8c259`.
+- Menu render: temporary non-headless close-up runner; exit 0; `test-artifacts/menu-render-check/menu_board_closeup_inside.png`; SHA `0d8c259`.
+- Packaging: `dotnet publish game\RestaurantSimulator.csproj -c Debug --nologo --no-restore -o test-artifacts\packaging\RestaurantSimulator-debug`; exit 0; SHA `0d8c259`.
+- Generated file check: `git status --short --ignored`; exit 0; only expected untracked evidence + ignored build/cache; no source modified by generated output; SHA `0d8c259`.
 
 ### Gate Rule
 Task may not move to READY_FOR_CLAUDE_REVIEW unless all required checks pass. Task may not move to APPROVED_FOR_MERGE unless: gate passes; Claude completes review; unresolved blocking risks are zero; Michael approves the merge. Codex: do not mark a check passed by inspection/reasoning; a check passes only when its command completes with verifiable output. Do not weaken/skip/delete failing tests to obtain a pass; if a check cannot run, mark BLOCKED with the exact reason.
 
 ## Validation Evidence (status @ HEAD)
 
-- OV1 office round-trip: `20260619_222253/manager_office_roundtrip.json` PASS at HEAD.
-- Movement parser `20260619_222253`: PASS 323 / 1958 / 0 at HEAD.
-- Build PASS 0/0, self-test PASS 120/120/10/10/11/11 at HEAD.
-- Byte-identical hash at HEAD: `05464c886b33616332885744d215ee7fc7ef8ec0f18384c67b05db17e83d18b6`.
-- Screenshots at HEAD: `test-artifacts/movement-smoke/20260619_222253/00_start.png` through `05_overhead.png`; menu close-up `test-artifacts/menu-render-check/menu_board_closeup_inside.png`.
+- OV1 office round-trip `20260619_222253`: PASS at HEAD.
+- Movement parser `20260619_222253`: PASS 323/1958/0 at HEAD.
+- Build PASS 0/0; self-test PASS 120/120/10/10/11/11 at HEAD.
+- Byte-identical hash at HEAD `05464c88…e83d18b6` — matches base.
+- Compat 14/14 OK; packaging publish OK; generated-file check clean.
+- Screenshots at HEAD `00_start.png`–`05_overhead.png`; menu close-up `menu_board_closeup_inside.png`.
 
 ## Known Risks (residual)
 
-- Mobile-entry stall (`cust_ord_000002` entering `mobile_entry_0`) — non-reproduced in full rendered smoke; no longer a current gate failure. Claude/Michael may still request repeated stress smokes before merge.
-- `lobby_menu.png` loading change — confirmed real-game-safe in non-headless close-up render.
+- Mobile-entry stall (`cust_ord_000002` → `mobile_entry_0`) — non-reproduced in full rendered smoke; not a current gate failure; recorded as non-reproduced, not resolved (D-STALL).
 - Office window sightlines / desk facing and close-up seating/clipping remain visual-gate only (OV2).
+- Deterministic replay via temporary helper rather than canonical tool (auditability; review note 2).
 
 ## Rollback
 
@@ -133,10 +142,10 @@ Targeted restoring commit or revert of implementation commit(s) up to `0d8c259`.
 ## Michael Approval
 
 Specification Approved: `APPROVED 2026-06-19`
-Material Decisions: `M1–M4 APPROVED`; height `RATIFIED 1.72m`; D-STALL `READY_FOR_CLAUDE_DECISION`
-Human Visual Smoke: `PENDING` (binding — OV2; fresh HEAD screenshots now available for review)
-Merge Approved: `PENDING` (gate passed; still requires Claude review and Michael approval)
+Material Decisions: `M1–M4 APPROVED`; height `RATIFIED 1.72m`; D-STALL `READY_FOR_MICHAEL`
+Human Visual Smoke: `PENDING` (binding — OV2; fresh HEAD screenshots available)
+Merge Approved: `PENDING` (gate PASSED + Claude review cleared; awaits OV2 + D-STALL + Michael approval)
 
 ## Next Authorized Action
 
-Claude re-reviews v6.1 evidence at HEAD `0d8c259`; Michael decides D-STALL and completes OV2 visual smoke. No merge until Claude review is complete, unresolved blocking risks are zero, and Michael approves merge.
+Michael: (1) decide D-STALL — accept-as-is, request 2–3 confirmation smokes, or split a watch follow-up; (2) perform the binding OV2 visual smoke on the HEAD screenshots (seating alignment, right-end POS service, work animation, office windows/door/desk, furniture clipping); (3) grant merge if both close. No further source edits unless OV2 or D-STALL surfaces a defect, which would scope a new packet.
