@@ -97,7 +97,7 @@ public static class WorldBuilder
         Station(w, L, "pos_register_2", new Vector3(5.0f, 1.2f, -1.0f), new Vector3(0.4f, 0.35f, 0.3f), DarkSteel, "POS 2", hide: true);
         // (6) mobile-order pickup sits on the LEFT end of the counter
         Station(w, L, "mobile_shelf", new Vector3(-5.5f, 1.2f, -1.0f), new Vector3(1.0f, 1.4f, 0.45f), Steel, "MOBILE PICKUP");
-        Box(w, new Vector3(7, 1.0f, 0.1f), new Vector3(-0.5f, 3.35f, -1.6f), new Color(0.12f, 0.12f, 0.14f), "menu_board");
+        MenuBoard(w, new Vector3(7.2f, 1.8f, 0.08f), new Vector3(-0.5f, 3.1f, -1.6f), "menu_board");
 
         // ---------- kitchen: drive-thru-first production line ----------
         // Model facing via yaw: 0=+Z(front), 90=+X(right), 180=-Z(back), 270=-X(left).
@@ -326,6 +326,29 @@ public static class WorldBuilder
             Position = pos,
             Name = name,
             MaterialOverride = new StandardMaterial3D { AlbedoColor = color, Roughness = 0.85f }
+        };
+        parent.AddChild(mi);
+        return mi;
+    }
+
+    static MeshInstance3D MenuBoard(Node3D parent, Vector3 size, Vector3 pos, string name)
+    {
+        var mat = new StandardMaterial3D
+        {
+            AlbedoColor = Colors.White,
+            Roughness = 0.7f,
+            EmissionEnabled = true,
+            Emission = Colors.White,
+            EmissionEnergyMultiplier = 0.18f
+        };
+        var tex = ResourceLoader.Load<Texture2D>("res://assets/lobby_menu.png");
+        if (tex != null) mat.AlbedoTexture = tex;
+        var mi = new MeshInstance3D
+        {
+            Mesh = new BoxMesh { Size = size },
+            Position = pos,
+            Name = name,
+            MaterialOverride = mat
         };
         parent.AddChild(mi);
         return mi;
