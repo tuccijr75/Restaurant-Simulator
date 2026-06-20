@@ -1,0 +1,43 @@
+{
+  "status": "pass",
+  "samples": 323,
+  "agents_seen": 1958,
+  "failures": [],
+  "office_roundtrip": {
+    "passed_agents": [],
+    "probe": {
+      "agent_id": "emp_28",
+      "depart_frame": 41,
+      "departed": true,
+      "max_distance_m": 2.0428189261419,
+      "return_frame": 72,
+      "returned": true,
+      "status": "pass"
+    }
+  },
+  "thresholds": {
+    "overlap_distance_m": 0.45,
+    "overlap_seconds": 2.0,
+    "stuck_seconds": 4.0,
+    "stuck_target_distance_m": 0.75,
+    "outside_food_seconds": 5.0,
+    "ordering_counter_seconds": 12.0,
+    "ordering_kiosk_seconds": 18.0,
+    "pickup_seconds": 20.0,
+    "waiting_seconds": 180.0,
+    "enter_seconds": 20.0,
+    "dining_seconds": 130.0,
+    "busing_seconds": 30.0,
+    "leave_seconds": 25.0,
+    "jitter_window_seconds": 4.0,
+    "jitter_min_path_m": 0.45,
+    "jitter_max_net_m": 0.12,
+    "walkin_proximity_seconds": 2.0,
+    "walkin_proximity_distance_m": 0.8,
+    "dining_arrival_seconds": 8.0,
+    "right_pos_min_x": 3.0,
+    "height_tolerance_m": 0.04,
+    "office_departure_distance_m": 2.0,
+    "office_return_radius_m": 0.75
+  }
+}
